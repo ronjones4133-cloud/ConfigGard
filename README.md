@@ -90,9 +90,10 @@ ShipGard is the first module in the ConfigGard suite. Planned modules:
 | Module | Problem it solves |
 |---|---|
 | **ShipGard** | Dynamic Ship carrier alignment *(current)* |
-| **PayGard** | Freight collect, third-party, and receiver account setup validation |
-| **TemplateGard** | Package template and service-code mismatch detection |
-| **RouteGard** | Shipment method, carrier, and agent/service default validation |
+| **PlanSync** | Inventory planning parameter validation — ADU, Min/Max, MOQ, lead times |
+| **PriceSync** | Customer pricing alignment across price groups and tiers |
+| **ItemSync** | Item master data completeness and posting group validation |
+| **VendorSync** | Vendor and supplier alignment across purchase setup |
 
 ---
 
