@@ -1,0 +1,1014 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShipGard™ — Config Alignment for Business Central</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --navy-deep:#081525; --navy:#0D1F35; --navy-mid:#162942; --navy-border:#1E3550;
+  --gold:#E9A535; --gold-dim:#b87d1f;
+  --red:#C0392B; --red-bg:#fce4d6; --red-border:#e8a090;
+  --orange:#d4820a; --orange-bg:#fff2cc; --orange-border:#f0c870;
+  --green:#27AE60; --green-bg:#e2efda; --green-border:#90c87a;
+  --gray:#f5f6f8; --gray-mid:#e0e2e6; --dark:#1a1a2e;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:#ffffff;color:var(--dark);font-size:13px}
+
+nav{background:var(--navy-deep);padding:0 32px;height:52px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--navy-border)}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-dot{width:9px;height:9px;background:var(--gold);border-radius:50%;box-shadow:0 0 8px rgba(233,165,53,.4)}
+.nav-name{color:#fff;font-size:16px;font-weight:800;letter-spacing:-.3px}
+.nav-name sup{color:var(--gold);font-size:9px;vertical-align:super;font-weight:600}
+.nav-suite{color:rgba(255,255,255,.3);font-size:11px;margin-left:2px}
+.nav-tag{color:rgba(255,255,255,.3);font-size:11px}
+
+/* HERO */
+#hero{background:linear-gradient(140deg,var(--navy-deep) 0%,#0f2440 45%,#112035 100%);padding:52px 32px 48px;position:relative;overflow:hidden;transition:padding .3s;min-height:calc(100vh - 52px);display:flex;flex-direction:column;justify-content:center}
+#hero::after{content:'';position:absolute;right:-60px;top:-60px;width:400px;height:400px;background:radial-gradient(circle,rgba(233,165,53,.06) 0%,transparent 70%);pointer-events:none}
+#hero.compact{padding:16px 32px}
+#hero.compact .hero-left{display:none}
+#hero.compact .hero-right{opacity:.4;pointer-events:none}
+.hero-grid{max-width:1140px;margin:0 auto;display:grid;grid-template-columns:1fr 480px;gap:56px;align-items:stretch;position:relative;z-index:1;width:100%}
+.hero-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.hero-eyebrow span{background:rgba(233,165,53,.12);border:1px solid rgba(233,165,53,.25);color:var(--gold);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+h1{font-size:38px;font-weight:900;color:#fff;line-height:1.12;letter-spacing:-.6px;margin-bottom:18px}
+h1 em{font-style:normal;color:var(--gold)}
+.hero-desc{color:rgba(255,255,255,.6);font-size:14px;line-height:1.75;margin-bottom:28px;max-width:440px}
+.hero-feats{display:flex;flex-direction:column;gap:8px}
+.feat{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.55);font-size:12px}
+.feat::before{content:'';width:4px;height:4px;background:var(--gold);border-radius:50%}
+
+/* DROP ZONE */
+.drop-card{background:rgba(255,255,255,.035);border:1.5px dashed rgba(255,255,255,.18);border-radius:16px;padding:36px 28px;cursor:pointer;transition:all .2s;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center}
+.drop-card:hover,.drop-card.drag{background:rgba(233,165,53,.05);border-color:rgba(233,165,53,.5)}
+.drop-icon{font-size:38px;margin-bottom:14px;display:block}
+.drop-title{color:#fff;font-size:15px;font-weight:700;margin-bottom:6px}
+.drop-sub{color:rgba(255,255,255,.4);font-size:12px;line-height:1.6;margin-bottom:20px}
+.drop-tables{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dtag{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;text-align:left}
+.dtag .tname{color:#fff;font-size:13px;font-weight:700;display:block;margin-bottom:3px}
+.dtag .tid{color:var(--gold);font-family:monospace;font-size:10px;opacity:.8}
+#fileInput{display:none}
+
+/* MAIN */
+#main{padding:0 32px;max-width:1200px;margin:0 auto;width:100%;background:#ffffff}
+
+.sbar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin:16px 0 0;display:flex;align-items:center;gap:10px;font-size:12px;display:none}
+.sbar.on{display:flex}
+.sbar.loading{border-color:#2980b9;background:#ebf5fb}
+.sbar.ok{border-color:var(--green-border);background:var(--green-bg)}
+.sbar.err{border-color:var(--red-border);background:var(--red-bg)}
+.spin{width:14px;height:14px;border:2px solid var(--gray-mid);border-top-color:#2980b9;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* TOTAL BANNER */
+.total-banner{background:var(--navy);border:1px solid var(--navy-border);border-radius:12px;padding:20px 28px;margin:16px 0 12px;display:flex;align-items:center;gap:20px;box-shadow:0 4px 20px rgba(8,21,37,.3)}
+.total-num{font-size:52px;font-weight:900;color:var(--gold);line-height:1;letter-spacing:-2px;min-width:80px;font-variant-numeric:tabular-nums}
+.total-right{flex:1}
+.total-label{color:rgba(255,255,255,.45);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.total-sub{color:rgba(255,255,255,.6);font-size:13px;line-height:1.5}
+.total-sub strong{color:#fff}
+.total-icon{font-size:32px;margin-left:auto;opacity:.4}
+@keyframes pulse-gold{0%,100%{box-shadow:0 4px 20px rgba(8,21,37,.3)}50%{box-shadow:0 4px 30px rgba(233,165,53,.15)}}
+.total-banner.animate{animation:pulse-gold 2s ease-in-out 3}
+
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.card{background:#f5f6f8;border-radius:10px;padding:16px 18px;border:1px solid var(--gray-mid);box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card .num{font-size:28px;font-weight:800;line-height:1}
+.card .lbl{font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.card.red{border-color:var(--red-border);background:var(--red-bg)}.card.red .num{color:var(--red)}
+.card.orange{border-color:var(--orange-border);background:var(--orange-bg)}.card.orange .num{color:var(--orange)}
+.card.green{border-color:var(--green-border);background:var(--green-bg)}.card.green .num{color:var(--green)}
+.card.gray{border-color:#d0d0d0;background:#f8f8f8}.card.gray .num{color:#666}
+.card.navy-card{border-color:var(--navy-border);background:var(--navy)}.card.navy-card .num,.card.navy-card .lbl{color:#fff}.card.navy-card .lbl{color:var(--gold)}
+
+.action-bar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.btn{padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--navy);color:#fff}.btn-primary:hover{background:var(--navy-mid)}
+.btn-primary:disabled{background:#aaa;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--navy-deep);font-weight:800}.btn-gold:hover{background:var(--gold-dim);color:#fff}
+.btn-outline{background:#fff;color:var(--navy);border:1.5px solid var(--gray-mid)}.btn-outline:hover{border-color:var(--navy);background:var(--gray)}
+.fnote{color:#aaa;font-size:11px;margin-left:4px}
+
+.tabs{display:flex;gap:3px;border-bottom:2px solid var(--gray-mid)}
+.tab{padding:8px 14px;border-radius:7px 7px 0 0;cursor:pointer;font-size:11px;font-weight:700;color:#888;background:transparent;border:none;transition:all .15s;text-transform:uppercase;letter-spacing:.2px}
+.tab:hover{background:var(--gray);color:var(--dark)}
+.tab.active{background:var(--navy);color:#fff}
+.tab-badge{border-radius:10px;padding:1px 7px;font-size:10px;margin-left:5px}
+.tab.active .tab-badge{background:rgba(255,255,255,.2)}
+.tab:not(.active) .tab-badge{background:var(--gray-mid);color:#666}
+
+.tab-panel{display:none;background:#ffffff;border:1px solid var(--gray-mid);border-top:none;border-radius:0 0 10px 10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.tab-panel.active{display:block}
+table.itbl{width:100%;border-collapse:collapse;font-size:12px}
+table.itbl th{background:#f0f2f5;color:#666;font-weight:700;padding:9px 11px;text-align:left;border-bottom:2px solid var(--gray-mid);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.3px;position:sticky;top:0}
+table.itbl td{padding:8px 11px;border-bottom:1px solid #f2f3f5;vertical-align:top;line-height:1.5}
+table.itbl tr:last-child td{border-bottom:none}
+table.itbl tr:hover td{background:#fafbfc}
+
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+.badge.high{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.badge.medium{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.val-old{color:var(--red);text-decoration:line-through;font-family:monospace;font-size:11px}
+.val-new{color:var(--green);font-family:monospace;font-size:11px;font-weight:700}
+.fix-chk{accent-color:var(--navy);width:14px;height:14px;cursor:pointer}
+.empty-state{padding:40px;text-align:center;color:#ccc;font-size:13px}
+.table-breakdown{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tbl-chip{background:#fff;border:1px solid var(--gray-mid);border-radius:8px;padding:10px 14px;flex:1;min-width:160px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.tbl-chip .tc-count{font-size:22px;font-weight:800;color:var(--navy);line-height:1}
+.tbl-chip .tc-name{font-size:11px;font-weight:700;color:#555;margin-top:2px}
+.tbl-chip .tc-id{font-size:10px;color:var(--gold);font-family:monospace;margin-top:1px}
+.tbl-chip.has-changes{border-color:var(--navy-border);background:linear-gradient(135deg,#f8f9fc,#fff)}
+
+/* Claude prompt box */
+.claude-box{background:var(--navy);border-radius:10px;padding:20px;margin-bottom:16px;display:none}
+.claude-box h3{color:var(--gold);font-size:13px;margin-bottom:8px}
+.claude-box p{color:rgba(255,255,255,.5);font-size:12px;line-height:1.7;margin-bottom:14px}
+.claude-prompt{background:rgba(255,255,255,.05);border:1px solid var(--navy-border);border-radius:7px;padding:14px;font-size:11px;color:rgba(255,255,255,.7);font-family:monospace;max-height:180px;overflow-y:auto;white-space:pre-wrap;line-height:1.6;display:none;margin-bottom:14px}
+.claude-btns{display:flex;gap:8px}
+
+/* Warning modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(8,21,37,.8);z-index:1000;display:flex;align-items:center;justify-content:center;display:none}
+.modal-overlay.on{display:flex}
+.modal{background:#fff;border-radius:14px;padding:32px;max-width:440px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal-icon{font-size:44px;margin-bottom:14px}
+.modal h2{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:10px}
+.modal p{color:#666;font-size:13px;line-height:1.7;margin-bottom:24px}
+.modal-highlight{background:var(--orange-bg);border:1px solid var(--orange-border);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--orange);font-weight:600;margin-bottom:24px;line-height:1.6}
+.modal-btns{display:flex;gap:10px;justify-content:center}
+
+footer{background:var(--navy-deep);padding:24px 32px;border-top:1px solid var(--navy-border);text-align:center}
+footer p{color:rgba(255,255,255,.28);font-size:11px;line-height:1.9}
+footer a{color:rgba(255,255,255,.5);text-decoration:none;transition:color .15s}
+footer a:hover{color:var(--gold)}
+.footer-copy{margin-top:6px;color:rgba(255,255,255,.18);font-size:10px;letter-spacing:.3px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-dot"></div>
+    <span class="nav-name">ShipGard<sup>™</sup></span>
+    <span class="nav-suite">&nbsp;by ConfigGard</span>
+  </div>
+  <span class="nav-tag">Config Alignment for Business Central + Dynamic Ship</span>
+</nav>
+
+<div id="hero">
+  <div class="hero-grid">
+    <div class="hero-left">
+      <div class="hero-eyebrow"><span>Config Alignment Tool</span></div>
+      <h1>Most misconfigurations<br>go undetected<br><em>until a shipment fails.</em></h1>
+      <p class="hero-desc">ShipGard cross-references your carrier setup across all four Dynamic Ship tables and surfaces every conflict — carrier mismatches, missing templates, payment classification errors — before they hit the dock.</p>
+      <div class="hero-feats">
+        <div class="feat">Four-table cross-reference in seconds</div>
+        <div class="feat">Auto-fix and export back to BC — targeted rows only</div>
+        <div class="feat">Carrier, payment type, and template validation</div>
+        <div class="feat">Runs entirely in your browser — no data leaves your machine</div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="drop-card" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <span class="drop-icon">📦</span>
+        <div class="drop-title">Drop your BC config export here</div>
+        <div class="drop-sub">Export your Dynamic Ship config package from Business Central as Excel. All four tables must be present.</div>
+        <div class="drop-tables">
+          <div class="dtag"><span class="tname">Customer</span><span class="tid">Table 18</span></div>
+          <div class="dtag"><span class="tname">Ship-to Address</span><span class="tid">Table 222</span></div>
+          <div class="dtag"><span class="tname">Package Options</span><span class="tid">Table 23044608</span></div>
+          <div class="dtag"><span class="tname">Customer Options</span><span class="tid">Table 23044614</span></div>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx">
+    </div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="sbar" class="sbar"></div>
+  <div id="results" style="display:none;padding:24px 0 40px">
+    <!-- Total banner -->
+    <div class="total-banner" id="totalBanner">
+      <div class="total-num" id="totalNum">0</div>
+      <div class="total-right">
+        <div class="total-label">Issues Detected</div>
+        <div class="total-sub" id="totalSub">Analyzing…</div>
+      </div>
+      <div class="total-icon">⚠️</div>
+    </div>
+    <!-- 5-card grid -->
+    <div class="summary-grid">
+      <div class="card green"><div class="num" id="cAuto">0</div><div class="lbl">✅ Safe Fix Findings</div></div>
+      <div class="card navy-card"><div class="num" id="cExport">0</div><div class="lbl">📦 Correction Rows</div></div>
+      <div class="card orange"><div class="num" id="cMed">0</div><div class="lbl">🔍 Key-Field Review</div></div>
+      <div class="card gray"><div class="num" id="cManual">0</div><div class="lbl">📋 Manual Only</div></div>
+    </div>
+    <!-- Per-table breakdown -->
+    <div class="table-breakdown" id="tableBreakdown"></div>
+    <!-- Action bar -->
+    <div class="action-bar">
+      <button class="btn btn-primary" id="btnExport" onclick="SG.export()">📦 Export Safe Correction Package</button>
+      <button class="btn btn-gold" onclick="SG.buildPrompt()">🤖 Analyze with Claude</button>
+      <button class="btn btn-outline" onclick="SG.reset()">↩ Load New File</button>
+      <span class="fnote" id="fixNote"></span>
+      <span class="fnote" id="exclNote" style="color:#aaa;font-style:italic"></span>
+    </div>
+    <!-- Claude box -->
+    <div class="claude-box" id="claudeBox">
+      <h3>🤖 Ready for Claude Analysis</h3>
+      <p>Copy the prompt below and paste it into <a href="https://claude.ai" target="_blank" style="color:var(--gold)">claude.ai</a> for AI-powered pattern analysis, LTL detection, and prioritized recommendations.</p>
+      <div class="claude-prompt" id="claudePrompt"></div>
+      <div class="claude-btns">
+        <button class="btn btn-gold" onclick="SG.copyPrompt()">📋 Copy Prompt</button>
+        <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,.15)" onclick="window.open('https://claude.ai','_blank')">↗ Open Claude.ai</button>
+      </div>
+    </div>
+    <!-- Tabs -->
+    <div class="tabs" id="tabBar"></div>
+    <div id="tabPanels"></div>
+  </div>
+</div>
+
+<!-- Warning modal -->
+<div class="modal-overlay" id="warnModal">
+  <div class="modal">
+    <div class="modal-icon">💾</div>
+    <h2>Before you download</h2>
+    <p>ShipGard will generate two files. Save them with the original BC export so you have a clean audit trail.</p>
+    <div class="modal-highlight">
+      📁 1. Create a folder named <strong>ShipGard_[today's date]</strong><br>
+      💾 2. Save the original BC config export in that folder<br>
+      📥 3. Download both ShipGard files into the same folder<br><br>
+      This gives you a complete before/after record for every recommended change.
+    </div>
+    <p style="font-size:12px;color:#555;margin-bottom:20px;line-height:1.8">
+      <strong>ShipGard_Preflight_Report_[date].xlsx</strong><br>
+      Full findings report with issue category, action type, risk notes, and manual-review items.<br><br>
+      <strong>ShipGard_Safe_Corrections_[date].xlsx</strong><br>
+      Safe correction package only. Review the Preflight Report first, then import into BC after approval.
+    </p>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="SG.closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="SG.doExport()">Understood — Download Both Files</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>ShipGard™ is part of the <strong style="color:rgba(255,255,255,.45)">ConfigGard™</strong> suite of Business Central alignment tools.</p>
+  <p>Built by <a href="https://www.linkedin.com/in/ronjones4133/" target="_blank">Ron Jones</a> · Supply Chain &amp; ERP Systems</p>
+  <div class="footer-copy">© 2026 ConfigGard · All rights reserved · Source code proprietary · Not affiliated with Microsoft Corporation or Integrated Warehouse Solutions</div>
+</footer>
+
+<script>
+const SG = (function() {
+  const COLS = {
+    cust:  ['No.','Name','Address','City','Ship-to Code','Shipment Method Code','Shipping Agent Code','Country/Region Code','ZIP Code','Shipping Agent Service Code','Default Label UOM','Shipping Notes'],
+    shipto:['Customer No.','Code','Name','Address','City','Shipment Method Code','Shipping Agent Code','Country/Region Code','ZIP Code','Shipping Agent Service Code'],
+    pkg:   ['Package No.','Bill Receiver Account No.','Bill Receiver Post Code','Bill Third Party Account No.','Bill Third Party Country Code','Bill Third Party Post Code','Created By','Entry Type','Description','Payment Type','Payment Account No.','Payment State','Payment Zip','Payment Country'],
+    co:    ['Customer No.','Ship-To Code','Shipping Agent Code','Shipping Agent Service Code','Shipment Options Template Code','Package Options Template Code']
+  };
+  const CL = 'ABCDEFGHIJKLMN';
+  const LTL = ['RYDER','ATS','OLD DOMINION','ODFL','CH ROBINSON','ESTES','JBHUNT','JB HUNT','TCW','ABF','SAIA','XPO','DAYTON FREIGHT','AVERITT','PITT OHIO'];
+  const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+
+  let zip = null, rawData = {}, data = {cust:[],shipto:[],pkg:[],co:[]}, issues = [], promptText = '';
+
+  // drag & drop
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); load(e.dataTransfer.files[0]); });
+  document.getElementById('fileInput').addEventListener('change', e => load(e.target.files[0]));
+
+  async function load(file) {
+    if (!file) return;
+    window._sgStart = Date.now();
+    sb('loading', 'Reading ' + file.name + '…');
+    document.getElementById('hero').classList.add('compact');
+    try {
+      const ab = await file.arrayBuffer();
+      zip = await JSZip.loadAsync(ab);
+      // Validate all four sheets are present
+      const sheetLabels = {1:'Customer (Table 18)',2:'Ship-to Address (Table 222)',
+        3:'Package Options (Table 23044608)',4:'Customer Options (Table 23044614)'};
+      for (let i = 1; i <= 4; i++) {
+        if (!zip.file('xl/worksheets/sheet'+i+'.xml')) {
+          throw new Error('Missing required table: '+sheetLabels[i]+'. Re-export your BC config package with all four tables included.');
+        }
+      }
+      rawData = {};
+      for (let i = 1; i <= 4; i++) {
+        rawData[i] = await zip.file('xl/worksheets/sheet'+i+'.xml').async('string');
+      }
+      await parseAll();
+      runChecks();
+      render();
+      const elapsed = ((Date.now() - window._sgStart) / 1000).toFixed(1);
+      sb('ok', '✓ Analysis complete in ' + elapsed + 's · ' + data.cust.length + ' customers · ' + data.shipto.length + ' ship-to · ' + issues.length + ' issues found');
+      setTimeout(() => {
+        document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+      }, 200);
+    } catch(e) {
+      sb('err', '✗ ' + e.message);
+      document.getElementById('hero').classList.remove('compact');
+    }
+  }
+
+  async function parseAll() {
+    const map = {cust:1, shipto:2, pkg:3, co:4};
+    for (const [k, n] of Object.entries(map)) {
+      data[k] = parseRows(rawData[n], COLS[k]);
+    }
+  }
+
+  function parseRows(xml, cols) {
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const result = [];
+    for (const row of doc.getElementsByTagNameNS(NS, 'row')) {
+      const r = parseInt(row.getAttribute('r'));
+      if (r < 4) continue;
+      const obj = {};
+      for (const cell of row.getElementsByTagNameNS(NS, 'c')) {
+        const colLetter = cell.getAttribute('r').replace(/\d+/g, '');
+        const ci = CL.indexOf(colLetter);
+        if (ci >= 0 && ci < cols.length) {
+          const t = cell.getElementsByTagNameNS(NS, 't');
+          obj[cols[ci]] = t.length ? t[0].textContent : '';
+        }
+      }
+      if (obj[cols[0]] && obj[cols[0]].trim()) { obj._row = r; result.push(obj); }
+    }
+    return result;
+  }
+
+  function runChecks() {
+    issues = [];
+    const cM = {}, stM = {}, pkM = {}, coM = {};
+    data.cust.forEach(r => cM[r['No.']] = r);
+    data.shipto.forEach(r => { stM[r['Customer No.']] = stM[r['Customer No.']] || []; stM[r['Customer No.']].push(r); });
+    data.pkg.forEach(r => { if (r['Entry Type'] === 'template') pkM[r['Package No.']] = r; });
+    data.co.forEach(r => { coM[r['Customer No.']] = coM[r['Customer No.']] || []; coM[r['Customer No.']].push(r); });
+
+    // 1. Customer card vs Ship-to carrier
+    data.shipto.forEach(st => {
+      const c = cM[st['Customer No.']]; if (!c) return;
+      const ca = c['Shipping Agent Code'], sa = st['Shipping Agent Code'];
+      if (ca && sa && ca !== sa)
+        push('HIGH','Carrier Mismatch',st['Customer No.'],c['Name']||'',st['Code'],
+          'Customer card: '+ca+' | Ship-to '+st['Code']+': '+sa,
+          'Set Ship-to Shipping Agent = '+ca,
+          true,2,'Shipping Agent Code',sa,ca,st._row,null);
+    });
+
+    // 2. Customer card vs Customer Options carrier
+    data.co.forEach(co => {
+      const c = cM[co['Customer No.']]; if (!c) return;
+      const ca = c['Shipping Agent Code'], oa = co['Shipping Agent Code'];
+      if (ca && oa && ca !== oa)
+        push('HIGH','Carrier Mismatch',co['Customer No.'],c['Name']||'',co['Ship-To Code']||'(catch-all)',
+          'Customer card: '+ca+' | Customer Options row: '+oa,
+          'Set Customer Options Shipping Agent = '+ca,
+          true,4,'Shipping Agent Code',oa,ca,co._row,null);
+    });
+
+    // 3. Shipment Method: Customer card vs Ship-to
+    data.shipto.forEach(st => {
+      const c = cM[st['Customer No.']]; if (!c) return;
+      const cm = c['Shipment Method Code']||'', sm = st['Shipment Method Code']||'';
+      if (cm && sm && cm !== sm)
+        push('HIGH','Shipment Method',st['Customer No.'],c['Name']||'',st['Code'],
+          'Customer card: '+cm+' | Ship-to: '+sm,
+          'Set Ship-to Shipment Method = '+cm,
+          true,2,'Shipment Method Code',sm,cm,st._row,null);
+    });
+
+    // 4. Missing catch-all — ONLY if customer has a CO row WITH a template assigned
+    Object.keys(coM).forEach(cno => {
+      const coRows = coM[cno];
+      // Only flag if at least one row has a non-blank template
+      const rowWithTemplate = coRows.find(r => r['Package Options Template Code'] && r['Package Options Template Code'].trim());
+      if (!rowWithTemplate) return; // no template anywhere — catch-all wouldn't help
+      const hasCatchAll = coRows.some(r => !r['Ship-To Code'] && !r['Shipping Agent Service Code']);
+      if (!hasCatchAll) {
+        const c = cM[cno];
+        push('HIGH','Missing Catch-All',cno,c?c['Name']||'':'','',
+          'No catch-all Customer Options row (blank Ship-To + blank Service)',
+          'Add catch-all: Agent='+rowWithTemplate['Shipping Agent Code']+' Template='+rowWithTemplate['Package Options Template Code'],
+          true,4,'__CATCHALL__','','',0,rowWithTemplate);
+      }
+    });
+
+    // 5. Missing Package Options template
+    data.co.forEach(co => {
+      const tmpl = co['Package Options Template Code'];
+      if (tmpl && !pkM[tmpl]) {
+        const c = cM[co['Customer No.']];
+        push('HIGH','Missing Template',co['Customer No.'],c?c['Name']||'':'',co['Ship-To Code']||'',
+          'Template "'+tmpl+'" referenced but not found in Package Options',
+          'Create template '+tmpl+' in Dynamic Ship Package Options',
+          false,0,'','','',0,null);
+      }
+    });
+
+    // 6. Payment Type vs Shipment Method
+    const ptSeen = new Set();
+    data.co.forEach(co => {
+      const cno = co['Customer No.'], tmpl = co['Package Options Template Code'];
+      const c = cM[cno]; if (!c || !tmpl || !pkM[tmpl] || ptSeen.has(cno)) return;
+      const meth = c['Shipment Method Code']||'', pay = pkM[tmpl]['Payment Type']||'';
+      const isFC = meth.includes('FREIGHT C'), isRec = pay === 'Receiver';
+      if (isFC && !isRec) {
+        ptSeen.add(cno);
+        push('HIGH','Payment Type',cno,c['Name']||'','',
+          'Shipment Method=FREIGHT C but template '+tmpl+' Payment Type="'+(pay||'blank')+'"',
+          'Set template '+tmpl+' Payment Type = Receiver',
+          true,3,'Payment Type',pay,'Receiver',pkM[tmpl]._row,null);
+      } else if (!isFC && isRec) {
+        const notes = (c['Shipping Notes']||'').toUpperCase();
+        const isLTL = LTL.some(l => notes.includes(l));
+        ptSeen.add(cno);
+        const hasAcct = !!(pkM[tmpl]['Payment Account No.'] || '').trim();
+        const ltlDesc = hasAcct
+          ? 'Template '+tmpl+' Payment Type=Receiver + Account No. set but LTL carrier — review both fields'
+          : 'Template '+tmpl+' Payment Type=Receiver but Method='+meth+' (LTL — should be Prepay)';
+        push(isLTL?'HIGH':'MEDIUM','Payment Type',cno,c['Name']||'','',
+          isLTL ? ltlDesc : 'Template '+tmpl+' Payment Type=Receiver but Method='+meth,
+          isLTL?'Clear Payment Type to blank (LTL = Prepay)':'Verify — may need Shipment Method set to FREIGHT C',
+          isLTL && !hasAcct, isLTL?3:0,'Payment Type','Receiver','',isLTL&&!hasAcct?pkM[tmpl]._row:0,null);
+      }
+    });
+
+    // 7. Account number length → infer carrier
+    data.pkg.forEach(p => {
+      if (p['Entry Type'] !== 'template' || p['Payment Type'] !== 'Receiver') return;
+      const acct = (p['Payment Account No.']||'').replace(/[-\s]/g,'');
+      if (!acct) return;
+      const co = data.co.find(r => r['Package Options Template Code'] === p['Package No.']);
+      if (!co) return;
+      const agent = co['Shipping Agent Code']||'';
+      const inferred = acct.length === 6 ? 'UPS' : acct.length === 9 ? 'FEDEX' : '';
+      if (inferred && agent && inferred !== agent)
+        push('MEDIUM','Account Number',p['Package No.'],p['Description']||p['Package No.'],'',
+          '"'+p['Payment Account No.']+'" ('+acct.length+' chars) matches '+inferred+' format but carrier is set to '+agent,
+          'Carrier should be '+inferred+' based on account length (UPS=6, FedEx=9)',
+          false,0,'','','',0,null);
+    });
+
+    // 8. Default Label UOM
+    data.cust.forEach(c => {
+      const uom = c['Default Label UOM']||'';
+      if (uom && uom.toUpperCase() !== 'BOX')
+        push('MEDIUM','Label UOM',c['No.'],c['Name']||'','',
+          'Default Label UOM = "'+uom+'" (must be BOX)',
+          'Set Default Label UOM = BOX',
+          true,1,'Default Label UOM',uom,'BOX',c._row,null);
+    });
+    dedupeIssues();
+  }
+
+  function dedupeIssues() {
+    const seen = new Set();
+    issues = issues.filter(iss => {
+      const k = iss.cat + '|' + iss.cust + '|' + (iss.shipto||'') + '|' + iss.field + '|' + (iss.oldV||'') + '|' + (iss.newV||'');
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+  }
+
+  function push(priority, cat, cust, name, shipto, desc, fix, auto, sheet, field, oldV, newV, row, refRow) {
+    // Classify: key-field changes on CO are "Needs Validation" not auto-fix
+    const coKeyFields = ['Shipping Agent Code','Shipping Agent Service Code'];
+    let confidence = 'auto';
+    if (auto && sheet === 4 && field !== '__CATCHALL__' && coKeyFields.includes(field)) {
+      confidence = 'validate'; // key field change — BC may insert new row not update
+    } else if (auto && field === 'Payment Type' && newV === '' ) {
+      // Check: clearing Payment Type but account number exists = Needs Validation
+      confidence = 'validate';
+    } else if (!auto) {
+      confidence = 'manual';
+    }
+    issues.push({priority, cat, cust, name, shipto, desc, fix,
+      auto: confidence === 'auto', confidence,
+      sheet, field, oldV, newV, row, refRow});
+  }
+
+  function render() {
+    document.getElementById('results').style.display = 'block';
+    const fx       = issues.filter(i => i.confidence === 'auto').length;
+    const fxVal    = issues.filter(i => i.confidence === 'validate').length;
+    const fxManual = issues.filter(i => i.confidence === 'manual').length;
+    // De-duped export row count: unique BC rows (sheet+row), not unique findings
+    const seenE = new Set();
+    let exportRows = 0;
+    issues.filter(i => i.auto).forEach(i => {
+      const k = i.field === '__CATCHALL__'
+        ? '__CA__' + (i.refRow ? i.refRow['Customer No.'] : '')
+        : i.sheet + '_' + i.row; // same row = one export row even if multiple fields change
+      if (!seenE.has(k)) { seenE.add(k); exportRows++; }
+    });
+
+    // Animate total
+    const banner = document.getElementById('totalBanner');
+    banner.classList.add('animate');
+    animateCount(document.getElementById('totalNum'), issues.length);
+    document.getElementById('totalSub').innerHTML =
+      '<strong style="color:var(--green)">' + fx + ' safe fix findings</strong> · ' +
+      '<strong style="color:var(--orange)">' + fxVal + ' key-field review</strong> · ' +
+      '<strong style="color:#888">' + fxManual + ' manual only</strong>';
+
+    document.getElementById('cAuto').textContent = fx;
+    document.getElementById('cMed').textContent = fxVal;
+    document.getElementById('cManual').textContent = fxManual;
+    document.getElementById('cExport').textContent = exportRows;
+    document.getElementById('exclNote').textContent = 'Safe correction package excludes key-field and manual-only items.';
+    document.getElementById('fixNote').textContent = fx + ' safe fix findings · ' + exportRows + ' correction rows · ' + fxVal + ' key-field review · ' + fxManual + ' manual only';
+
+    // Per-table breakdown
+    // Per-table: findings count and export row count (unique BC rows)
+    const tblFindings = {1:0, 2:0, 3:0, 4:0};
+    const tblExport   = {1:new Set(), 2:new Set(), 3:new Set(), 4:new Set()};
+    issues.forEach(i => { if (i.sheet) tblFindings[i.sheet]++; });
+    issues.filter(i => i.auto).forEach(i => {
+      if (!i.sheet) return;
+      const k = i.field === '__CATCHALL__'
+        ? '__CA__' + (i.refRow ? i.refRow['Customer No.'] : '')
+        : i.sheet + '_' + i.row;
+      tblExport[i.sheet].add(k);
+    });
+    const tblDefs = [
+      {sheet:1, name:'Customer',          id:'Table 18'},
+      {sheet:2, name:'Ship-to Address',   id:'Table 222'},
+      {sheet:3, name:'Package Options',   id:'Table 23044608'},
+      {sheet:4, name:'Customer Options',  id:'Table 23044614'},
+    ];
+    document.getElementById('tableBreakdown').innerHTML = tblDefs.map(t => {
+      const f = tblFindings[t.sheet]||0;
+      const e = tblExport[t.sheet].size||0;
+      const hasChg = e > 0;
+      return '<div class="tbl-chip'+(hasChg?' has-changes':'')+'">' +
+        '<div class="tc-count">'+f+'</div>' +
+        '<div class="tc-name">'+t.name+'</div>' +
+        '<div class="tc-id">'+t.id+'</div>' +
+        (f>0 ? '<div style="font-size:10px;color:'+(e>0?'var(--green)':'#aaa')+';margin-top:4px">'+(e>0?'📦 '+e+' export rows':'no export rows')+'</div>' : '') +
+        '</div>';
+    }).join('');
+
+    const cats = {};
+    issues.forEach(i => { cats[i.cat] = cats[i.cat] || []; cats[i.cat].push(i); });
+    const tb = document.getElementById('tabBar'), tp = document.getElementById('tabPanels');
+    tb.innerHTML = ''; tp.innerHTML = '';
+    addTab(tb, tp, 'All Issues', issues, 'all', true);
+    Object.entries(cats).forEach(([c,v]) => addTab(tb, tp, c, v, c.replace(/\s/g,'_')));
+  }
+
+  function animateCount(el, target) {
+    let v = 0; const step = Math.max(1, Math.ceil(target/40));
+    const t = setInterval(() => {
+      v = Math.min(v + step, target);
+      el.textContent = v;
+      if (v >= target) clearInterval(t);
+    }, 18);
+  }
+
+  function addTab(tb, tp, label, items, id, active) {
+    const t = document.createElement('button');
+    t.className = 'tab' + (active ? ' active' : '');
+    t.innerHTML = label + '<span class="tab-badge">' + items.length + '</span>';
+    t.onclick = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('p_'+id).classList.add('active');
+    };
+    tb.appendChild(t);
+    const p = document.createElement('div');
+    p.className = 'tab-panel' + (active ? ' active' : '');
+    p.id = 'p_' + id;
+    if (!items.length) {
+      p.innerHTML = '<div class="empty-state">✅ No issues in this category</div>';
+    } else {
+      p.innerHTML = '<div style="overflow-x:auto"><table class="itbl"><thead><tr>' +
+        '<th style="width:32px"><input type="checkbox" class="fix-chk" onchange="SG.toggleAll(this,\''+id+'\')" title="Select all fixable"></th>' +
+        '<th>Priority</th><th>Customer</th><th>Ship-To</th><th>Issue</th><th>Proposed Fix</th><th style="text-align:center">Auto?</th>' +
+        '</tr></thead><tbody>' +
+        items.map((iss, idx) => mkRow(iss, id, idx)).join('') +
+        '</tbody></table></div>';
+    }
+    tp.appendChild(p);
+  }
+
+  function mkRow(iss, tid, idx) {
+    const uid = tid + '_' + idx;
+    const enc = encodeURIComponent(JSON.stringify({
+      priority:iss.priority, cat:iss.cat, cust:iss.cust, name:iss.name,
+      auto:iss.auto, sheet:iss.sheet, field:iss.field,
+      oldV:iss.oldV||'', newV:iss.newV||'', row:iss.row||0,
+      refRow:iss.refRow||null
+    }));
+    const confLabel = iss.confidence === 'auto'
+      ? '<span style="background:#e2efda;color:#27AE60;border:1px solid #90c87a;border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">SAFE FIX</span>'
+      : iss.confidence === 'validate'
+      ? '<span style="background:#fff2cc;color:#d4820a;border:1px solid #f0c870;border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">VALIDATE</span>'
+      : '<span style="background:#f5f5f5;color:#888;border:1px solid #ddd;border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">MANUAL</span>';
+    const chk = iss.auto
+      ? '<input type="checkbox" class="fix-chk auto-fix" id="c_'+uid+'" checked data-e="'+enc+'">'
+      : iss.confidence === 'validate'
+      ? '<input type="checkbox" class="fix-chk validate-fix" id="c_'+uid+'" data-e="'+enc+'" title="Needs validation before applying">'
+      : '<span style="color:#ccc">—</span>';
+    const delta = iss.auto && iss.field !== '__CATCHALL__' && iss.oldV !== undefined
+      ? '<br><span class="val-old">'+(iss.oldV||'<em>blank</em>')+'</span> → <span class="val-new">'+(iss.newV||'<em>blank</em>')+'</span>'
+      : '';
+    return '<tr><td>'+chk+'</td>'+
+      '<td><span class="badge '+iss.priority.toLowerCase()+'">'+iss.priority+'</span></td>'+
+      '<td><strong>'+iss.cust+'</strong><br><span style="color:#999;font-size:11px">'+iss.name+'</span></td>'+
+      '<td style="font-size:11px;color:#888">'+iss.shipto+'</td>'+
+      '<td>'+iss.desc+delta+'</td>'+
+      '<td style="font-size:11px;color:#555">'+iss.fix+'</td>'+
+      '<td style="text-align:center">'+confLabel+'</td></tr>';
+  }
+
+  function toggleAll(master, id) {
+    document.getElementById('p_'+id).querySelectorAll('.auto-fix').forEach(cb => cb.checked = master.checked);
+  }
+
+  // Show warning modal before export
+  function doExportTrigger() {
+    document.getElementById('warnModal').classList.add('on');
+  }
+
+  function closeModal() {
+    document.getElementById('warnModal').classList.remove('on');
+  }
+
+  async function doExport() {
+    closeModal();
+    const btn = document.getElementById('btnExport');
+    btn.disabled = true; btn.textContent = '⏳ Generating…';
+    try {
+      const checked = [];
+      document.querySelectorAll('.auto-fix:checked').forEach(cb => {
+        try { checked.push(JSON.parse(decodeURIComponent(cb.dataset.e))); } catch(e) {}
+      });
+
+      if (!checked.length) {
+        btn.textContent = 'No fixes selected'; btn.disabled = false; return;
+      }
+
+      // De-dupe checked items by sheet+row+field (prevent duplicate edits)
+      const seenEdits = new Set();
+      const dedupedChecked = [];
+      checked.forEach(iss => {
+        const key = iss.field === '__CATCHALL__'
+          ? '__CA__' + (iss.refRow ? iss.refRow['Customer No.'] : '')
+          : iss.sheet + '_' + iss.row + '_' + iss.field;
+        if (!seenEdits.has(key)) { seenEdits.add(key); dedupedChecked.push(iss); }
+      });
+      const uniqueChecked = dedupedChecked;
+
+      // Group by sheet
+      const bySheet = {1:{edits:[],adds:[]}, 2:{edits:[],adds:[]}, 3:{edits:[],adds:[]}, 4:{edits:[],adds:[]}};
+      uniqueChecked.forEach(iss => {
+        if (iss.field === '__CATCHALL__' && iss.refRow) {
+          bySheet[4].adds.push(iss.refRow);
+        } else if (iss.sheet && iss.row && iss.field) {
+          bySheet[iss.sheet].edits.push({row:iss.row, field:iss.field, nv:iss.newV});
+        }
+      });
+
+      // Build OUTPUT: only changed rows per sheet
+      const sheetCols = [COLS.cust, COLS.shipto, COLS.pkg, COLS.co];
+      const sheetNames = ['Customer','222 Ship-to Address','23044608 Dynamic Ship Package O','23044614 Dynamic Ship Customer '];
+      const tableIds = ['18','222','23044608','23044614'];
+
+      // We'll create a minimal xlsx with only changed rows
+      // Use the original zip as template but replace only the worksheet XML
+      const out = new JSZip();
+      // Copy all non-worksheet files
+      for (const fn of Object.keys(zip.files)) {
+        if (!fn.endsWith('/') && !fn.startsWith('xl/worksheets/sheet')) {
+          out.file(fn, await zip.file(fn).async('arraybuffer'));
+        }
+      }
+
+      let anyChanges = false;
+      for (let si = 1; si <= 4; si++) {
+        const cols = sheetCols[si-1];
+        const colOf = {}; cols.forEach((c,i) => colOf[c] = CL[i]);
+        const sh = bySheet[si];
+        const changedRows = new Set(sh.edits.map(e => e.row));
+        const hasCatchalls = sh.adds.length > 0;
+
+        if (!changedRows.size && !hasCatchalls) {
+          // No changes — write headers only (no data rows)
+          const origXml = rawData[si];
+          const sdStart = origXml.indexOf('<x:sheetData>') + '<x:sheetData>'.length;
+          const sdEnd   = origXml.indexOf('</x:sheetData>');
+          const before  = origXml.substring(0, sdStart);
+          const after   = origXml.substring(sdEnd);
+          const sdContent = origXml.substring(sdStart, sdEnd);
+          const firstData = sdContent.match(/<x:row r="[4-9]/);
+          const hdrOnly   = firstData ? sdContent.substring(0, firstData.index) : sdContent;
+          out.file('xl/worksheets/sheet'+si+'.xml', before + hdrOnly + after);
+          // Copy original table XML unchanged for empty sheets
+          // (setting ref to 0 data rows causes Excel validation error)
+          const tFile = 'xl/tables/table'+si+'.xml';
+          if (zip.file(tFile)) {
+            out.file(tFile, await zip.file(tFile).async('arraybuffer'));
+          }
+          continue;
+        }
+
+        anyChanges = true;
+        const origDoc = new DOMParser().parseFromString(rawData[si], 'application/xml');
+
+        // Collect changed rows with their edits applied
+        const outputRows = []; // {rowNum, cells: {colLetter: value}}
+        for (const row of origDoc.getElementsByTagNameNS(NS,'row')) {
+          const rn = parseInt(row.getAttribute('r'));
+          if (rn < 4) continue;
+          if (!changedRows.has(rn)) continue;
+          const cells = {};
+          for (const cell of row.getElementsByTagNameNS(NS,'c')) {
+            const colL = cell.getAttribute('r').replace(/\d+/g,'');
+            const t = cell.getElementsByTagNameNS(NS,'t');
+            cells[colL] = t.length ? t[0].textContent : '';
+          }
+          // Apply edits — track explicitly changed cols so blanks are written
+          const explicitCols = new Set();
+          sh.edits.filter(e => e.row === rn).forEach(e => {
+            if (colOf[e.field]) { cells[colOf[e.field]] = e.nv||''; explicitCols.add(colOf[e.field]); }
+          });
+          outputRows.push({rn, cells, explicitCols});
+        }
+
+        // Add catch-all rows
+        sh.adds.forEach(ref => {
+          const cells = {};
+          cells['A'] = ref['Customer No.']||'';
+          cells['B'] = '';
+          cells['C'] = ref['Shipping Agent Code']||'';
+          cells['D'] = '';
+          cells['E'] = ref['Shipment Options Template Code']||'';
+          cells['F'] = ref['Package Options Template Code']||'';
+          outputRows.push({rn: 0, cells}); // will be renumbered below
+        });
+        // Renumber all output rows sequentially from row 4 (eliminates gaps)
+        outputRows.forEach((row, idx) => { row.rn = idx + 4; });
+
+        // Build new worksheet XML with only header + changed rows
+        const origXml = rawData[si];
+        const sdStart = origXml.indexOf('<x:sheetData>') + '<x:sheetData>'.length;
+        const sdEnd = origXml.indexOf('</x:sheetData>');
+        const before = origXml.substring(0, sdStart);
+        const after = origXml.substring(sdEnd);
+        // Extract header rows directly from original XML string (avoids namespace issues)
+        const sdContent = origXml.substring(sdStart, sdEnd);
+        const firstDataRow = sdContent.match(/<x:row r="[4-9]/);
+        const hdrXml = firstDataRow ? sdContent.substring(0, firstDataRow.index) : sdContent;
+
+        // Generate row XML for changed/new rows
+        const dataXml = outputRows.map(({rn, cells, explicitCols}) => {
+          const ec = explicitCols || new Set();
+          const cellXml = Object.entries(cells).map(([col, val]) => {
+            if (!val && val !== 0 && !ec.has(col)) return ''; // skip empty unless explicit
+            const escaped = String(val||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            return '<x:c r="'+col+rn+'" t="inlineStr"><x:is><x:t xml:space="preserve">'+escaped+'</x:t></x:is></x:c>';
+          }).join('');
+          return '<x:row r="'+rn+'">'+cellXml+'</x:row>';
+        }).join('');
+
+        out.file('xl/worksheets/sheet'+si+'.xml', before + hdrXml + dataXml + after);
+
+        // Update table ref for that sheet
+        const tableFile = 'xl/tables/table'+si+'.xml';
+        if (zip.file(tableFile)) {
+          let txml = await zip.file(tableFile).async('string');
+          const lastRow = outputRows.length ? outputRows.length + 3 : 3; // sequential from row 4
+          const lastCol = CL[cols.length-1];
+          txml = txml.replace(/ref="A3:[A-Z]+\d+"/g, 'ref="A3:'+lastCol+lastRow+'"');
+          txml = txml.replace(/autoFilter ref="A3:[A-Z]+\d+"/g, 'autoFilter ref="A3:'+lastCol+lastRow+'"');
+          out.file(tableFile, txml);
+        }
+      }
+
+      // Download 1: Corrections file (auto-fix only)
+      const blob = await out.generateAsync({type:'blob', compression:'DEFLATE'});
+      const today = new Date().toISOString().slice(0,10);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ShipGard_Safe_Corrections_' + today + '.xlsx';
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      // Download 2: Preflight Report xlsx (multi-tab)
+      await new Promise(r => setTimeout(r, 800));
+      const preflightWb = buildPreflightXlsx(today);
+      const preflightData = XLSX.write(preflightWb, {bookType:'xlsx', type:'array'});
+      const blobP = new Blob([preflightData], {type:'application/octet-stream'});
+      const b = document.createElement('a');
+      b.href = URL.createObjectURL(blobP);
+      b.download = 'ShipGard_Preflight_Report_' + today + '.xlsx';
+      b.click();
+      URL.revokeObjectURL(b.href);
+
+      const autoCount = uniqueChecked.filter(i => i.field !== '__CATCHALL__').length;
+      const addCount  = uniqueChecked.filter(i => i.field === '__CATCHALL__').length;
+      const valCount  = issues.filter(i => i.confidence === 'validate').length;
+      let msg = '✅ 2 files downloaded — ';
+      msg += autoCount + ' auto-fix row' + (autoCount!==1?'s':'');
+      if (addCount) msg += ' + ' + addCount + ' new catch-all' + (addCount!==1?'s':'');
+      msg += ' · ' + valCount + ' needing validation in Preflight report';
+      btn.textContent = msg;
+      btn.style.background = '#27AE60';
+      setTimeout(() => { btn.textContent = '⚡ Apply Fixes & Export Changes'; btn.style.background = ''; btn.disabled = false; }, 5000);
+    } catch(e) {
+      btn.textContent = '✗ ' + e.message; btn.disabled = false;
+      console.error(e);
+    }
+  }
+
+  function buildPreflightXlsx(today) {
+    const tableNames = {0:'',1:'Table 18 — Customer',2:'Table 222 — Ship-to Address',
+      3:'Table 23044608 — Package Options',4:'Table 23044614 — Customer Options'};
+    function actionType(iss) {
+      if (iss.confidence === 'auto') return iss.field === '__CATCHALL__' ? 'Insert Missing Row' : 'Safe Update — Non-Key Field';
+      if (iss.confidence === 'validate') return iss.sheet === 4 && ['Shipping Agent Code','Shipping Agent Service Code'].includes(iss.field) ? 'Key-Field Change — Verify BC will update not insert' : 'Review Before Applying';
+      return 'Manual Only';
+    }
+    function riskNote(iss) {
+      if (iss.confidence === 'validate' && iss.sheet === 4 && ['Shipping Agent Code','Shipping Agent Service Code'].includes(iss.field))
+        return 'CO key change: old FEDEX/UPS row may remain after import. Delete the old row in BC first.';
+      if (iss.confidence === 'validate' && iss.field === 'Payment Type')
+        return 'Payment Account No. still populated — verify intent before clearing Payment Type.';
+      return '';
+    }
+    const COLS = ['Priority','Category','Customer No.','Customer Name','Ship-To Code',
+      'Issue Description','Proposed Fix','Action Type','Old Value','New Value',
+      'BC Table','Risk Note'];
+    function issToRow(iss) {
+      return [iss.priority, iss.cat, iss.cust, iss.name, iss.shipto||'',
+        iss.desc, iss.fix, actionType(iss), iss.oldV||'', iss.newV||'',
+        tableNames[iss.sheet||0]||'', riskNote(iss)];
+    }
+    const wb = XLSX.utils.book_new();
+    const safe    = issues.filter(i => i.confidence === 'auto');
+    const valRows = issues.filter(i => i.confidence === 'validate');
+    const manual  = issues.filter(i => i.confidence === 'manual');
+    // Sheet 1: Summary
+    const seenS = new Set(); let exportCt = 0;
+    issues.filter(i => i.auto).forEach(i => {
+      const k = i.field==='__CATCHALL__'?'__CA__'+(i.refRow?i.refRow['Customer No.']:''):i.sheet+'_'+i.row+'_'+i.field;
+      if(!seenS.has(k)){seenS.add(k);exportCt++;}
+    });
+    const tblCts = {1:0,2:0,3:0,4:0};
+    issues.filter(i => i.auto || i.confidence==='validate').forEach(i => { if(i.sheet) tblCts[i.sheet]++; });
+    const summData = [
+      ['ShipGard Preflight Report','',''],
+      ['Source file run date:', today, ''],
+      ['Tool version:', 'ShipGard v3 — ConfigGard', ''],
+      ['','',''],
+      ['FINDINGS SUMMARY','Count',''],
+      ['Total findings', issues.length, ''],
+      ['Safe auto-fix', safe.length, ''],
+      ['Key-field review needed', valRows.length, ''],
+      ['Manual only', manual.length, ''],
+      ['Correction package rows (de-duped)', exportCt, ''],
+      ['','',''],
+      ['BY TABLE','All Findings','Safe Fix Findings','Export Rows','Key-Field Review','Manual Only'],
+      ['Table 18 — Customer',
+        issues.filter(i=>i.sheet===1).length,
+        safe.filter(i=>i.sheet===1).length,
+        [...new Set(issues.filter(i=>i.auto&&i.sheet===1).map(i=>i.sheet+'_'+i.row))].length,
+        valRows.filter(i=>i.sheet===1).length,
+        manual.filter(i=>i.sheet===1).length],
+      ['Table 222 — Ship-to Address',
+        issues.filter(i=>i.sheet===2).length,
+        safe.filter(i=>i.sheet===2).length,
+        [...new Set(issues.filter(i=>i.auto&&i.sheet===2).map(i=>i.sheet+'_'+i.row))].length,
+        valRows.filter(i=>i.sheet===2).length,
+        manual.filter(i=>i.sheet===2).length],
+      ['Table 23044608 — Package Options',
+        issues.filter(i=>i.sheet===3).length,
+        safe.filter(i=>i.sheet===3).length,
+        [...new Set(issues.filter(i=>i.auto&&i.sheet===3).map(i=>i.sheet+'_'+i.row))].length,
+        valRows.filter(i=>i.sheet===3).length,
+        manual.filter(i=>i.sheet===3).length],
+      ['Table 23044614 — Customer Options',
+        issues.filter(i=>i.sheet===4).length,
+        safe.filter(i=>i.sheet===4).length,
+        [...new Set(issues.filter(i=>i.auto&&i.sheet===4).map(i=>{
+          return i.field==='__CATCHALL__'?'__CA__'+(i.refRow?i.refRow['Customer No.']:''):i.sheet+'_'+i.row;
+        }))].length,
+        valRows.filter(i=>i.sheet===4).length,
+        manual.filter(i=>i.sheet===4).length],
+      ['Unassigned (no table)',
+        issues.filter(i=>!i.sheet).length,
+        safe.filter(i=>!i.sheet).length, 0,
+        valRows.filter(i=>!i.sheet).length,
+        manual.filter(i=>!i.sheet).length],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summData), 'Summary');
+    // Sheet 2: All Findings
+    const allWs = XLSX.utils.aoa_to_sheet([COLS, ...issues.map(issToRow)]);
+    XLSX.utils.book_append_sheet(wb, allWs, 'All Findings');
+    // Sheet 3: Safe Fixes
+    const safeWs = XLSX.utils.aoa_to_sheet([COLS, ...safe.map(issToRow)]);
+    XLSX.utils.book_append_sheet(wb, safeWs, 'Safe Fixes');
+    // Sheet 4: Key-Field Review
+    const valWs = XLSX.utils.aoa_to_sheet([COLS, ...valRows.map(issToRow)]);
+    XLSX.utils.book_append_sheet(wb, valWs, 'Key-Field Review');
+    // Sheet 5: Manual Only
+    const manWs = XLSX.utils.aoa_to_sheet([COLS, ...manual.map(issToRow)]);
+    XLSX.utils.book_append_sheet(wb, manWs, 'Manual Only');
+    // Sheet 6: Run Notes
+    const notesData = [
+      ['ShipGard Preflight Report — Run Notes'],
+      ['Date:', today],
+      ['Customers scanned:', data.cust.length],
+      ['Ship-to records:', data.shipto.length],
+      ['Package Options templates:', data.pkg.filter(r=>r['Entry Type']==='template').length],
+      ['Customer Options rows:', data.co.length],
+      ['Total issues found:', issues.length],
+      ['Safe fix findings:', safe.length],
+      ['Unique correction rows (exported):', exportCt],
+      ['Tool:', 'ShipGard™ by ConfigGard™'],
+      ['Attribution:', 'Ron Jones — linkedin.com/in/ronjones4133/'],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(notesData), 'Run Notes');
+    return wb;
+  }
+
+  function buildPrompt() {
+    const box = document.getElementById('claudeBox');
+    const out = document.getElementById('claudePrompt');
+    box.style.display = 'block';
+    const top = issues.slice(0,50).map(i =>
+      '['+i.priority+'] '+i.cat+': Cust '+i.cust+' ('+i.name+') — '+i.desc).join('\n');
+    const details = [...new Set(issues.map(i=>i.cust))].slice(0,20).map(cno => {
+      const c = data.cust.find(r => r['No.']===cno);
+      const co = data.co.find(r => r['Customer No.']===cno);
+      const pkg = data.pkg.find(r => r['Package No.']===(co&&co['Package Options Template Code']));
+      if (!c) return null;
+      return cno+' '+c['Name']+': Method='+c['Shipment Method Code']+', Agent='+c['Shipping Agent Code']+
+        ', PayType='+(pkg&&pkg['Payment Type']||'n/a')+', Notes: '+(c['Shipping Notes']||'').slice(0,70);
+    }).filter(Boolean).join('\n');
+    promptText = `You are an ERP config alignment expert specializing in Business Central + Dynamic Ship.
+
+Analyze these alignment issues from a config package export:
+
+ISSUES (${issues.length} total):
+${top}
+
+CUSTOMER DETAILS:
+${details}
+
+RULES:
+- LTL carriers (Ryder, ATS, Old Dominion, XPO, JB Hunt etc.) = P AND B shipment method, blank Payment Type
+- Collect accounts: FREIGHT C, Payment Type=Receiver, UPS=6-char account, FedEx=9-digit account
+- Customer card, Ship-to, and Customer Options must all share the same Shipping Agent Code
+- Customer Options needs a catch-all row per customer (blank Ship-To + blank Service Code)
+
+Provide: (1) Key patterns (2) Highest risk items (3) LTL accounts incorrectly set as Receiver (4) Top 3 actions today`;
+    out.textContent = promptText;
+    out.style.display = 'block';
+    box.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+
+  function copyPrompt() {
+    if (!promptText) return;
+    navigator.clipboard.writeText(promptText).then(() => {
+      const btn = document.querySelector('.claude-btns .btn-gold');
+      const orig = btn.textContent;
+      btn.textContent = '✅ Copied!';
+      setTimeout(() => btn.textContent = orig, 2000);
+    });
+  }
+
+  function reset() {
+    zip = null; rawData = {}; data = {cust:[],shipto:[],pkg:[],co:[]}; issues = [];
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('claudeBox').style.display = 'none';
+    document.getElementById('sbar').className = 'sbar';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('hero').classList.remove('compact');
+  }
+
+  function sb(type, msg) {
+    const b = document.getElementById('sbar');
+    b.className = 'sbar on' + (type ? ' '+type : '');
+    b.innerHTML = type==='loading' ? '<div class="spin"></div><span>'+msg+'</span>' : '<span>'+msg+'</span>';
+  }
+
+  return { export: doExportTrigger, doExport, closeModal, buildPrompt, copyPrompt, reset, toggleAll };
+})();
+</script>
+</body>
+</html>
