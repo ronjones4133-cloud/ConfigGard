@@ -251,7 +251,8 @@ footer a:hover{color:var(--gold)}
       <strong>ShipGard_Preflight_Report_[date].xlsx</strong><br>
       Full findings report with issue category, action type, risk notes, and manual-review items.<br><br>
       <strong>ShipGard_Safe_Corrections_[date].xlsx</strong><br>
-      Safe correction package only. Review the Preflight Report first, then import into BC after approval.
+      Safe correction package, plus any Key-Field Review items you've checked off as reviewed. Review the Preflight Report first, then import into BC after approval.<br><br>
+      <span style="color:#9a6700">If you included reviewed key-field rows: after import, re-run ShipGard on a fresh export and check the &quot;Duplicate CO Key&quot; tab for any orphaned rows that need manual cleanup.</span>
     </p>
     <div class="modal-btns">
       <button class="btn btn-outline" onclick="SG.closeModal()">Cancel</button>
@@ -375,7 +376,7 @@ const SG = (function() {
       if (ca && oa && ca !== oa)
         push('HIGH','Carrier Mismatch',co['Customer No.'],c['Name']||'',co['Ship-To Code']||'(catch-all)',
           'Customer card: '+ca+' | Customer Options row: '+oa,
-          'Set Customer Options Shipping Agent = '+ca,
+          'Changing Shipping Agent Code to '+ca+' WILL create a new row in BC (Table 23044614) rather than update this one. Apply manually in BC, then delete the old '+oa+' row. No checkbox — manual key-field change.',
           true,4,'Shipping Agent Code',oa,ca,co._row,null);
     });
 
@@ -441,7 +442,7 @@ const SG = (function() {
           : 'Template '+tmpl+' Payment Type=Receiver but Method='+meth+' (LTL — should be Prepay)';
         push(isLTL?'HIGH':'MEDIUM','Payment Type',cno,c['Name']||'','',
           isLTL ? ltlDesc : 'Template '+tmpl+' Payment Type=Receiver but Method='+meth,
-          isLTL?'Clear Payment Type to blank (LTL = Prepay)':'Verify — may need Shipment Method set to FREIGHT C',
+          isLTL?'Clear Payment Type to blank in Package Options (Table 23044608), template '+tmpl+' (LTL = Prepay)':'Verify Shipment Method on Customer card (Table 18) — may need FREIGHT C to match template '+tmpl+' Payment Type=Receiver',
           isLTL && !hasAcct, isLTL?3:0,'Payment Type','Receiver','',isLTL&&!hasAcct?pkM[tmpl]._row:0,null);
       }
     });
@@ -457,7 +458,7 @@ const SG = (function() {
       const inferred = acct.length === 6 ? 'UPS' : acct.length === 9 ? 'FEDEX' : '';
       if (inferred && agent && inferred !== agent)
         push('MEDIUM','Account Number',p['Package No.'],p['Description']||p['Package No.'],'',
-          '"'+p['Payment Account No.']+'" ('+acct.length+' chars) matches '+inferred+' format but carrier is set to '+agent,
+          '"'+p['Payment Account No.']+'" ('+acct.length+' chars) matches '+inferred+' format but carrier is set to '+agent+'. Note: some customers have valid accounts with multiple carriers — verify before treating as an error.',
           'Carrier should be '+inferred+' based on account length (UPS=6, FedEx=9)',
           false,0,'','','',0,null);
     });
@@ -471,6 +472,42 @@ const SG = (function() {
           'Set Default Label UOM = BOX',
           true,1,'Default Label UOM',uom,'BOX',c._row,null);
     });
+
+    // 9. Duplicate Customer Options keys — orphaned rows from insert-not-update
+    const coGroups = {};
+    data.co.forEach(r => {
+      const key = (r['Customer No.']||'') + '|' + (r['Ship-To Code']||'') + '|' + (r['Shipping Agent Service Code']||'');
+      coGroups[key] = coGroups[key] || [];
+      coGroups[key].push(r);
+    });
+    Object.entries(coGroups).forEach(([key, rows]) => {
+      const agents = new Set(rows.map(r => r['Shipping Agent Code']||''));
+      if (agents.size > 1) {
+        const [cno, shipto, svc] = key.split('|');
+        const c = cM[cno];
+        const agentList = rows.map(r => (r['Shipping Agent Code']||'(blank)') + ' (template: ' + (r['Package Options Template Code']||'none') + ')').join('  vs  ');
+        const cardAgent = c ? c['Shipping Agent Code'] : '';
+        const staleRows = rows.filter(r => (r['Shipping Agent Code']||'') !== cardAgent);
+        const keepRow = rows.find(r => (r['Shipping Agent Code']||'') === cardAgent);
+
+        const shipToDisplay = shipto || '(blank)';
+        const svcDisplay = svc || '(blank)';
+        const keepDisplay = keepRow ? (keepRow['Shipping Agent Code']||'(blank)') + ' / template ' + (keepRow['Package Options Template Code']||'none') : 'unclear — verify manually';
+        const deleteDisplay = staleRows.map(r => (r['Shipping Agent Code']||'(blank)') + ' / template ' + (r['Package Options Template Code']||'none')).join(', ');
+        const action = '<strong style="color:#27AE60">KEEP</strong>: '+keepDisplay
+          + '&nbsp;&nbsp;|&nbsp;&nbsp;<strong style="color:#C0392B">DELETE</strong>: '+deleteDisplay;
+        const howTo = action + '<br><span style="color:#888;font-size:11px">'
+          + 'Table 23044614 — Dynamic Ship Customer Options. Open Customer '+cno
+          + ', filter Ship-To Code = '+shipToDisplay+' and Shipping Agent Service Code = '+svcDisplay
+          + '. You should see '+rows.length+' rows at this key ('+agentList+').</span>';
+
+        push('HIGH','Duplicate CO Key',cno,c?c['Name']||'':'',shipto||'(catch-all)'+(svc?' / '+svc:''),
+          'Multiple Customer Options rows share the same key (Ship-To: '+shipToDisplay+', Service: '+svcDisplay+') with different carriers: '+agentList,
+          howTo,
+          false,4,'','','',0,null);
+      }
+    });
+
     dedupeIssues();
   }
 
@@ -488,7 +525,7 @@ const SG = (function() {
     const coKeyFields = ['Shipping Agent Code','Shipping Agent Service Code'];
     let confidence = 'auto';
     if (auto && sheet === 4 && field !== '__CATCHALL__' && coKeyFields.includes(field)) {
-      confidence = 'validate'; // key field change — BC may insert new row not update
+      confidence = 'manual'; // key field change — BC WILL insert a new row, not update. No checkbox; manual cleanup required.
     } else if (auto && field === 'Payment Type' && newV === '' ) {
       // Check: clearing Payment Type but account number exists = Needs Validation
       confidence = 'validate';
@@ -592,11 +629,25 @@ const SG = (function() {
     const p = document.createElement('div');
     p.className = 'tab-panel' + (active ? ' active' : '');
     p.id = 'p_' + id;
+
+    const hasValidate = items.some(i => i.confidence === 'validate');
+    const validateBanner = hasValidate ? (
+      '<div style="background:#fff2cc;border-bottom:1px solid #f0c870;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+      '<input type="checkbox" class="fix-chk" id="reviewAll_'+id+'" onchange="SG.toggleReviewed(this,\''+id+'\')">' +
+      '<label for="reviewAll_'+id+'" style="font-size:12px;font-weight:700;color:'+ "#9a6700" +';cursor:pointer">' +
+      "I've reviewed these key-field changes — include them in the correction package</label>" +
+      '<span style="font-size:11px;color:#9a6700;flex:1 1 100%;margin-top:2px">' +
+      'These change the Shipping Agent Code (or Service Code) on existing Customer Options rows. ' +
+      'Business Central may insert a new row instead of updating the old one. ' +
+      'After import, re-run ShipGard to check the &quot;Duplicate CO Key&quot; tab for orphaned rows that need manual deletion.' +
+      '</span></div>'
+    ) : '';
+
     if (!items.length) {
       p.innerHTML = '<div class="empty-state">✅ No issues in this category</div>';
     } else {
-      p.innerHTML = '<div style="overflow-x:auto"><table class="itbl"><thead><tr>' +
-        '<th style="width:32px"><input type="checkbox" class="fix-chk" onchange="SG.toggleAll(this,\''+id+'\')" title="Select all fixable"></th>' +
+      p.innerHTML = validateBanner + '<div style="overflow-x:auto"><table class="itbl"><thead><tr>' +
+        '<th style="width:32px"><input type="checkbox" class="fix-chk" onchange="SG.toggleAll(this,\''+id+'\')" title="Select all safe fixes"></th>' +
         '<th>Priority</th><th>Customer</th><th>Ship-To</th><th>Issue</th><th>Proposed Fix</th><th style="text-align:center">Auto?</th>' +
         '</tr></thead><tbody>' +
         items.map((iss, idx) => mkRow(iss, id, idx)).join('') +
@@ -639,6 +690,10 @@ const SG = (function() {
     document.getElementById('p_'+id).querySelectorAll('.auto-fix').forEach(cb => cb.checked = master.checked);
   }
 
+  function toggleReviewed(master, id) {
+    document.getElementById('p_'+id).querySelectorAll('.validate-fix').forEach(cb => cb.checked = master.checked);
+  }
+
   // Show warning modal before export
   function doExportTrigger() {
     document.getElementById('warnModal').classList.add('on');
@@ -657,6 +712,12 @@ const SG = (function() {
       document.querySelectorAll('.auto-fix:checked').forEach(cb => {
         try { checked.push(JSON.parse(decodeURIComponent(cb.dataset.e))); } catch(e) {}
       });
+      const reviewedValidate = [];
+      document.querySelectorAll('.validate-fix:checked').forEach(cb => {
+        try { reviewedValidate.push(JSON.parse(decodeURIComponent(cb.dataset.e))); } catch(e) {}
+      });
+      // Reviewed VALIDATE items are appended to the export — flagged confidence stays 'validate'
+      checked.push(...reviewedValidate);
 
       if (!checked.length) {
         btn.textContent = 'No fixes selected'; btn.disabled = false; return;
@@ -819,13 +880,15 @@ const SG = (function() {
       b.click();
       URL.revokeObjectURL(b.href);
 
-      const autoCount = uniqueChecked.filter(i => i.field !== '__CATCHALL__').length;
+      const autoCount = uniqueChecked.filter(i => i.field !== '__CATCHALL__' && i.confidence === 'auto').length;
       const addCount  = uniqueChecked.filter(i => i.field === '__CATCHALL__').length;
-      const valCount  = issues.filter(i => i.confidence === 'validate').length;
+      const reviewedCount = uniqueChecked.filter(i => i.confidence === 'validate').length;
+      const valCount  = issues.filter(i => i.confidence === 'validate').length - reviewedCount;
       let msg = '✅ 2 files downloaded — ';
       msg += autoCount + ' auto-fix row' + (autoCount!==1?'s':'');
       if (addCount) msg += ' + ' + addCount + ' new catch-all' + (addCount!==1?'s':'');
-      msg += ' · ' + valCount + ' needing validation in Preflight report';
+      if (reviewedCount) msg += ' + ' + reviewedCount + ' reviewed key-field row' + (reviewedCount!==1?'s':'');
+      if (valCount > 0) msg += ' · ' + valCount + ' still needing validation';
       btn.textContent = msg;
       btn.style.background = '#27AE60';
       setTimeout(() => { btn.textContent = '⚡ Apply Fixes & Export Changes'; btn.style.background = ''; btn.disabled = false; }, 5000);
@@ -1007,7 +1070,7 @@ Provide: (1) Key patterns (2) Highest risk items (3) LTL accounts incorrectly se
     b.innerHTML = type==='loading' ? '<div class="spin"></div><span>'+msg+'</span>' : '<span>'+msg+'</span>';
   }
 
-  return { export: doExportTrigger, doExport, closeModal, buildPrompt, copyPrompt, reset, toggleAll };
+  return { export: doExportTrigger, doExport, closeModal, buildPrompt, copyPrompt, reset, toggleAll, toggleReviewed };
 })();
 </script>
 </body>
