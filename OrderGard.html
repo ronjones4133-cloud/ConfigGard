@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -256,8 +257,8 @@ const OG = (function() {
         try {
           const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
           const ws = wb.Sheets[wb.SheetNames[0]];
-          // raw:false gives formatted strings; dateNF forces short date on date cells
-          const rows = XLSX.utils.sheet_to_json(ws, { raw: false, dateNF: 'M/D/YYYY', defval: '' });
+          // raw:true preserves numeric values exactly; normaliseDate() handles date serials
+          const rows = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' });
           process(rows, file.name);
         } catch(err) { sb('err', '✗ ' + err.message); document.getElementById('hero').classList.remove('compact'); }
       };
@@ -285,11 +286,16 @@ const OG = (function() {
   // Accepts: Excel serial (number or numeric string), M/D/YYYY string, or already-formatted date
   function normaliseDate(v) {
     if (!v && v !== 0) return '';
+    // SheetJS raw:true may return a JS Date object directly
+    if (v instanceof Date) {
+      if (isNaN(v.getTime())) return '';
+      return (v.getUTCMonth() + 1) + '/' + v.getUTCDate() + '/' + v.getUTCFullYear();
+    }
     const s = String(v).trim();
     if (!s || s === '0') return '';
     // Already a readable date string (contains /)
     if (s.includes('/')) return s;
-    // Excel serial
+    // Excel serial number
     const n = parseFloat(s);
     if (!isNaN(n) && n > 40000 && n < 60000) {
       const d = new Date(Math.round((n - 25569) * 86400 * 1000));
@@ -301,6 +307,7 @@ const OG = (function() {
   // Returns a comparable numeric value for a date string (for export sorting)
   function dateSerial(v) {
     if (!v) return 0;
+    if (v instanceof Date) return isNaN(v.getTime()) ? 0 : v.getTime();
     const s = String(v).trim();
     const n = parseFloat(s);
     if (!isNaN(n) && n > 40000 && n < 60000) return n;
