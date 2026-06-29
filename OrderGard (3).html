@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrderGard™ — Duplicate Sales Order Detection for Business Central</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --navy-deep:#081525; --navy:#0D1F35; --navy-mid:#162942; --navy-border:#1E3550;
+  --gold:#E9A535; --gold-dim:#b87d1f;
+  --red:#C0392B; --red-bg:#fce4d6; --red-border:#e8a090;
+  --orange:#d4820a; --orange-bg:#fff2cc; --orange-border:#f0c870;
+  --green:#27AE60; --green-bg:#e2efda; --green-border:#90c87a;
+  --gray:#f5f6f8; --gray-mid:#e0e2e6; --dark:#1a1a2e;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--navy-deep);color:var(--dark);font-size:13px}
+
+/* NAV */
+nav{background:var(--navy-deep);padding:0 32px;height:52px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--navy-border)}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-dot{width:9px;height:9px;background:var(--gold);border-radius:50%;box-shadow:0 0 8px rgba(233,165,53,.4)}
+.nav-name{color:#fff;font-size:16px;font-weight:800;letter-spacing:-.3px}
+.nav-name sup{color:var(--gold);font-size:9px;vertical-align:super;font-weight:600}
+.nav-suite{color:rgba(255,255,255,.3);font-size:11px;margin-left:2px}
+.nav-tag{color:rgba(255,255,255,.3);font-size:11px}
+
+/* HERO */
+#hero{background:linear-gradient(140deg,var(--navy-deep) 0%,#0f2440 45%,#112035 100%);padding:52px 32px 48px;position:relative;overflow:hidden;height:calc(100vh - 52px);display:flex;flex-direction:column;justify-content:center;transition:padding .3s,height .3s}
+#hero::after{content:'';position:absolute;right:-60px;top:-60px;width:400px;height:400px;background:radial-gradient(circle,rgba(233,165,53,.06) 0%,transparent 70%);pointer-events:none}
+#hero.compact{height:auto;min-height:unset;padding:16px 32px}
+#hero.compact .hero-left{display:none}
+#hero.compact .hero-right{opacity:.4;pointer-events:none}
+.hero-grid{max-width:1140px;margin:0 auto;display:grid;grid-template-columns:1fr 480px;gap:56px;align-items:stretch;position:relative;z-index:1;width:100%}
+.hero-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.hero-eyebrow span{background:rgba(233,165,53,.12);border:1px solid rgba(233,165,53,.25);color:var(--gold);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+h1{font-size:38px;font-weight:900;color:#fff;line-height:1.12;letter-spacing:-.6px;margin-bottom:18px}
+h1 em{font-style:normal;color:var(--gold)}
+.hero-desc{color:rgba(255,255,255,.6);font-size:14px;line-height:1.75;margin-bottom:28px;max-width:440px}
+.hero-feats{display:flex;flex-direction:column;gap:8px}
+.feat{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.55);font-size:12px}
+.feat::before{content:'';width:4px;height:4px;background:var(--gold);border-radius:50%}
+
+/* DROP ZONE */
+.drop-card{background:rgba(255,255,255,.035);border:1.5px dashed rgba(255,255,255,.18);border-radius:16px;padding:36px 28px;cursor:pointer;transition:all .2s;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center}
+.drop-card:hover,.drop-card.drag{background:rgba(233,165,53,.05);border-color:rgba(233,165,53,.5)}
+.drop-icon{font-size:38px;margin-bottom:14px;display:block}
+.drop-title{color:#fff;font-size:15px;font-weight:700;margin-bottom:6px}
+.drop-sub{color:rgba(255,255,255,.4);font-size:12px;line-height:1.6;margin-bottom:20px}
+.col-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left}
+.ctag{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px}
+.ctag .cname{color:#fff;font-size:12px;font-weight:700;display:block}
+.ctag .cdesc{color:rgba(255,255,255,.4);font-size:10px;margin-top:2px}
+#fileInput{display:none}
+
+/* STATUS BAR */
+#main{padding:0 32px;max-width:1200px;margin:0 auto;width:100%;background:#fff}
+.sbar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin:16px 0 0;display:none;align-items:center;gap:10px;font-size:12px}
+.sbar.on{display:flex}
+.sbar.loading{border-color:#2980b9;background:#ebf5fb}
+.sbar.ok{border-color:var(--green-border);background:var(--green-bg)}
+.sbar.err{border-color:var(--red-border);background:var(--red-bg)}
+.spin{width:14px;height:14px;border:2px solid var(--gray-mid);border-top-color:#2980b9;border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* TOTAL BANNER */
+.total-banner{background:var(--navy);border:1px solid var(--navy-border);border-radius:12px;padding:20px 28px;margin:16px 0 12px;display:flex;align-items:center;gap:20px;box-shadow:0 4px 20px rgba(8,21,37,.3)}
+.total-num{font-size:52px;font-weight:900;color:var(--gold);line-height:1;letter-spacing:-2px;min-width:80px;font-variant-numeric:tabular-nums}
+.total-right{flex:1}
+.total-label{color:rgba(255,255,255,.45);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.total-sub{color:rgba(255,255,255,.6);font-size:13px;line-height:1.5}
+.total-sub strong{color:#fff}
+.total-icon{font-size:32px;margin-left:auto;opacity:.5}
+@keyframes pulse-gold{0%,100%{box-shadow:0 4px 20px rgba(8,21,37,.3)}50%{box-shadow:0 4px 30px rgba(233,165,53,.18)}}
+.total-banner.animate{animation:pulse-gold 2s ease-in-out 3}
+
+/* SUMMARY CARDS */
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.card{background:var(--gray);border-radius:10px;padding:16px 18px;border:1px solid var(--gray-mid);box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card .num{font-size:28px;font-weight:800;line-height:1}
+.card .lbl{font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.card.red{border-color:var(--red-border);background:var(--red-bg)}.card.red .num{color:var(--red)}
+.card.orange{border-color:var(--orange-border);background:var(--orange-bg)}.card.orange .num{color:var(--orange)}
+.card.navy-card{border-color:var(--navy-border);background:var(--navy)}.card.navy-card .num{color:var(--gold)}.card.navy-card .lbl{color:rgba(255,255,255,.5)}
+
+/* ACTION BAR */
+.action-bar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.btn{padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--navy);color:#fff}.btn-primary:hover{background:var(--navy-mid)}
+.btn-primary:disabled{background:#aaa;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--navy-deep);font-weight:800}.btn-gold:hover{background:var(--gold-dim);color:#fff}
+.btn-outline{background:#fff;color:var(--navy);border:1.5px solid var(--gray-mid)}.btn-outline:hover{border-color:var(--navy);background:var(--gray)}
+.fnote{color:#aaa;font-size:11px}
+
+/* FILTER PILLS */
+.filter-bar{display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.fpill{padding:5px 14px;border-radius:20px;border:1px solid var(--gray-mid);background:#fff;cursor:pointer;font-size:12px;font-weight:700;color:#888;transition:all .15s}
+.fpill:hover{border-color:#aaa}
+.fpill.f-all.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.fpill.f-red.active{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.fpill.f-orange.active{background:var(--orange-bg);color:var(--orange);border-color:var(--orange-border)}
+.filter-count{font-size:10px;background:rgba(0,0,0,.08);border-radius:10px;padding:1px 6px;margin-left:4px}
+
+/* TABLE */
+.table-wrap{border:1px solid var(--gray-mid);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+table.itbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+table.itbl th{background:#f0f2f5;color:#666;font-weight:700;padding:9px 11px;text-align:left;border-bottom:2px solid var(--gray-mid);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis}
+table.itbl td{padding:7px 11px;border-bottom:1px solid #f2f3f5;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.itbl tr:last-child td{border-bottom:none}
+table.itbl tr:hover td{background:#fafbfc}
+.group-sep td{border-top:2px solid var(--gray-mid)!important}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+.badge.red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.badge.orange{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.empty-state{padding:48px;text-align:center;color:#bbb;font-size:13px}
+
+/* FOOTER */
+footer{background:var(--navy-deep);padding:24px 32px;border-top:1px solid var(--navy-border);text-align:center;margin-top:48px}
+footer p{color:rgba(255,255,255,.28);font-size:11px;line-height:1.9}
+footer a{color:rgba(255,255,255,.5);text-decoration:none;transition:color .15s}
+footer a:hover{color:var(--gold)}
+.footer-copy{margin-top:6px;color:rgba(255,255,255,.18);font-size:10px;letter-spacing:.3px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-dot"></div>
+    <span class="nav-name">OrderGard<sup>™</sup></span>
+    <span class="nav-suite">&nbsp;by ConfigGard</span>
+  </div>
+  <span class="nav-tag">Duplicate Sales Order Detection for Business Central</span>
+</nav>
+
+<div id="hero">
+  <div class="hero-grid">
+    <div class="hero-left">
+      <div class="hero-eyebrow"><span>Order Integrity Tool</span></div>
+      <h1>Duplicate orders get<br>shipped before anyone<br><em>notices they exist.</em></h1>
+      <p class="hero-desc">OrderGard scans your BC Sales Order export for duplicate Customer PO numbers, scores each group for risk, and gives your CX team a prioritized review list — in seconds, no pivot table required.</p>
+      <div class="hero-feats">
+        <div class="feat">Red / Orange risk scoring — every flagged group needs a look</div>
+        <div class="feat">Detects same amount, same part, same ship date patterns</div>
+        <div class="feat">Export to Excel — Review Summary + SO Detail tabs</div>
+        <div class="feat">Runs entirely in your browser — no data leaves your machine</div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="drop-card" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <span class="drop-icon">📋</span>
+        <div class="drop-title">Drop your BC Sales Order export here</div>
+        <div class="drop-sub">Export the SO dashboard from Business Central as Excel (.xlsx) or tab-delimited (.txt). The following columns must be present:</div>
+        <div class="col-list">
+          <div class="ctag"><span class="cname">No.</span><span class="cdesc">SO number</span></div>
+          <div class="ctag"><span class="cname">Customer Purchase Order No. <span style="color:rgba(233,165,53,.7);font-weight:400">(Ext. Doc No.)</span></span><span class="cdesc">Duplicate key — either field</span></div>
+          <div class="ctag"><span class="cname">Sell-to Customer Name</span><span class="cdesc">Customer label</span></div>
+          <div class="ctag"><span class="cname">Amount</span><span class="cdesc">Order value</span></div>
+          <div class="ctag"><span class="cname">Shipment Date</span><span class="cdesc">For date comparison</span></div>
+          <div class="ctag"><span class="cname">Status</span><span class="cdesc">Open / Released</span></div>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.txt,.tsv,.csv">
+    </div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="sbar" class="sbar" style="background:#fff;margin-top:0"></div>
+  <div id="results" style="display:none;padding:24px 0 40px;background:#fff">
+
+    <!-- Total banner -->
+    <div class="total-banner" id="totalBanner">
+      <div class="total-num" id="totalNum">0</div>
+      <div class="total-right">
+        <div class="total-label">Duplicate PO Groups Detected</div>
+        <div class="total-sub" id="totalSub">Scanning…</div>
+      </div>
+      <div class="total-icon">⚠️</div>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="summary-grid">
+      <div class="card red"><div class="num" id="cRed">0</div><div class="lbl">🔴 Red — Likely Duplicate</div></div>
+      <div class="card orange"><div class="num" id="cOrange">0</div><div class="lbl">🟠 Orange — Review Closer</div></div>
+      <div class="card navy-card"><div class="num" id="cValue">$0</div><div class="lbl">Value at Risk (Red)</div></div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-bar">
+      <button class="btn btn-gold" id="btnExport" onclick="OG.exportXlsx()">📥 Export to Excel</button>
+      <button class="btn btn-outline" onclick="OG.reset()">↩ Load New File</button>
+      <span class="fnote" id="fnote"></span>
+    </div>
+
+    <!-- Filter pills -->
+    <div class="filter-bar">
+      <span style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-right:4px">Filter:</span>
+      <button class="fpill f-all active" onclick="OG.filter('all',this)">All <span class="filter-count" id="fc-all">0</span></button>
+      <button class="fpill f-red" onclick="OG.filter('RED',this)">🔴 Red <span class="filter-count" id="fc-red">0</span></button>
+      <button class="fpill f-orange" onclick="OG.filter('ORANGE',this)">🟠 Orange <span class="filter-count" id="fc-orange">0</span></button>
+    </div>
+
+    <!-- Results table -->
+    <div class="table-wrap" id="tableWrap">
+      <table class="itbl" id="resultTable">
+        <thead><tr>
+          <th style="width:80px">Risk</th>
+          <th style="width:130px">Customer PO # / Ext Doc</th>
+          <th style="width:115px">SO #</th>
+          <th style="width:200px">Customer</th>
+          <th style="width:90px">Amount</th>
+          <th style="width:95px">Ship Date</th>
+          <th style="width:75px">Status</th>
+          <th style="width:90px">Created By</th>
+          <th style="width:80px">Location</th>
+        </tr></thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none">No groups match the current filter.</div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <p>OrderGard™ is part of the <strong style="color:rgba(255,255,255,.45)">ConfigGard™</strong> suite of Business Central alignment tools.</p>
+  <p>Built by <a href="https://www.linkedin.com/in/ronjones4133/" target="_blank">Ron Jones</a> · Supply Chain &amp; ERP Systems</p>
+  <div class="footer-copy">© 2026 ConfigGard · All rights reserved · Source code proprietary · Not affiliated with Microsoft Corporation</div>
+  <div class="footer-copy" style="margin-top:4px"><a href="TERMS.md" target="_blank" style="color:rgba(255,255,255,.4)">Terms of Use</a> · First published June 2026</div>
+</footer>
+
+<script>
+const OG = (function() {
+
+  let groups = [];
+  let activeFilter = 'all';
+
+  // ── File handling ─────────────────────────────────────────────────────────
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); loadFile(e.dataTransfer.files[0]); });
+  document.getElementById('fileInput').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+  function loadFile(file) {
+    sb('loading', 'Reading ' + file.name + '…');
+    document.getElementById('hero').classList.add('compact');
+    const reader = new FileReader();
+    if (file.name.match(/\.xlsx$/i)) {
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          // raw:false gives formatted strings; dateNF forces short date on date cells
+          const rows = XLSX.utils.sheet_to_json(ws, { raw: false, dateNF: 'M/D/YYYY', defval: '' });
+          process(rows, file.name);
+        } catch(err) { sb('err', '✗ ' + err.message); document.getElementById('hero').classList.remove('compact'); }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = e => {
+        try {
+          const lines = e.target.result.split('\n').filter(l => l.trim());
+          const headers = lines[0].split('\t').map(h => h.trim());
+          const rows = [];
+          for (let i = 1; i < lines.length; i++) {
+            const vals = lines[i].split('\t');
+            const obj = {};
+            headers.forEach((h, idx) => obj[h] = (vals[idx] || '').trim());
+            rows.push(obj);
+          }
+          process(rows, file.name);
+        } catch(err) { sb('err', '✗ ' + err.message); document.getElementById('hero').classList.remove('compact'); }
+      };
+      reader.readAsText(file);
+    }
+  }
+
+  // ── Date normalisation ─────────────────────────────────────────────────────
+  // Accepts: Excel serial (number or numeric string), M/D/YYYY string, or already-formatted date
+  function normaliseDate(v) {
+    if (!v && v !== 0) return '';
+    const s = String(v).trim();
+    if (!s || s === '0') return '';
+    // Already a readable date string (contains /)
+    if (s.includes('/')) return s;
+    // Excel serial
+    const n = parseFloat(s);
+    if (!isNaN(n) && n > 40000 && n < 60000) {
+      const d = new Date(Math.round((n - 25569) * 86400 * 1000));
+      if (!isNaN(d.getTime())) return (d.getUTCMonth() + 1) + '/' + d.getUTCDate() + '/' + d.getUTCFullYear();
+    }
+    return s;
+  }
+
+  // Returns a comparable numeric value for a date string (for export sorting)
+  function dateSerial(v) {
+    if (!v) return 0;
+    const s = String(v).trim();
+    const n = parseFloat(s);
+    if (!isNaN(n) && n > 40000 && n < 60000) return n;
+    // M/D/YYYY
+    const parts = s.split('/');
+    if (parts.length === 3) {
+      const d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+    return 0;
+  }
+
+  // ── Column resolver ───────────────────────────────────────────────────────
+  function col(row, names) {
+    for (const n of names) {
+      const keys = Object.keys(row);
+      const match = keys.find(k => k.trim().toLowerCase() === n.toLowerCase());
+      if (match !== undefined && row[match] !== undefined) return String(row[match]).trim();
+    }
+    return '';
+  }
+
+  // ── Parse rows ─────────────────────────────────────────────────────────────
+  function parseRows(rows) {
+    return rows.map(r => {
+      const custPO  = col(r, ['Customer Purchase Order No.', 'Customer Purchase Order No', 'customer purchase order no.']);
+      const extDoc  = col(r, ['External Document No.', 'external document no.']);
+      const po      = custPO || extDoc;
+      const poField = custPO ? 'Customer PO' : (extDoc ? 'Ext Doc No.' : '');
+      return {
+        po, poField,
+        so:       col(r, ['No.', 'no.', 'SO No', 'SO #']),
+        cust:     col(r, ['Sell-to Customer Name', 'sell-to customer name', 'Customer Name']),
+        amt:      parseFloat(col(r, ['Amount', 'amount'])) || null,
+        shipDate: normaliseDate(col(r, ['Shipment Date', 'shipment date', 'Ship Date'])),
+        shipSerial: dateSerial(col(r, ['Shipment Date', 'shipment date', 'Ship Date'])),
+        status:   col(r, ['Status', 'status']),
+        by:       col(r, ['Est. Created By', 'est. created by', 'Created By', 'created by']),
+        location: col(r, ['Location Code', 'location code', 'Location']),
+        extDoc,
+      };
+    }).filter(r => r.po && r.so);
+  }
+
+  // ── Scoring ────────────────────────────────────────────────────────────────
+  function scoreGroup(rows) {
+    const custs = [...new Set(rows.map(r => r.cust))];
+    const amts  = rows.map(r => r.amt).filter(a => a !== null);
+    const dates  = rows.map(r => r.shipDate).filter(Boolean);
+    const sameCust  = custs.length === 1;
+    const sameAmt   = amts.length > 1 && amts.every(a => Math.abs(a - amts[0]) < 0.51);
+    const sameDates = dates.length > 1 && dates.every(d => d === dates[0]);
+    if (sameCust && sameAmt) return 'RED';   // same customer + same amount = strong signal
+    if (sameCust && sameDates) return 'RED'; // same customer + same ship date = strong signal
+    return 'ORANGE';                         // all other duplicates — review closer
+  }
+
+  // ── Process ────────────────────────────────────────────────────────────────
+  function process(rawRows, filename) {
+    const parsed = parseRows(rawRows);
+    if (!parsed.length) {
+      sb('err', '✗ No valid SO rows found. Check column headers match expected BC export format.');
+      document.getElementById('hero').classList.remove('compact');
+      return;
+    }
+    // Group by PO
+    const map = {};
+    parsed.forEach(r => { if (!map[r.po]) map[r.po] = []; map[r.po].push(r); });
+    groups = Object.entries(map)
+      .filter(([, rows]) => rows.length >= 2)
+      .map(([po, rows]) => ({ po, rows, risk: scoreGroup(rows) }))
+      .sort((a, b) => {
+        const order = { RED: 0, ORANGE: 1 };
+        return order[a.risk] - order[b.risk];
+      });
+
+    render();
+    const red   = groups.filter(g => g.risk === 'RED').length;
+    const orange = groups.filter(g => g.risk === 'ORANGE').length;
+    const elapsed = ((Date.now() - window._ogStart) / 1000).toFixed(1);
+    sb('ok', '✓ Scanned ' + parsed.length + ' SOs in ' + elapsed + 's — ' + groups.length + ' duplicate PO groups found (' + red + ' red, ' + orange + ' orange)');
+    setTimeout(() => document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  function render() {
+    document.getElementById('results').style.display = 'block';
+    const red    = groups.filter(g => g.risk === 'RED');
+    const orange = groups.filter(g => g.risk === 'ORANGE');
+    const redVal = red.reduce((acc, g) => {
+      const maxAmt = Math.max(...g.rows.map(r => r.amt || 0));
+      return acc + maxAmt;
+    }, 0);
+
+    animateCount(document.getElementById('totalNum'), groups.length);
+    document.getElementById('totalSub').innerHTML =
+      '<strong style="color:#E9A535">' + groups.length + ' groups</strong> across <strong style="color:#E9A535">' +
+      groups.reduce((a, g) => a + g.rows.length, 0) + ' SOs</strong> share a Customer PO number';
+
+    document.getElementById('cRed').textContent    = red.length;
+    document.getElementById('cOrange').textContent = orange.length;
+    document.getElementById('cValue').textContent  = '$' + redVal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+    document.getElementById('fc-all').textContent    = groups.length;
+    document.getElementById('fc-red').textContent    = red.length;
+    document.getElementById('fc-orange').textContent = orange.length;
+    document.getElementById('fnote').textContent = groups.length + ' groups · ' + red.length + ' red · ' + orange.length + ' orange';
+    document.getElementById('totalBanner').classList.add('animate');
+
+    renderTable();
+  }
+
+  function renderTable() {
+    const body   = document.getElementById('resultBody');
+    const empty  = document.getElementById('emptyState');
+    body.innerHTML = '';
+    const filtered = activeFilter === 'all' ? groups : groups.filter(g => g.risk === activeFilter);
+    if (!filtered.length) { empty.style.display = 'block'; body.parentElement.style.display = 'none'; return; }
+    empty.style.display = 'none';
+    document.getElementById('resultTable').style.display = '';
+
+    filtered.forEach((g, gi) => {
+      const badgeClass = g.risk === 'RED' ? 'red' : 'orange';
+      const label      = g.risk === 'RED' ? '🔴 Red' : '🟠 Orange';
+      g.rows.forEach((r, ri) => {
+        const tr = document.createElement('tr');
+        if (ri === 0 && gi > 0) tr.classList.add('group-sep');
+        tr.innerHTML =
+          '<td>' + (ri === 0 ? '<span class="badge ' + badgeClass + '">' + label + '</span>' : '') + '</td>' +
+          '<td title="' + esc(g.po) + '">' + esc(g.po) + (r.poField === 'Ext Doc No.' ? ' <span style="font-size:9px;color:#aaa;font-weight:600">(ext)</span>' : '') + '</td>' +
+          '<td title="' + esc(r.so) + '">' + esc(r.so) + '</td>' +
+          '<td title="' + esc(r.cust) + '">' + esc(r.cust) + '</td>' +
+          '<td>' + (r.amt !== null ? '$' + r.amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—') + '</td>' +
+          '<td>' + (r.shipDate || '—') + '</td>' +
+          '<td>' + esc(r.status) + '</td>' +
+          '<td title="' + esc(r.by) + '">' + esc(r.by) + '</td>' +
+          '<td title="' + esc(r.location) + '">' + esc(r.location) + '</td>';
+        body.appendChild(tr);
+      });
+    });
+  }
+
+  // ── Excel Export ───────────────────────────────────────────────────────────
+  function exportXlsx() {
+    if (!groups.length) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const wb = XLSX.utils.book_new();
+
+    // --- Tab 1: Review Summary ---
+    const summHdr = ['Risk', 'Customer PO #', 'SO Count', 'Customer(s)', 'Total Value at Risk', 'Ship Dates', 'Created By', 'Statuses', 'Notes'];
+    const summRows = groups.map(g => {
+      const custs    = [...new Set(g.rows.map(r => r.cust))].join(' / ');
+      const totalVal = g.rows.reduce((a, r) => a + (r.amt || 0), 0);
+      const dates    = [...new Set(g.rows.map(r => r.shipDate).filter(Boolean))].join(', ');
+      const creators = [...new Set(g.rows.map(r => r.by).filter(Boolean))].join(', ');
+      const statuses = [...new Set(g.rows.map(r => r.status).filter(Boolean))].join(', ');
+      const sameAmt  = g.rows.every(r => Math.abs((r.amt || 0) - (g.rows[0].amt || 0)) < 0.51);
+      const sameDate = dates.split(',').length === 1 && dates.length > 0;
+      let note = '';
+      if (g.risk === 'RED') note = sameAmt && sameDate ? 'Same amount + same ship date' : sameAmt ? 'Same amount — review ship dates' : 'Same ship date — review amounts';
+      else if (g.risk === 'ORANGE') note = 'Same customer PO # — amounts or dates differ';
+      else note = 'Different customers sharing PO # — likely legitimate';
+      return [g.risk, g.po, g.rows.length, custs, totalVal, dates, creators, statuses, note];
+    });
+    const summWs = XLSX.utils.aoa_to_sheet([summHdr, ...summRows]);
+    // Column widths
+    summWs['!cols'] = [{ wch: 10 }, { wch: 18 }, { wch: 9 }, { wch: 36 }, { wch: 18 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 46 }];
+    XLSX.utils.book_append_sheet(wb, summWs, 'Review Summary');
+
+    // --- Tab 2: SO Detail ---
+    const detHdr = ['Risk', 'Key Field Used', 'Customer PO # / Ext Doc', 'SO #', 'Customer', 'Amount', 'Ship Date', 'Status', 'Created By', 'Location', 'External Doc No.'];
+    const detRows = [];
+    groups.forEach(g => {
+      g.rows.forEach(r => {
+        detRows.push([
+          g.risk, r.poField || 'Customer PO', g.po, r.so, r.cust,
+          r.amt !== null ? r.amt : '',
+          r.shipDate || '',
+          r.status, r.by, r.location, r.extDoc
+        ]);
+      });
+    });
+    const detWs = XLSX.utils.aoa_to_sheet([detHdr, ...detRows]);
+    detWs['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 20 }, { wch: 14 }, { wch: 36 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, detWs, 'SO Detail');
+
+    // --- Tab 3: Run Notes ---
+    const red    = groups.filter(g => g.risk === 'RED').length;
+    const orange = groups.filter(g => g.risk === 'ORANGE').length;
+    const notesData = [
+      ['OrderGard™ — Run Notes'],
+      ['Export date:', today],
+      ['Total duplicate PO groups:', groups.length],
+      ['Red — likely duplicate:', red],
+      ['Orange — review closer:', orange],
+      ['Total SOs in flagged groups:', groups.reduce((a, g) => a + g.rows.length, 0)],
+      [''],
+      ['Scoring logic:'],
+      ['RED', 'Same customer + same amount, OR same customer + same ship date — strong duplicate signal'],
+      ['ORANGE', 'Same Customer PO # but amounts or dates differ — review closer before shipping'],
+      ['Not shown', 'Groups that do not score RED or ORANGE are suppressed — no actionable signal'],
+      [''],
+      ['Tool:', 'OrderGard™ by ConfigGard™'],
+      ['Attribution:', 'Ron Jones — linkedin.com/in/ronjones4133/'],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(notesData), 'Run Notes');
+
+    const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([data], { type: 'application/octet-stream' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'OrderGard_DupScan_' + today + '.xlsx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ── Utilities ──────────────────────────────────────────────────────────────
+  function filter(f, btn) {
+    activeFilter = f;
+    document.querySelectorAll('.fpill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTable();
+  }
+
+  function reset() {
+    groups = []; activeFilter = 'all';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('sbar').className = 'sbar';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('hero').classList.remove('compact');
+    document.querySelectorAll('.fpill').forEach(b => b.classList.remove('active'));
+    document.querySelector('.fpill.f-all').classList.add('active');
+  }
+
+  function sb(type, msg) {
+    const b = document.getElementById('sbar');
+    b.className = 'sbar on' + (type ? ' ' + type : '');
+    b.innerHTML = type === 'loading'
+      ? '<div class="spin"></div><span>' + msg + '</span>'
+      : '<span>' + msg + '</span>';
+  }
+
+  function animateCount(el, target) {
+    let v = 0;
+    const step = Math.max(1, Math.ceil(target / 40));
+    const t = setInterval(() => {
+      v = Math.min(v + step, target);
+      el.textContent = v;
+      if (v >= target) clearInterval(t);
+    }, 18);
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Capture start time on file input click
+  document.getElementById('dropZone').addEventListener('click', () => { window._ogStart = Date.now(); });
+  document.getElementById('fileInput').addEventListener('click', () => { window._ogStart = Date.now(); });
+  dz.addEventListener('drop', () => { window._ogStart = Date.now(); });
+
+  return { filter, reset, exportXlsx };
+
+})();
+</script>
+</body>
+</html>
