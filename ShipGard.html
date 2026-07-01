@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -506,6 +508,20 @@ const SG = (function() {
           howTo,
           false,4,'','','',0,null);
       }
+    });
+
+    // 10. Collect (Receiver) template missing a Payment Account No.
+    data.pkg.forEach(p => {
+      if (p['Entry Type'] !== 'template' || p['Payment Type'] !== 'Receiver') return;
+      const acct = (p['Payment Account No.']||'').trim();
+      if (acct) return; // account present — nothing to flag here (see Check 7 for format validation)
+      const co = data.co.find(r => r['Package Options Template Code'] === p['Package No.']);
+      const cno = co ? co['Customer No.'] : '';
+      const c = cno ? cM[cno] : null;
+      push('HIGH','Missing Account Number',cno||p['Package No.'],(c&&c['Name'])||p['Description']||p['Package No.'],co?(co['Ship-To Code']||''):'',
+        'Payment Type=Receiver (collect) on template '+p['Package No.']+' but Payment Account No. is blank — a collect shipment cannot be billed correctly without a carrier account number on file.',
+        'Add a valid carrier account number to Payment Account No. on template '+p['Package No.']+' (Table 23044608), or confirm this customer should not be set to Receiver.',
+        false,3,'','','',0,null);
     });
 
     dedupeIssues();
