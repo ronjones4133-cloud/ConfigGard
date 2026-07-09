@@ -1,0 +1,894 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockGard™ — Inventory Health Scoring for Business Central</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --navy-deep:#081525; --navy:#0D1F35; --navy-mid:#162942; --navy-border:#1E3550;
+  --gold:#E9A535; --gold-dim:#b87d1f;
+  --red:#C0392B; --red-bg:#fce4d6; --red-border:#e8a090;
+  --orange:#d4820a; --orange-bg:#fff2cc; --orange-border:#f0c870;
+  --green:#27AE60; --green-bg:#e2efda; --green-border:#90c87a;
+  --blue:#2980b9; --blue-bg:#e3f0fa; --blue-border:#9dc7e8;
+  --gray:#f5f6f8; --gray-mid:#e0e2e6; --dark:#1a1a2e;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--navy-deep);color:var(--dark);font-size:13px}
+
+nav{background:var(--navy-deep);padding:0 32px;height:52px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--navy-border)}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-dot{width:9px;height:9px;background:var(--gold);border-radius:50%;box-shadow:0 0 8px rgba(233,165,53,.4)}
+.nav-name{color:#fff;font-size:16px;font-weight:800;letter-spacing:-.3px}
+.nav-name sup{color:var(--gold);font-size:9px;vertical-align:super;font-weight:600}
+.nav-suite{color:rgba(255,255,255,.3);font-size:11px;margin-left:2px}
+.nav-tag{color:rgba(255,255,255,.3);font-size:11px}
+
+#hero{background:linear-gradient(140deg,var(--navy-deep) 0%,#0f2440 45%,#112035 100%);padding:52px 32px 48px;position:relative;overflow:hidden;height:calc(100vh - 52px);display:flex;flex-direction:column;justify-content:center;transition:padding .3s,height .3s}
+#hero::after{content:'';position:absolute;right:-60px;top:-60px;width:400px;height:400px;background:radial-gradient(circle,rgba(233,165,53,.06) 0%,transparent 70%);pointer-events:none}
+#hero.compact{height:auto;min-height:unset;padding:16px 32px}
+#hero.compact .hero-left{display:none}
+#hero.compact .hero-right{opacity:.4;pointer-events:none}
+.hero-grid{max-width:1140px;margin:0 auto;display:grid;grid-template-columns:1fr 480px;gap:56px;align-items:stretch;position:relative;z-index:1;width:100%}
+.hero-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.hero-eyebrow span{background:rgba(233,165,53,.12);border:1px solid rgba(233,165,53,.25);color:var(--gold);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+h1{font-size:38px;font-weight:900;color:#fff;line-height:1.12;letter-spacing:-.6px;margin-bottom:18px}
+h1 em{font-style:normal;color:var(--gold)}
+.hero-desc{color:rgba(255,255,255,.6);font-size:14px;line-height:1.75;margin-bottom:28px;max-width:440px}
+.hero-feats{display:flex;flex-direction:column;gap:8px}
+.feat{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.55);font-size:12px}
+.feat::before{content:'';width:4px;height:4px;background:var(--gold);border-radius:50%}
+
+.drop-card{background:rgba(255,255,255,.035);border:1.5px dashed rgba(255,255,255,.18);border-radius:16px;padding:36px 28px;cursor:pointer;transition:all .2s;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center}
+.drop-card:hover,.drop-card.drag{background:rgba(233,165,53,.05);border-color:rgba(233,165,53,.5)}
+.drop-icon{font-size:38px;margin-bottom:14px;display:block}
+.drop-title{color:#fff;font-size:15px;font-weight:700;margin-bottom:6px}
+.drop-sub{color:rgba(255,255,255,.4);font-size:12px;line-height:1.6;margin-bottom:20px}
+.col-list{display:grid;grid-template-columns:1fr;gap:8px;text-align:left}
+.ctag{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px}
+.ctag .cname{color:#fff;font-size:12px;font-weight:700;display:block}
+.ctag .cdesc{color:rgba(255,255,255,.4);font-size:10px;margin-top:2px}
+#fileInput{display:none}
+
+#main{padding:0 32px;max-width:1200px;margin:0 auto;width:100%;background:#fff}
+.sbar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin:16px 0 0;display:none;align-items:center;gap:10px;font-size:12px}
+.sbar.on{display:flex}
+.sbar.loading{border-color:#2980b9;background:#ebf5fb}
+.sbar.ok{border-color:var(--green-border);background:var(--green-bg)}
+.sbar.err{border-color:var(--red-border);background:var(--red-bg)}
+.sbar.wait{border-color:#f0c870;background:#fffbf0}
+.spin{width:14px;height:14px;border:2px solid var(--gray-mid);border-top-color:#2980b9;border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.total-banner{background:var(--navy);border:1px solid var(--navy-border);border-radius:12px;padding:20px 28px;margin:16px 0 12px;display:flex;align-items:center;gap:20px;box-shadow:0 4px 20px rgba(8,21,37,.3)}
+.total-num{font-size:52px;font-weight:900;color:var(--gold);line-height:1;letter-spacing:-2px;min-width:110px;font-variant-numeric:tabular-nums}
+.total-right{flex:1}
+.total-label{color:rgba(255,255,255,.45);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.total-sub{color:rgba(255,255,255,.6);font-size:13px;line-height:1.5}
+.total-sub strong{color:#fff}
+.total-icon{font-size:32px;margin-left:auto;opacity:.5}
+@keyframes pulse-gold{0%,100%{box-shadow:0 4px 20px rgba(8,21,37,.3)}50%{box-shadow:0 4px 30px rgba(233,165,53,.18)}}
+.total-banner.animate{animation:pulse-gold 2s ease-in-out 3}
+
+.lt-card{background:var(--gray);border:1px solid var(--gray-mid);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.lt-card label{font-size:12px;font-weight:700;color:#344563}
+.lt-card input[type=range]{width:220px;height:6px;-webkit-appearance:none;appearance:none;background:#d0dbe8;border-radius:3px;outline:none;cursor:pointer}
+.lt-card input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--navy);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
+.lt-val{font-size:14px;font-weight:800;color:var(--navy);min-width:80px}
+.lt-note{font-size:11px;color:#888;flex:1 1 100%}
+
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--gray);border-radius:10px;padding:16px 18px;border:1px solid var(--gray-mid);box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card .num{font-size:26px;font-weight:800;line-height:1}
+.card .lbl{font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.card .pct{font-size:11px;color:#aaa;margin-top:2px}
+.card.red{border-color:var(--red-border);background:var(--red-bg)}.card.red .num{color:var(--red)}
+.card.orange{border-color:var(--orange-border);background:var(--orange-bg)}.card.orange .num{color:var(--orange)}
+.card.green{border-color:var(--green-border);background:var(--green-bg)}.card.green .num{color:var(--green)}
+.card.blue{border-color:var(--blue-border);background:var(--blue-bg)}.card.blue .num{color:var(--blue)}
+.card.gray{border-color:#d0d0d0;background:#f8f8f8}.card.gray .num{color:#666}
+
+.gap-banner{background:#fff2cc;border:1px solid #f0c870;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#7a5c00;display:none;align-items:center;gap:8px}
+.gap-banner.on{display:flex}
+
+.action-bar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.btn{padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--navy);color:#fff}.btn-primary:hover{background:var(--navy-mid)}
+.btn-primary:disabled{background:#aaa;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--navy-deep);font-weight:800}.btn-gold:hover{background:var(--gold-dim);color:#fff}
+.btn-outline{background:#fff;color:var(--navy);border:1.5px solid var(--gray-mid)}.btn-outline:hover{border-color:var(--navy);background:var(--gray)}
+.fnote{color:#aaa;font-size:11px}
+
+.filter-bar{display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.fpill{padding:5px 14px;border-radius:20px;border:1px solid var(--gray-mid);background:#fff;cursor:pointer;font-size:12px;font-weight:700;color:#888;transition:all .15s}
+.fpill:hover{border-color:#aaa}
+.fpill.active[data-t="ALL"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+.fpill.active[data-t="CRITICAL"]{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.fpill.active[data-t="WATCH"]{background:var(--orange-bg);color:var(--orange);border-color:var(--orange-border)}
+.fpill.active[data-t="STABLE"]{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.fpill.active[data-t="OVERSTOCKED"]{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)}
+.fpill.active[data-t="DEAD"]{background:#eee;color:#555;border-color:#ccc}
+.fpill.active[data-t="STALE"]{background:#efe4d8;color:#8a5a2c;border-color:#d3ae8a}
+.fpill.active[data-t="NODATA"]{background:#f0e6f6;color:#8e44ad;border-color:#c9a8db}
+.fpill.active[data-t="GAPEXPOSURE"]{background:#fbe0db;color:#a3341e;border-color:#e8a090}
+.fpill.active[data-t="DORMANT"]{background:#f4f4f4;color:#888;border-color:#ddd}
+.filter-count{font-size:10px;background:rgba(0,0,0,.08);border-radius:10px;padding:1px 6px;margin-left:4px}
+
+.table-wrap{border:1px solid var(--gray-mid);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow-x:auto}
+.table-wrap::-webkit-scrollbar, .scroll-top-outer::-webkit-scrollbar{height:11px}
+.table-wrap::-webkit-scrollbar-thumb, .scroll-top-outer::-webkit-scrollbar-thumb{background:#b8c2cc;border-radius:6px}
+.table-wrap::-webkit-scrollbar-track, .scroll-top-outer::-webkit-scrollbar-track{background:#eef1f4}
+.scroll-top-outer{overflow-x:auto;overflow-y:hidden;height:14px;margin-bottom:2px}
+.scroll-top-inner{height:1px}
+.cap-note{background:#fff2cc;border:1px solid #f0c870;border-radius:6px;padding:8px 14px;font-size:11.5px;color:#7a5c00;margin-bottom:8px}
+table.itbl th[data-key]{cursor:pointer;user-select:none}
+table.itbl th[data-key]:hover{background:#e4e8ee}
+.sort-arrow{font-size:9px;color:var(--gold-dim);margin-left:2px}
+table.itbl{width:100%;border-collapse:collapse;font-size:12px}
+table.itbl th{background:#f0f2f5;color:#666;font-weight:700;padding:9px 10px;text-align:left;border-bottom:2px solid var(--gray-mid);white-space:nowrap;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px}
+table.itbl td{padding:7px 10px;border-bottom:1px solid #f2f3f5;vertical-align:middle;white-space:nowrap}
+table.itbl tr:last-child td{border-bottom:none}
+table.itbl tr:hover td{background:#fafbfc}
+
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.badge.CRITICAL{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.badge.WATCH{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.badge.STABLE{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.badge.OVERSTOCKED{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.badge.DEAD{background:#eee;color:#555;border:1px solid #ccc}
+.badge.STALE{background:#efe4d8;color:#8a5a2c;border:1px solid #d3ae8a}
+.badge.NODATA{background:#f0e6f6;color:#8e44ad;border:1px solid #c9a8db}
+.badge.GAPEXPOSURE{background:#fbe0db;color:#a3341e;border:1px solid #e8a090}
+.badge.DORMANT{background:#f4f4f4;color:#888;border:1px dashed #ccc}
+.empty-state{padding:48px;text-align:center;color:#bbb;font-size:13px}
+
+footer{background:var(--navy-deep);padding:24px 32px;border-top:1px solid var(--navy-border);text-align:center;margin-top:48px}
+footer p{color:rgba(255,255,255,.28);font-size:11px;line-height:1.9}
+footer a{color:rgba(255,255,255,.5);text-decoration:none;transition:color .15s}
+footer a:hover{color:var(--gold)}
+.footer-copy{margin-top:6px;color:rgba(255,255,255,.18);font-size:10px;letter-spacing:.3px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-dot"></div>
+    <span class="nav-name">StockGard<sup>™</sup></span>
+    <span class="nav-suite">&nbsp;by ConfigGard</span>
+  </div>
+  <span class="nav-tag">Inventory Health Scoring for Business Central</span>
+</nav>
+
+<div id="hero">
+  <div class="hero-grid">
+    <div class="hero-left">
+      <div class="hero-eyebrow"><span>Inventory Health Tool</span></div>
+      <h1>Buyers reorder<br>on gut feel because<br><em>nobody scored the SKUs.</em></h1>
+      <p class="hero-desc">StockGard scores every active item by Days of Coverage against your lead time and safety buffer, then hands your buyer a prioritized action queue — Red first — with a leadership scorecard on top.</p>
+      <div class="hero-feats">
+        <div class="feat">Five-tier scoring: Critical / Watch / Stable / Overstocked / Dead</div>
+        <div class="feat">Adjustable Lead Time, Target DoC, and demand % adjustment — tune the model live</div>
+        <div class="feat">Export to Excel — Action Summary + Run Notes tabs</div>
+        <div class="feat">Runs entirely in your browser — no data leaves your machine</div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="drop-card" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <span class="drop-icon">📊</span>
+        <div class="drop-title">Drop your Items + ADU exports here</div>
+        <div class="drop-sub">Either one combined .xlsx (Items + ADU as two tabs) or two separate files (Items .xlsx + ADU .xlsx/.csv). Order doesn't matter — detected by column headers.</div>
+        <div class="col-list">
+          <div class="ctag"><span class="cname">Items <span style="color:rgba(233,165,53,.7);font-weight:400">(Items module view)</span></span><span class="cdesc">No., Description, Category, Quantity on Hand, Qty. on Purch. Order, Qty. on Sales Order</span></div>
+          <div class="ctag"><span class="cname">ADU <span style="color:rgba(233,165,53,.7);font-weight:400">(PBIX export, quarterly)</span></span><span class="cdesc">ItemNo, Planning ADU, Effective Sale Price / Unit, Last Sale Date</span></div>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.csv" multiple>
+    </div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="sbar" class="sbar" style="background:#fff;margin-top:0"></div>
+  <div id="results" style="display:none;padding:24px 0 40px;background:#fff">
+
+    <div class="total-banner" id="totalBanner">
+      <div class="total-num" id="totalNum">0</div>
+      <div class="total-right">
+        <div class="total-label">Active Items Scanned</div>
+        <div class="total-sub" id="totalSub">Analyzing…</div>
+      </div>
+      <div class="total-icon">📊</div>
+    </div>
+
+    <div class="lt-card">
+      <label for="ltSlider">Lead Time</label>
+      <input type="range" id="ltSlider" min="10" max="365" step="5" value="120">
+      <span class="lt-val" id="ltVal">120 days</span>
+      <br>
+      <label for="tdSlider">Target DoC (Safety Buffer)</label>
+      <input type="range" id="tdSlider" min="0" max="180" step="5" value="90">
+      <span class="lt-val" id="tdVal">90 days</span>
+      <br>
+      <label for="pctSlider">% Adjustment <span style="font-weight:400;color:#8fa3b8">(supply reliability / seasonality — scales ADU)</span></label>
+      <input type="range" id="pctSlider" min="-50" max="100" step="5" value="0">
+      <span class="lt-val" id="pctVal">0%</span>
+      <span class="lt-note">Reorder point = Lead Time + Target DoC. Stable ceiling = 3× Lead Time, Overstocked ceiling = 6× Lead Time — all bands now scale when Lead Time moves. Critical items with no sale in the reorder window reclassify to Stale Demand. % Adjustment scales effective ADU (not Target DoC or Lead Time) — a +15% here means "expect 15% more demand," not "widen my safety margin."</span>
+    </div>
+
+    <div class="gap-banner" id="gapBanner"></div>
+
+    <div class="summary-grid" id="summaryGrid"></div>
+
+    <div class="action-bar">
+      <button class="btn btn-gold" id="btnExport" onclick="SGX.exportXlsx()">📥 Export to Excel</button>
+      <button class="btn btn-outline" onclick="SGX.reset()">↩ Load New File</button>
+      <span class="fnote" id="fnote"></span>
+    </div>
+
+    <div class="filter-bar" id="filterBar"></div>
+
+    <div class="cap-note" id="capNote" style="display:none"></div>
+
+    <div class="scroll-top-outer" id="scrollTopOuter"><div class="scroll-top-inner" id="scrollTopInner"></div></div>
+    <div class="table-wrap" id="tableWrap">
+      <table class="itbl" id="resultTable">
+        <thead><tr>
+          <th data-key="tier">Tier <span class="sort-arrow" id="sa_tier"></span></th>
+          <th data-key="itemNo">Item No. <span class="sort-arrow" id="sa_itemNo"></span></th>
+          <th data-key="desc">Description <span class="sort-arrow" id="sa_desc"></span></th>
+          <th data-key="cat">Category <span class="sort-arrow" id="sa_cat"></span></th>
+          <th data-key="onHandDoC">On-Hand DoC <span class="sort-arrow" id="sa_onHandDoC"></span></th>
+          <th data-key="poDoC">Open PO DoC <span class="sort-arrow" id="sa_poDoC"></span></th>
+          <th data-key="netDoC">Net DoC <span class="sort-arrow" id="sa_netDoC"></span></th>
+          <th data-key="adu">ADU <span class="sort-arrow" id="sa_adu"></span></th>
+          <th data-key="onHand">On-Hand Qty <span class="sort-arrow" id="sa_onHand"></span></th>
+          <th data-key="poQty">Open PO Qty <span class="sort-arrow" id="sa_poQty"></span></th>
+          <th data-key="asp">ASP <span class="sort-arrow" id="sa_asp"></span></th>
+          <th data-key="revExposure">Revenue Exposure <span class="sort-arrow" id="sa_revExposure"></span></th>
+          <th data-key="lastSale">Last Sale <span class="sort-arrow" id="sa_lastSale"></span></th>
+          <th data-key="stockoutDate">Stockout Date <span class="sort-arrow" id="sa_stockoutDate"></span></th>
+          <th data-key="pipelineLight">Pipeline <span class="sort-arrow" id="sa_pipelineLight"></span></th>
+        </tr></thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none">No items match the current filter.</div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <p>StockGard™ is part of the <strong style="color:rgba(255,255,255,.45)">ConfigGard™</strong> suite of Business Central alignment tools.</p>
+  <p>Built by <a href="https://www.linkedin.com/in/ronjones4133/" target="_blank">Ron Jones</a> · Supply Chain &amp; ERP Systems</p>
+  <div class="footer-copy">© 2026 ConfigGard · All rights reserved · Source code proprietary · Not affiliated with Microsoft Corporation</div>
+  <div class="footer-copy" style="margin-top:4px"><a href="TERMS.md" target="_blank" style="color:rgba(255,255,255,.4)">Terms of Use</a> · First published 2026</div>
+</footer>
+
+<script>
+const SGX = (function() {
+
+  // Stable/Overstocked/Dead boundaries now scale with Lead Time (3xLT / 6xLT),
+  // computed live in rescore() — not fixed constants. See rescore() below.
+
+  let leadTime = 120;
+  let targetDoC = 90;
+  let pctAdj = 0;
+  let items = [];        // scored rows
+  let notFoundCount = 0;  // items in master not found in ADU export at all (diagnostic only)
+  let activeFilter = 'ALL';
+  let sortState = { key: null, dir: 'desc' };
+
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); loadFiles(e.dataTransfer.files); });
+  document.getElementById('fileInput').addEventListener('change', e => { if (e.target.files.length) loadFiles(e.target.files); });
+  let rescoreDebounce = null;
+  function debouncedRescore() {
+    clearTimeout(rescoreDebounce);
+    rescoreDebounce = setTimeout(rescore, 150);
+  }
+
+  document.getElementById('ltSlider').addEventListener('input', e => {
+    leadTime = +e.target.value;
+    document.getElementById('ltVal').textContent = leadTime + ' days';
+    debouncedRescore();
+  });
+  document.getElementById('tdSlider').addEventListener('input', e => {
+    targetDoC = +e.target.value;
+    document.getElementById('tdVal').textContent = targetDoC + ' days';
+    debouncedRescore();
+  });
+  document.getElementById('pctSlider').addEventListener('input', e => {
+    pctAdj = +e.target.value;
+    document.getElementById('pctVal').textContent = (pctAdj>0?'+':'') + pctAdj + '%';
+    debouncedRescore();
+  });
+
+  document.querySelectorAll('#resultTable th[data-key]').forEach(th => {
+    th.addEventListener('click', () => sortBy(th.dataset.key));
+  });
+
+  // Bidirectional sync between the top scroll strip and the actual table scroll —
+  // solves the "scrollbar is at the bottom of a very long table" problem.
+  const scrollTopOuter = document.getElementById('scrollTopOuter');
+  let syncing = false;
+  function syncScrollWidth() {
+    const table = document.getElementById('resultTable');
+    document.getElementById('scrollTopInner').style.width = table.scrollWidth + 'px';
+  }
+  document.getElementById('tableWrap').addEventListener('scroll', function() {
+    if (syncing) return; syncing = true;
+    scrollTopOuter.scrollLeft = this.scrollLeft;
+    syncing = false;
+  });
+  scrollTopOuter.addEventListener('scroll', function() {
+    if (syncing) return; syncing = true;
+    document.getElementById('tableWrap').scrollLeft = this.scrollLeft;
+    syncing = false;
+  });
+
+  function col(row, names) {
+    const keys = Object.keys(row);
+    for (const n of names) {
+      const match = keys.find(k => k.trim().toLowerCase() === n.toLowerCase());
+      if (match !== undefined && row[match] !== undefined && row[match] !== '') return row[match];
+    }
+    return '';
+  }
+  function numOf(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function toDate(v) {
+    if (!v && v !== 0) return null;
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    const n = parseFloat(v);
+    if (!isNaN(n) && n > 20000 && n < 60000) {
+      const d = new Date(Math.round((n - 25569) * 86400 * 1000));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d2 = new Date(v);
+    return isNaN(d2.getTime()) ? null : d2;
+  }
+  function esc(s) { if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmt(n) {
+    if (n === null || n === undefined) return '—';
+    if (Math.abs(n) >= 1000000) return (n/1000000).toFixed(2).replace(/\.?0+$/,'') + 'M';
+    if (Math.abs(n) >= 1000) return (n/1000).toFixed(1).replace(/\.?0+$/,'') + 'K';
+    return Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString() : (Math.round(n*100)/100).toLocaleString();
+  }
+  function fmtMoney(n) { return '$' + (n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+  let loadTicker = null;
+  function startTicker(label) {
+    const start = Date.now();
+    clearInterval(loadTicker);
+    loadTicker = setInterval(() => {
+      sb('loading', label + ' (' + ((Date.now()-start)/1000).toFixed(1) + 's)…');
+    }, 100);
+  }
+  function stopTicker() { clearInterval(loadTicker); loadTicker = null; }
+
+  function readFileAsSheetRows(file) {
+    // Returns a Promise resolving to an array of {name, rows} for every sheet in the file.
+    // Handles .xlsx (binary) and .csv (text) transparently via SheetJS.
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      const isCsv = /\.csv$/i.test(file.name);
+      reader.onload = e => {
+        try {
+          const wb = isCsv
+            ? XLSX.read(e.target.result, { type: 'string' })
+            : XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          resolve(wb.SheetNames.map(name => ({
+            name,
+            rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { raw: true, defval: '' })
+          })));
+        } catch(err) { reject(err); }
+      };
+      reader.onerror = () => reject(new Error('Could not read ' + file.name));
+      if (isCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+    });
+  }
+
+  function looksLikeAdu(rows) {
+    if (!rows.length) return false;
+    return Object.keys(rows[0]).some(k => {
+      const kl = k.trim().toLowerCase();
+      return kl === 'planning adu' || kl === 'adu' || kl === 'itemkey_clean';
+    });
+  }
+
+  let pendingFiles = {}; // { items: {name, rows}, adu: {name, rows} } — accumulates across separate drop/select actions
+
+  function loadFiles(fileList) {
+    const files = Array.from(fileList).filter(f => /\.(xlsx|csv)$/i.test(f.name));
+    if (!files.length) { sb('err', '✗ No .xlsx or .csv files found in the drop.', true); return; }
+    window._sgxStart = Date.now();
+    startTicker('Reading ' + files.map(f=>f.name).join(' + '));
+
+    Promise.all(files.map(readFileAsSheetRows)).then(fileSheetSets => {
+      startTicker('Parsing workbook(s)');
+      setTimeout(() => {
+        try {
+          let itemRows = null, aduRows = null;
+
+          if (files.length >= 2) {
+            // Two (or more) files dropped/selected together — use each file's first sheet.
+            const firstSheets = fileSheetSets.map(s => s[0]);
+            const aduIdx = firstSheets.findIndex(s => looksLikeAdu(s.rows));
+            const itemsIdx = firstSheets.findIndex((s,i) => i !== aduIdx);
+            if (aduIdx === -1 || itemsIdx === -1) throw new Error('Could not tell which file is Items and which is ADU from the column headers. Check that one file has a Planning ADU / ADU / ItemKey_Clean column.');
+            pendingFiles = {}; // fresh pair overrides anything held from earlier single-file drops
+            aduRows = firstSheets[aduIdx].rows;
+            itemRows = firstSheets[itemsIdx].rows;
+          } else {
+            const sheets = fileSheetSets[0];
+            if (sheets.length >= 2) {
+              // Legacy combined mode: one workbook, two tabs — complete on its own.
+              const [s0, s1] = sheets;
+              pendingFiles = {};
+              if (looksLikeAdu(s0.rows) && !looksLikeAdu(s1.rows)) { aduRows = s0.rows; itemRows = s1.rows; }
+              else { itemRows = s0.rows; aduRows = s1.rows; }
+            } else {
+              // Single file, single sheet — this is one half of a pair. Hold it and wait
+              // for its partner instead of judging this drop as a complete, failed attempt.
+              const role = looksLikeAdu(sheets[0].rows) ? 'adu' : 'items';
+              pendingFiles[role] = { name: files[0].name, rows: sheets[0].rows };
+              if (pendingFiles.items && pendingFiles.adu) {
+                itemRows = pendingFiles.items.rows;
+                aduRows = pendingFiles.adu.rows;
+                pendingFiles = {};
+              } else {
+                stopTicker();
+                document.getElementById('fileInput').value = '';
+                const gotLabel = role === 'adu' ? 'ADU' : 'Items';
+                const needLabel = role === 'adu' ? 'Items' : 'ADU';
+                sb('wait', '✓ Got the ' + gotLabel + ' file (' + files[0].name + ') — now drop the ' + needLabel + ' file to continue.', true);
+                return;
+              }
+            }
+          }
+
+          startTicker('Scoring ' + itemRows.length.toLocaleString() + ' items');
+          document.getElementById('hero').classList.add('compact'); // only now — a complete pair is confirmed
+          setTimeout(() => {
+            stopTicker();
+            document.getElementById('fileInput').value = '';
+            process(itemRows, aduRows);
+          }, 20);
+        } catch(err) {
+          stopTicker();
+          document.getElementById('fileInput').value = '';
+          pendingFiles = {};
+          sb('err', '✗ ' + err.message, true);
+          document.getElementById('hero').classList.remove('compact');
+        }
+      }, 30);
+    }).catch(err => {
+      stopTicker();
+      document.getElementById('fileInput').value = '';
+      pendingFiles = {};
+      sb('err', '✗ ' + err.message, true);
+      document.getElementById('hero').classList.remove('compact');
+    });
+  }
+
+  let masterMap = {}, aduMap = {}, hasAsp = false, hasLastSale = false;
+  let dqBlankKeys = 0, dqDupKeys = 0;
+
+  function process(itemRows, aduRows) {
+    masterMap = {}; aduMap = {};
+    dqBlankKeys = 0; dqDupKeys = 0;
+
+    // Detect whether an Effective Sale Price / Unit column exists in the ADU tab.
+    // Missing entirely => Revenue Exposure shows "—", not a fabricated $0.
+    hasAsp = aduRows.length > 0 && Object.keys(aduRows[0]).some(k => k.trim().toLowerCase() === 'effective sale price / unit' || k.trim().toLowerCase() === 'asp');
+    hasLastSale = aduRows.length > 0 && Object.keys(aduRows[0]).some(k => k.trim().toLowerCase() === 'last sale date' || k.trim().toLowerCase() === 'last sold date');
+
+    itemRows.forEach(r => {
+      const itemNo = String(col(r, ['No.','Item No.','Item No','ItemNo'])).trim();
+      if (!itemNo) return;
+      masterMap[itemNo] = {
+        itemNo,
+        desc: String(col(r, ['Description'])).trim(),
+        uom: String(col(r, ['Base Unit of Measure','UOM'])).trim(),
+        cat: String(col(r, ['Est. Item Group','Item Category Code','Category'])).trim(),
+        onHand: numOf(col(r, ['Quantity on Hand','Inventory','On Hand','Inventory (qty on hand)'])),
+        poQty: numOf(col(r, ['Qty. on Purch. Order','Outstanding Qty','Open PO Qty'])),
+        soQty: numOf(col(r, ['Qty. on Sales Order','Sales Order Qty','Qty on Sales Order']))
+      };
+    });
+
+    aduRows.forEach(r => {
+      const itemNo = String(col(r, ['ItemKey_Clean','ItemNo','Item','Item No.','Item No'])).trim();
+      if (!itemNo) { dqBlankKeys++; return; }
+      if (Object.prototype.hasOwnProperty.call(aduMap, itemNo)) { dqDupKeys++; return; } // first occurrence wins
+
+      // Distinguish "blank field" (no signal at all) from "explicit 0" (calculated, confirmed zero)
+      // — numOf() alone would coerce both to 0 and silently erase the distinction.
+      const rawAdu = col(r, ['Planning ADU','ADU']);
+      const rawAduStr = (rawAdu === null || rawAdu === undefined) ? '' : String(rawAdu).trim();
+      let aduStatus, aduVal;
+      if (rawAduStr === '') { aduStatus = 'MISSING'; aduVal = 0; }
+      else { aduVal = numOf(rawAdu); aduStatus = aduVal === 0 ? 'ZERO' : 'PRESENT'; }
+
+      aduMap[itemNo] = {
+        aduStatus, adu: aduVal,
+        asp: hasAsp ? numOf(col(r, ['Effective Sale Price / Unit','ASP'])) : null,
+        lastSale: toDate(col(r, ['Last Sale Date','Last Sold Date'])) 
+      };
+    });
+
+    if (!Object.keys(masterMap).length) {
+      sb('err', '✗ No valid Item Master rows found. Check Tab 1 column headers.', true);
+      document.getElementById('hero').classList.remove('compact');
+      return;
+    }
+
+    rescore();
+
+    const elapsed = ((Date.now() - (window._sgxStart||Date.now())) / 1000).toFixed(1);
+    const FIELDS_REFERENCED = 10; // 6 Items fields (No., Description, Category, On-Hand, Open PO, Sales Order) + 4 ADU fields (ItemNo, Planning ADU, ASP, Last Sale Date)
+    const itemCount = Object.keys(masterMap).length;
+    const dataPoints = itemCount * FIELDS_REFERENCED;
+    sb('ok', '✓ Scored ' + itemCount.toLocaleString() + ' items × ' + FIELDS_REFERENCED + ' fields = ' + dataPoints.toLocaleString() + ' data points cross-referenced in ' + elapsed + 's — ' + notFoundCount + ' not found in ADU export, ' + dqBlankKeys + ' blank keys, ' + dqDupKeys + ' duplicate keys');
+    setTimeout(() => document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'}), 150);
+  }
+
+  function rescore() {
+    if (!Object.keys(masterMap).length) return;
+    items = [];
+    notFoundCount = 0; // item not present in ADU export at all (diagnostic only — folds into MISSING for tiering)
+    const ropCeiling = leadTime + targetDoC;
+    const stableCeil = leadTime * 3;    // matches Ron's Mar-2026 banding deck (3xLT = Hard Stop reference point)
+    const overstockCeil = leadTime * 6; // proportional extension — Dead sits well past Hard Stop
+    const adjFactor = 1 + (pctAdj / 100);
+    const staleWindow = leadTime + targetDoC; // same window as the reorder point
+    const now = new Date();
+
+    Object.values(masterMap).forEach(m => {
+      const poQty = m.poQty || 0;
+      const soQty = m.soQty || 0;
+      const hasExposure = m.onHand > 0 || poQty > 0 || soQty > 0;
+      const found = Object.prototype.hasOwnProperty.call(aduMap, m.itemNo);
+      if (!found) notFoundCount++;
+      const rec = found ? aduMap[m.itemNo] : null;
+      // Item not found in ADU export at all is treated the same as a blank ADU field —
+      // both mean "no demand signal," symmetric with the explicit-zero case below.
+      const aduStatus = found ? rec.aduStatus : 'MISSING';
+      const asp = found ? rec.asp : null;
+      const lastSale = found ? rec.lastSale : null;
+      const revExposure = (hasAsp && asp !== null) ? asp * (m.onHand + poQty) : null;
+
+      if (aduStatus === 'MISSING' || aduStatus === 'ZERO') {
+        // Symmetric exposure check applied to both populations, per Ron's "keep the
+        // symmetry" call: dollars-visible bucket if anything is on-hand/on-order/on-SO,
+        // otherwise it's a true cleanup candidate — never silently dropped anymore.
+        const tier = !hasExposure ? 'DORMANT' : (aduStatus === 'ZERO' ? 'NODATA' : 'GAPEXPOSURE');
+        items.push({ ...m, adu:0, asp, lastSale, poQty, soQty, netDoC:null, onHandDoC:null, poDoC:null, revExposure, stockoutDate:null, pipelineLight:false, tier });
+        return;
+      }
+
+      // aduStatus === 'PRESENT' — normal Active Demand Signal scoring
+      const rawAdu = rec.adu;
+      const adu = rawAdu * adjFactor; // effective ADU after seasonality/reliability adjustment
+      const onHandDoC = m.onHand / adu;
+      const poDoC = poQty / adu;
+      const netDoC = (m.onHand + poQty) / adu;
+      let tier;
+      if (netDoC < targetDoC) tier = 'CRITICAL';
+      else if (netDoC < ropCeiling) tier = 'WATCH';
+      else if (netDoC < stableCeil) tier = 'STABLE';
+      else if (netDoC < overstockCeil) tier = 'OVERSTOCKED';
+      else tier = 'DEAD';
+
+      // Critical-tier override: on-hand is depleted, but if there's no recent sale
+      // signal, the lagging ADU average hasn't caught up to a real demand drop yet —
+      // this isn't an urgent buy, it's a stale/dying item. Same exception-bucket
+      // pattern as Ron's Mar-2026 banding deck (NO USAGE / NO HISTORY override DoC).
+      if (tier === 'CRITICAL' && hasLastSale) {
+        const daysSinceLastSale = lastSale ? (now - lastSale) / 86400000 : null;
+        if (daysSinceLastSale === null || daysSinceLastSale > staleWindow) {
+          tier = 'STALE';
+        }
+      }
+
+      // Stockout Date: on-hand only, ignoring open PO (per Ron's spec).
+      // Pipeline Light: even combining on-hand + everything already on order, coverage
+      // runs out before a brand-new order placed today could possibly arrive (Lead Time).
+      const stockoutDate = new Date(now.getTime() + onHandDoC * 86400000);
+      const pipelineLight = netDoC < leadTime;
+
+      items.push({ ...m, adu, asp, lastSale, poQty, soQty, netDoC, onHandDoC, poDoC, revExposure, stockoutDate, pipelineLight, tier });
+    });
+
+    render();
+  }
+
+  const TIER_ORDER = ['CRITICAL','WATCH','STABLE','OVERSTOCKED','DEAD','STALE','GAPEXPOSURE','NODATA','DORMANT'];
+  const TIER_LABEL = {
+    CRITICAL:'🔴 Critical', WATCH:'🟠 Watch', STABLE:'🟢 Stable', OVERSTOCKED:'🔵 Overstocked', DEAD:'⬜ Dead',
+    STALE:'🟤 Stale Demand', GAPEXPOSURE:'🔺 Inventory Exposure Without ADU', NODATA:'🟣 Known Zero Demand',
+    DORMANT:'⚪ Dormant / Cleanup Candidate'
+  };
+
+  function render() {
+    document.getElementById('results').style.display = 'block';
+    const total = items.length;
+    document.getElementById('totalNum').textContent = total.toLocaleString();
+    document.getElementById('totalSub').innerHTML =
+      '<strong style="color:#E9A535">' + total.toLocaleString() + ' items</strong> scored · ' +
+      'Lead Time <strong style="color:#E9A535">' + leadTime + ' days</strong>';
+    document.getElementById('totalBanner').classList.add('animate');
+
+    const gapBanner = document.getElementById('gapBanner');
+    const gapMsgs = [];
+    if (notFoundCount > 0) {
+      gapMsgs.push('⚠️ <strong>' + notFoundCount + ' item' + (notFoundCount!==1?'s':'') + '</strong> in the Items export have no row at all in the ADU export — treated the same as a blank ADU signal (Inventory Exposure Without ADU / Dormant Cleanup Candidate, depending on on-hand/PO/SO).');
+    }
+    if (dqBlankKeys > 0 || dqDupKeys > 0) {
+      gapMsgs.push('🔧 <strong>Data quality:</strong> ' + dqBlankKeys + ' blank item key' + (dqBlankKeys!==1?'s':'') + ', ' + dqDupKeys + ' duplicate item key' + (dqDupKeys!==1?'s':'') + ' in the ADU export (first occurrence used, duplicates skipped).');
+    }
+    if (!hasAsp) {
+      gapMsgs.push('💲 No <strong>Effective Sale Price / Unit</strong> column found in the ADU export — Revenue Exposure shows "—" instead of $0 for every item.');
+    }
+    if (!hasLastSale) {
+      gapMsgs.push('📅 No <strong>Last Sale Date</strong> column found in the ADU export — Critical items cannot be checked for stale demand; the Stale Demand bucket will stay empty.');
+    }
+    if (gapMsgs.length) { gapBanner.classList.add('on'); gapBanner.innerHTML = gapMsgs.join('<br>'); }
+    else { gapBanner.classList.remove('on'); }
+
+    const activeDemandTiers = ['CRITICAL','WATCH','STABLE','OVERSTOCKED','DEAD','STALE'];
+    const scored = items.filter(i => activeDemandTiers.includes(i.tier));
+    const counts = {};
+    TIER_ORDER.forEach(t => counts[t] = items.filter(i => i.tier === t).length);
+    // Excess Revenue Exposure: Overstocked + Dead + Stale only — capital tied up in
+    // non-moving inventory. Critical is deliberately excluded (that's stockout risk,
+    // a different kind of exposure, not excess).
+    const excessAtRisk = items.filter(i => ['OVERSTOCKED','DEAD','STALE'].includes(i.tier) && i.revExposure !== null)
+      .reduce((a,i) => a + i.revExposure, 0);
+    const varDisplay = hasAsp ? fmtMoney(excessAtRisk) : '—';
+
+    document.getElementById('summaryGrid').innerHTML = [
+      cardHtml('red', counts.CRITICAL, '🔴 Critical', scored.length),
+      cardHtml('orange', counts.WATCH, '🟠 Watch', scored.length),
+      cardHtml('green', counts.STABLE, '🟢 Stable', scored.length),
+      cardHtml('blue', counts.OVERSTOCKED, '🔵 Overstocked', scored.length),
+      cardHtml('gray', counts.DEAD, '⬜ Dead', scored.length),
+      cardHtml('gray', counts.STALE, '🟤 Stale Demand', scored.length),
+      cardHtml('red', counts.GAPEXPOSURE, '🔺 Exposure w/o ADU', total),
+      cardHtml('gray', counts.NODATA, '🟣 Known Zero Demand', total),
+      cardHtml('gray', counts.DORMANT, '⚪ Dormant/Cleanup', total),
+    ].join('') +
+      '<div class="card gray" style="grid-column:1/-1"><div class="num" style="color:var(--red)">' + varDisplay + '</div><div class="lbl">Excess Revenue Exposure — ASP-based, not cost (Overstocked + Dead + Stale, on-hand + open PO)' + (hasAsp?'':' — ASP missing from export') + '</div></div>';
+
+    // filter bar
+    const fb = document.getElementById('filterBar');
+    const allCount = items.length;
+    fb.innerHTML = '<span style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-right:4px">Filter:</span>' +
+      pill('ALL','All', allCount) +
+      TIER_ORDER.map(t => counts[t] > 0 ? pill(t, TIER_LABEL[t], counts[t]) : '').join('');
+    fb.querySelectorAll('.fpill').forEach(b => b.addEventListener('click', () => {
+      activeFilter = b.dataset.t;
+      fb.querySelectorAll('.fpill').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      renderTable();
+    }));
+    const active = fb.querySelector('.fpill[data-t="'+activeFilter+'"]') || fb.querySelector('.fpill[data-t="ALL"]');
+    active.classList.add('active');
+
+    document.getElementById('fnote').textContent = total + ' items scored · ' + counts.GAPEXPOSURE + ' exposure w/o ADU · ' + counts.DORMANT + ' dormant/cleanup';
+
+    renderTable();
+  }
+
+  function cardHtml(cls, n, lbl, denom) {
+    const pct = denom > 0 ? Math.round((n/denom)*100) : 0;
+    return '<div class="card '+cls+'"><div class="num">'+n+'</div><div class="lbl">'+lbl+'</div><div class="pct">'+pct+'% of scored items</div></div>';
+  }
+  function pill(t, label, count) {
+    return '<button class="fpill" data-t="'+t+'">'+label+' <span class="filter-count">'+count+'</span></button>';
+  }
+
+  const NUMERIC_KEYS = ['onHandDoC','poDoC','netDoC','adu','onHand','poQty','asp','revExposure'];
+
+  function sortBy(key) {
+    if (sortState.key === key) {
+      sortState.dir = sortState.dir === 'desc' ? 'asc' : 'desc';
+    } else {
+      sortState = { key, dir: key === 'tier' ? 'asc' : 'desc' };
+    }
+    document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = '');
+    const arrow = document.getElementById('sa_' + key);
+    if (arrow) arrow.textContent = sortState.dir === 'desc' ? '▼' : '▲';
+    renderTable();
+  }
+
+  function renderTable() {
+    const body = document.getElementById('resultBody');
+    const empty = document.getElementById('emptyState');
+    const wrap = document.getElementById('tableWrap');
+    let filtered = activeFilter === 'ALL' ? items : items.filter(i => i.tier === activeFilter);
+
+    if (sortState.key) {
+      const key = sortState.key, dir = sortState.dir === 'desc' ? -1 : 1;
+      filtered = filtered.slice().sort((a,b) => {
+        if (key === 'tier') return dir * (TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier));
+        if (key === 'lastSale' || key === 'stockoutDate') {
+          const av = a[key], bv = b[key];
+          if (!av && !bv) return 0;
+          if (!av) return 1;
+          if (!bv) return -1;
+          return dir * (av.getTime() - bv.getTime());
+        }
+        if (key === 'pipelineLight') {
+          return dir * ((b.pipelineLight?1:0) - (a.pipelineLight?1:0));
+        }
+        if (NUMERIC_KEYS.includes(key)) {
+          const av = a[key], bv = b[key];
+          if (av === null && bv === null) return 0;
+          if (av === null) return 1;  // nulls always sink to bottom regardless of direction
+          if (bv === null) return -1;
+          return dir * (av - bv);
+        }
+        return dir * String(a[key]||'').localeCompare(String(b[key]||''));
+      });
+    } else {
+      // default sort: Critical, Watch, Stable, Overstocked, Dead, Stale, NoData, Gap
+      filtered = filtered.slice().sort((a,b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier));
+    }
+
+    if (!filtered.length) { empty.style.display = 'block'; document.getElementById('resultTable').style.display = 'none'; return; }
+    empty.style.display = 'none';
+
+    const ROW_CAP = 200;
+    const totalMatched = filtered.length;
+    if (filtered.length > ROW_CAP) filtered = filtered.slice(0, ROW_CAP);
+    const capNote = document.getElementById('capNote');
+    if (totalMatched > ROW_CAP) {
+      capNote.style.display = 'block';
+      capNote.textContent = 'Showing top ' + ROW_CAP + ' of ' + totalMatched.toLocaleString() + ' matching items (current sort/filter). Full list is in the Excel export.';
+    } else {
+      capNote.style.display = 'none';
+    }
+    document.getElementById('resultTable').style.display = '';
+
+    body.innerHTML = filtered.map(i => {
+      const badge = '<span class="badge '+i.tier+'">'+TIER_LABEL[i.tier]+'</span>';
+      return '<tr>' +
+        '<td>'+badge+'</td>' +
+        '<td><strong>'+esc(i.itemNo)+'</strong></td>' +
+        '<td title="'+esc(i.desc)+'" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">'+esc(i.desc)+'</td>' +
+        '<td>'+esc(i.cat)+'</td>' +
+        '<td>'+fmt(i.onHandDoC)+'</td>' +
+        '<td>'+fmt(i.poDoC)+'</td>' +
+        '<td><strong>'+fmt(i.netDoC)+'</strong></td>' +
+        '<td>'+(i.adu===null?'—':fmt(i.adu))+'</td>' +
+        '<td>'+fmt(i.onHand)+'</td>' +
+        '<td>'+fmt(i.poQty)+'</td>' +
+        '<td>'+(i.asp?fmtMoney(i.asp):'—')+'</td>' +
+        '<td>'+(i.revExposure!==null?fmtMoney(i.revExposure):'—')+'</td>' +
+        '<td>'+(i.lastSale?i.lastSale.toISOString().slice(0,10):'—')+'</td>' +
+        '<td>'+(i.stockoutDate?i.stockoutDate.toISOString().slice(0,10):'—')+'</td>' +
+        '<td>'+(i.pipelineLight?'<span class="badge CRITICAL">⚠ Light</span>':'—')+'</td>' +
+        '</tr>';
+    }).join('');
+    syncScrollWidth();
+  }
+
+  function exportXlsx() {
+    if (!items.length) return;
+    const today = new Date().toISOString().slice(0,10);
+    const wb = XLSX.utils.book_new();
+
+    const hdr = ['Tier','Item No.','Description','Category','UOM','On-Hand DoC','Open PO DoC','Net DoC','ADU','On-Hand Qty','Open PO Qty','Sales Order Qty','ASP','Revenue Exposure','Last Sale Date','Stockout Date','Pipeline Light'];
+    const rows = items.slice().sort((a,b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier)).map(i => [
+      TIER_LABEL[i.tier], i.itemNo, i.desc, i.cat, i.uom,
+      i.onHandDoC===null?'':Math.round(i.onHandDoC*100)/100,
+      i.poDoC===null?'':Math.round(i.poDoC*100)/100,
+      i.netDoC===null?'':Math.round(i.netDoC*100)/100,
+      i.adu===null?'':i.adu,
+      i.onHand, i.poQty, i.soQty||0,
+      i.asp===null?'':i.asp, i.revExposure===null?'':Math.round(i.revExposure*100)/100,
+      i.lastSale ? i.lastSale.toISOString().slice(0,10) : '',
+      i.stockoutDate ? i.stockoutDate.toISOString().slice(0,10) : '',
+      i.pipelineLight ? 'LIGHT' : ''
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
+    ws['!cols'] = [{wch:24},{wch:16},{wch:34},{wch:14},{wch:8},{wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:16},{wch:14},{wch:14},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Action Summary');
+
+    const counts = {};
+    TIER_ORDER.forEach(t => counts[t] = items.filter(i => i.tier === t).length);
+    const excessAtRisk = items.filter(i => ['OVERSTOCKED','DEAD','STALE'].includes(i.tier) && i.revExposure !== null).reduce((a,i)=>a+i.revExposure,0);
+    const notesData = [
+      ['StockGard™ — Run Notes'],
+      ['Export date:', today],
+      ['Lead Time used:', leadTime + ' days'],
+      ['Target DoC (Safety Buffer):', targetDoC + ' days'],
+      ['% Adjustment (scales ADU):', (pctAdj>0?'+':'') + pctAdj + '%'],
+      ['Reorder Point (Lead Time + Target DoC):', (leadTime + targetDoC) + ' days'],
+      [''],
+      ['TIER COUNTS — Active Demand Signal (Planning ADU > 0)'],
+      ['Critical (Net DoC < ' + targetDoC + ')', counts.CRITICAL],
+      ['Watch (' + targetDoC + ' ≤ Net DoC < ' + (leadTime+targetDoC) + ')', counts.WATCH],
+      ['Stable (' + (leadTime+targetDoC) + ' ≤ Net DoC < ' + (leadTime*3) + ')', counts.STABLE],
+      ['Overstocked (' + (leadTime*3) + ' ≤ Net DoC < ' + (leadTime*6) + ')', counts.OVERSTOCKED],
+      ['Dead (Net DoC ≥ ' + (leadTime*6) + ')', counts.DEAD],
+      ['Stale Demand (Critical by DoC, but no sale within reorder window)', counts.STALE],
+      [''],
+      ['TIER COUNTS — No/Zero Demand Signal (symmetric exposure check)'],
+      ['Inventory Exposure Without ADU (blank ADU, has on-hand/PO/SO)', counts.GAPEXPOSURE],
+      ['Known Zero Demand (ADU = 0, has on-hand/PO/SO)', counts.NODATA],
+      ['Dormant / Cleanup Candidate (no ADU signal, zero on-hand/PO/SO)', counts.DORMANT],
+      [''],
+      ['DATA QUALITY'],
+      ['Items not found in ADU export at all (folded into blank-ADU logic above)', notFoundCount],
+      ['Blank item keys in ADU export (skipped)', dqBlankKeys],
+      ['Duplicate item keys in ADU export (first occurrence used)', dqDupKeys],
+      [''],
+      ['Excess Revenue Exposure — ASP-based, not cost (Overstocked + Dead + Stale, on-hand + open PO):', excessAtRisk],
+      [''],
+      ['Tool:', 'StockGard™ by ConfigGard™'],
+      ['Attribution:', 'Ron Jones — linkedin.com/in/ronjones4133/'],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(notesData), 'Run Notes');
+
+    const data = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const blob = new Blob([data], {type:'application/octet-stream'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'StockGard_ActionQueue_' + today + '.xlsx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function reset() {
+    items = []; masterMap = {}; aduMap = {}; hasAsp = false; hasLastSale = false;
+    notFoundCount = 0; dqBlankKeys = 0; dqDupKeys = 0; activeFilter = 'ALL'; sortState = { key: null, dir: 'desc' };
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('sbar').className = 'sbar';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('hero').classList.remove('compact');
+    document.getElementById('ltSlider').value = 120;
+    document.getElementById('ltVal').textContent = '120 days';
+    document.getElementById('tdSlider').value = 90;
+    document.getElementById('tdVal').textContent = '90 days';
+    document.getElementById('pctSlider').value = 0;
+    document.getElementById('pctVal').textContent = '0%';
+    leadTime = 120;
+    targetDoC = 90;
+    pctAdj = 0;
+  }
+
+  function sb(type, msg, showReset) {
+    const b = document.getElementById('sbar');
+    b.className = 'sbar on' + (type ? ' '+type : '');
+    const resetLink = showReset ? ' <a href="#" id="sbarReset" style="margin-left:12px;font-weight:700;text-decoration:underline;cursor:pointer">↺ Start over</a>' : '';
+    b.innerHTML = (type==='loading' ? '<div class="spin"></div><span>'+msg+'</span>' : '<span>'+msg+'</span>') + resetLink;
+    if (showReset) {
+      document.getElementById('sbarReset').addEventListener('click', e => { e.preventDefault(); clearAll(); });
+    }
+  }
+
+  function clearAll() {
+    // Recovery path reachable even when a file has never successfully loaded —
+    // the old reset() lives inside #results, which never appears until success.
+    pendingFiles = {};
+    clearTimeout(rescoreDebounce);
+    stopTicker();
+    document.getElementById('fileInput').value = '';
+    document.getElementById('sbar').className = 'sbar';
+    document.getElementById('hero').classList.remove('compact');
+    document.getElementById('results').style.display = 'none';
+  }
+
+  return { exportXlsx, reset };
+})();
+</script>
+</body>
+</html>
