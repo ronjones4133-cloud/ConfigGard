@@ -1,0 +1,1079 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PromiseGard™ — Protecting the Delivery Promise</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --navy:#0D1F35;
+    --navy-dark:#081525;
+    --navy-mid:#132a47;
+    --gold:#E9A535;
+    --gold-soft:#f4c878;
+    --red:#C4432B;
+    --red-bg:#3a1712;
+    --orange:#D98A2B;
+    --orange-bg:#3a2a10;
+    --green:#4E8C5C;
+    --green-bg:#122a1a;
+    --paper:#F5F3EE;
+    --ink:#1c2530;
+    --line:rgba(233,165,53,0.22);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--navy-dark);
+    color:var(--paper);
+    font-family:Calibri, "Segoe UI", Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:Cambria, Georgia, "Times New Roman", serif;
+  }
+  .wrap{max-width:1200px;margin:0 auto;padding:28px 24px 80px;}
+
+  header.top{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--gold);
+    padding-bottom:18px;margin-bottom:26px;flex-wrap:wrap;gap:12px;
+  }
+  header.top .brand h1{
+    margin:0;font-size:34px;color:#fff;letter-spacing:0.3px;
+  }
+  header.top .brand h1 span{color:var(--gold);}
+  header.top .brand p{margin:4px 0 0;color:var(--gold-soft);font-size:14px;letter-spacing:0.5px;}
+  header.top .family{text-align:right;color:rgba(245,243,238,0.55);font-size:12px;line-height:1.6;}
+
+  .panel{
+    background:var(--navy);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:22px;
+    margin-bottom:22px;
+  }
+  .panel h2{margin:0 0 4px;font-size:19px;color:#fff;}
+  .panel .sub{color:rgba(245,243,238,0.6);font-size:13px;margin:0 0 18px;}
+
+  .metrics-banner{
+    background:var(--navy-dark);border:1px solid var(--line);border-radius:6px;
+    padding:18px 24px;margin-bottom:20px;display:flex;align-items:center;gap:20px;
+    box-shadow:0 4px 20px rgba(8,21,37,0.3);
+  }
+  .metrics-num{font-size:44px;font-weight:900;color:var(--gold);line-height:1;letter-spacing:-1px;min-width:100px;font-variant-numeric:tabular-nums;font-family:Cambria,Georgia,serif;}
+  .metrics-right{flex:1;}
+  .metrics-label{color:rgba(245,243,238,0.5);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;}
+  .metrics-sub{color:rgba(245,243,238,0.75);font-size:13px;line-height:1.5;}
+  .metrics-sub strong{color:#fff;}
+  .metrics-icon{font-size:28px;margin-left:auto;opacity:0.5;}
+
+  .upload-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;
+  }
+  .upload-slot{
+    border:1.5px dashed rgba(233,165,53,0.4);
+    border-radius:6px;
+    padding:16px 14px;
+    background:rgba(255,255,255,0.02);
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    position:relative;
+  }
+  .upload-slot:hover{border-color:var(--gold);background:rgba(233,165,53,0.06);}
+  .upload-slot.dragover{border-color:var(--gold);background:rgba(233,165,53,0.14);border-style:solid;}
+  .upload-slot.filled{border-style:solid;border-color:var(--green);background:rgba(78,140,92,0.1);}
+  .upload-slot .tag{
+    font-size:10px;text-transform:uppercase;letter-spacing:1px;
+    color:var(--gold-soft);font-weight:bold;display:block;margin-bottom:6px;
+  }
+  .upload-slot .fname{font-size:13px;font-weight:bold;color:#fff;margin:0 0 4px;}
+  .upload-slot .hint{font-size:11px;color:rgba(245,243,238,0.5);margin:0;}
+  .upload-slot .status{font-size:12px;margin-top:8px;color:var(--gold-soft);}
+  .upload-slot.filled .status{color:var(--green);}
+  .upload-slot input{display:none;}
+  .upload-slot .required{color:var(--red);font-weight:bold;}
+  .upload-slot .optional{color:rgba(245,243,238,0.4);font-weight:normal;}
+
+  .controls-row{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;margin-top:18px;}
+  .editable-tag{
+    font-size:9px;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;
+    background:rgba(233,165,53,0.18);color:var(--gold);border:1px solid rgba(233,165,53,0.4);
+    border-radius:9px;padding:1px 6px;margin-left:4px;vertical-align:middle;
+  }
+  .threshold-note{font-size:12px;color:rgba(245,243,238,0.5);margin:8px 0 0;}
+  .about-row{text-align:center;margin-top:14px;}
+  .reupload-note{font-size:12px;color:var(--gold-soft);margin:-6px 0 16px;background:rgba(233,165,53,0.08);border:1px solid var(--line);border-radius:5px;padding:9px 12px;}
+  .control{display:flex;flex-direction:column;gap:4px;}
+  .control label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--gold-soft);}
+  .control input{
+    background:var(--navy-dark);border:1px solid var(--line);color:#fff;
+    padding:7px 10px;border-radius:4px;width:90px;font-size:14px;
+  }
+
+  button.primary{
+    background:var(--gold);color:var(--navy-dark);border:none;
+    padding:13px 26px;font-size:15px;font-weight:bold;border-radius:5px;
+    cursor:pointer;letter-spacing:0.3px;
+  }
+  button.primary:hover{background:var(--gold-soft);}
+  button.primary:disabled{background:rgba(233,165,53,0.25);color:rgba(245,243,238,0.4);cursor:not-allowed;}
+  button.secondary{
+    background:transparent;color:var(--gold-soft);border:1px solid var(--line);
+    padding:9px 16px;font-size:13px;border-radius:5px;cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--gold);color:var(--gold);}
+  button.tab{
+    background:transparent;border:1px solid var(--line);color:rgba(245,243,238,0.7);
+    padding:8px 14px;border-radius:20px;font-size:12.5px;cursor:pointer;
+  }
+  button.tab.active{background:var(--gold);color:var(--navy-dark);border-color:var(--gold);font-weight:bold;}
+
+  #runRow{display:flex;align-items:center;gap:16px;margin-top:20px;}
+  #runMsg{font-size:13px;color:rgba(245,243,238,0.55);}
+
+  /* dashboard */
+  .tier-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+  .tier-card{border-radius:6px;padding:18px 20px;border:1px solid;}
+  .tier-card.red{background:var(--red-bg);border-color:var(--red);}
+  .tier-card.orange{background:var(--orange-bg);border-color:var(--orange);}
+  .tier-card.green{background:var(--green-bg);border-color:var(--green);}
+  .tier-card.grey{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.25);}
+  .tier-card.gold{background:rgba(233,165,53,0.12);border-color:var(--gold);}
+  .tier-card .label{font-size:12.5px;text-transform:uppercase;letter-spacing:0.6px;opacity:0.85;margin:0 0 6px;}
+  .tier-card.red .label{color:#ff8f74;}
+  .tier-card.orange .label{color:#ffc774;}
+  .tier-card.green .label{color:#8fd6a2;}
+  .tier-card.grey .label{color:rgba(255,255,255,0.6);}
+  .tier-card.gold .label{color:var(--gold);}
+  .tier-card .count .pct{font-size:15px;font-weight:normal;opacity:0.65;}
+  .tier-card .count{font-size:32px;font-weight:bold;color:#fff;margin:0;}
+  .tier-card .dollars{font-size:14px;color:rgba(255,255,255,0.75);margin:4px 0 0;}
+
+  .sub-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:16px;}
+  .mini-card{background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:6px;padding:14px 16px;}
+  .mini-card .t{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--gold-soft);margin:0 0 4px;}
+  .mini-card .v{font-size:22px;font-weight:bold;color:#fff;margin:0;}
+  .mini-card .d{font-size:12px;color:rgba(245,243,238,0.55);margin:2px 0 0;}
+
+  .loc-bar-wrap{margin-top:18px;}
+  .loc-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .loc-row .name{width:110px;font-size:12.5px;color:rgba(245,243,238,0.8);flex-shrink:0;}
+  .loc-row .track{flex:1;background:rgba(255,255,255,0.06);border-radius:3px;height:16px;overflow:hidden;}
+  .loc-row .fill{background:linear-gradient(90deg,var(--gold),var(--gold-soft));height:100%;}
+  .loc-row .amt{width:100px;text-align:right;font-size:12.5px;color:rgba(245,243,238,0.7);flex-shrink:0;}
+
+  /* filters + table */
+  .filter-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center;}
+  .filter-row input[type=text]{
+    background:var(--navy-dark);border:1px solid var(--line);color:#fff;
+    padding:8px 12px;border-radius:5px;font-size:13px;flex:1;min-width:180px;
+  }
+  select{
+    background:var(--navy-dark);border:1px solid var(--line);color:#fff;
+    padding:8px 10px;border-radius:5px;font-size:13px;
+  }
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  thead th{
+    text-align:left;padding:9px 10px;background:var(--navy-dark);
+    color:var(--gold-soft);font-size:11px;text-transform:uppercase;letter-spacing:0.4px;
+    cursor:pointer;border-bottom:2px solid var(--line);position:sticky;top:0;
+  }
+  thead th:hover{color:var(--gold);}
+  thead th[title]{cursor:help;}
+  tbody td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.06);color:rgba(245,243,238,0.9);}
+  tbody tr:hover{background:rgba(255,255,255,0.03);}
+  .pill{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:bold;letter-spacing:0.3px;}
+  .pill.red{background:var(--red);color:#fff;}
+  .pill.orange{background:var(--orange);color:#2b1c05;}
+  .pill.green{background:var(--green);color:#fff;}
+  .pill.unverified{background:rgba(255,255,255,0.18);color:#fff;}
+  .owner{font-size:11px;color:rgba(245,243,238,0.55);}
+  .table-wrap{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:6px;}
+
+  .empty-state{
+    text-align:center;padding:50px 20px;color:rgba(245,243,238,0.45);
+  }
+  .empty-state .big{font-size:40px;margin-bottom:8px;}
+
+  footer{
+    text-align:center;color:rgba(245,243,238,0.35);font-size:12px;margin-top:30px;
+    padding-top:18px;border-top:1px solid var(--line);
+  }
+  footer strong{color:var(--gold-soft);}
+  footer a{color:var(--gold-soft);text-decoration:underline;}
+  footer a:hover{color:var(--gold);}
+
+  .count-badge{
+    font-size:11px;color:rgba(245,243,238,0.5);margin-left:6px;
+  }
+  .flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Promise<span>Gard</span>™</h1>
+      <p>Protecting the delivery promise.</p>
+    </div>
+    <div class="family">
+      ConfigGard™ family · Simple systems • Strong teams<br>
+      Runs entirely in your browser — no data leaves this device
+    </div>
+  </header>
+
+  <div class="panel">
+    <h2>1. Load your BC exports</h2>
+    <p class="sub">Five files, joined automatically. Click or drag a file onto any box. Sales Orders and Warehouse Shipments are optional but recommended — without them you lose warehouse-aging detail and Customer PO/tracking context.</p>
+    <div class="upload-grid">
+      <div class="upload-slot" data-key="salesOrders" onclick="document.getElementById('file_salesOrders').click()">
+        <span class="tag">1 <span class="optional">· recommended</span></span>
+        <p class="fname">Sales Orders</p>
+        <p class="hint">Header: Customer PO, Shipping Agent, Status</p>
+        <div class="status">Click or drag a file here</div>
+        <input type="file" id="file_salesOrders" accept=".xlsx,.xls">
+      </div>
+      <div class="upload-slot" data-key="salesLines" onclick="document.getElementById('file_salesLines').click()">
+        <span class="tag">2 <span class="required">· required</span></span>
+        <p class="fname">Sales Lines</p>
+        <p class="hint">Line-level qty, outstanding, amount, Shipment Date (due-clock)</p>
+        <div class="status">Click or drag a file here</div>
+        <input type="file" id="file_salesLines" accept=".xlsx,.xls">
+      </div>
+      <div class="upload-slot" data-key="items" onclick="document.getElementById('file_items').click()">
+        <span class="tag">3 <span class="required">· required</span></span>
+        <p class="fname">Items</p>
+        <p class="hint">Qty on Hand, Qty on SO, Qty on PO</p>
+        <div class="status">Click or drag a file here</div>
+        <input type="file" id="file_items" accept=".xlsx,.xls">
+      </div>
+      <div class="upload-slot" data-key="whShipments" onclick="document.getElementById('file_whShipments').click()">
+        <span class="tag">4 <span class="optional">· recommended</span></span>
+        <p class="fname">Warehouse Shipments</p>
+        <p class="hint">Posting Date — the aging clock</p>
+        <div class="status">Click or drag a file here</div>
+        <input type="file" id="file_whShipments" accept=".xlsx,.xls">
+      </div>
+      <div class="upload-slot" data-key="shipStatus" onclick="document.getElementById('file_shipStatus').click()">
+        <span class="tag">5 <span class="optional">· recommended</span></span>
+        <p class="fname">Warehouse Shipment Status</p>
+        <p class="hint">The bridge report — links WSHP to Sales Order</p>
+        <div class="status">Click or drag a file here</div>
+        <input type="file" id="file_shipStatus" accept=".xlsx,.xls">
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <div class="control">
+        <label>Red — age (days) <span class="editable-tag">editable</span></label>
+        <input type="number" id="redAge" value="14" min="1">
+      </div>
+      <div class="control">
+        <label>Orange — age (days) <span class="editable-tag">editable</span></label>
+        <input type="number" id="orangeAge" value="5" min="1">
+      </div>
+      <div class="control">
+        <label>Orange — due window (days) <span class="editable-tag">editable</span></label>
+        <input type="number" id="orangeDue" value="5" min="1">
+      </div>
+    </div>
+    <p class="threshold-note">These three numbers drive every tier below — adjust them to match your team's SLA, then re-run.</p>
+    <div class="about-row">
+      <button class="secondary" onclick="loadSampleNote()">About These Fields &amp; Tiles</button>
+    </div>
+
+    <div id="runRow">
+      <button class="primary" id="runBtn" onclick="runAnalysis()" disabled>Run PromiseGard Analysis</button>
+      <span id="runMsg">Load Sales Lines and Items to begin.</span>
+    </div>
+  </div>
+
+  <div id="results" style="display:none;">
+
+    <div class="metrics-banner" id="metricsBanner">
+      <div class="metrics-num" id="metricsNum">0</div>
+      <div class="metrics-right">
+        <div class="metrics-label">Data Points Cross-Referenced</div>
+        <div class="metrics-sub" id="metricsSub">Analyzing…</div>
+      </div>
+      <div class="metrics-icon">📊</div>
+    </div>
+
+    <div class="panel">
+      <div class="flex-between">
+        <h2 style="margin-bottom:0;">2. Promise status</h2>
+        <button class="secondary" onclick="resetAll()">Start New Analysis</button>
+      </div>
+      <p class="sub">Every open line, tiered by how close it is to breaking the customer's delivery promise. Percentages are share of total open lines.</p>
+      <p class="reupload-note">Spot a mistake in one file? Click that box up in Step 1 to swap just that file and re-run — no need to start over. "Start New Analysis" clears everything, for a completely fresh file set.</p>
+      <div class="tier-cards">
+        <div class="tier-card red">
+          <p class="label">Promise at Risk</p>
+          <p class="count" id="redCount">0</p>
+          <p class="dollars" id="redDollars">$0 Open</p>
+        </div>
+        <div class="tier-card orange">
+          <p class="label">Promise Watch</p>
+          <p class="count" id="orangeCount">0</p>
+          <p class="dollars" id="orangeDollars">$0 Open</p>
+        </div>
+        <div class="tier-card green">
+          <p class="label">On Track</p>
+          <p class="count" id="greenCount">0</p>
+          <p class="dollars" id="greenDollars">$0 Open</p>
+        </div>
+        <div class="tier-card grey">
+          <p class="label">Unverified — No Date Match</p>
+          <p class="count" id="greyCount">0</p>
+          <p class="dollars" id="greyDollars">$0 Open</p>
+        </div>
+        <div class="tier-card gold">
+          <p class="label">Oversold — Future Risk</p>
+          <p class="count" id="oversoldCount">0</p>
+          <p class="dollars">Items (not lines), company-wide across all locations — no $ figure, Items file has no price field</p>
+        </div>
+      </div>
+
+      <div class="sub-cards">
+        <div class="mini-card">
+          <p class="t">No Stock (Buyer action)</p>
+          <p class="v" id="stockoutCount">0</p>
+          <p class="d">Escalate to procurement — cannot ship until inventory arrives</p>
+        </div>
+        <div class="mini-card">
+          <p class="t">Stock Available — Not Moving (Warehouse action)</p>
+          <p class="v" id="processGapCount">0</p>
+          <p class="d">Inventory is on hand — this is a pick/pack/ship execution gap</p>
+        </div>
+        <div class="mini-card">
+          <p class="t">Data Quality Flags</p>
+          <p class="v" id="noMatchCount">0</p>
+          <p class="d">Item not found in Items master — verify item number/master data</p>
+        </div>
+        <div class="mini-card">
+          <p class="t">Total Open $</p>
+          <p class="v" id="totalExposure">$0</p>
+          <p class="d">Outstanding value across all open lines above</p>
+        </div>
+        <div class="mini-card">
+          <p class="t">Blanket Orders (Reference Only)</p>
+          <p class="v" id="blanketCount">0</p>
+          <p class="d" id="blanketDollars">Excluded from tiers/Open $ to avoid double-counting — see export tab</p>
+        </div>
+      </div>
+
+      <div class="loc-bar-wrap">
+        <h3 style="font-size:14px;color:var(--gold-soft);margin:0 0 10px;">Open $ by Location</h3>
+        <div id="locBars"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="flex-between">
+        <h2 style="margin-bottom:0;">3. Triage &amp; audit</h2>
+        <button class="secondary" onclick="exportExcel()">Export Excel (5 tabs — by tier)</button>
+      </div>
+      <p class="sub">Filter, sort, and hand off. Owner is assigned automatically from root cause.</p>
+
+      <div class="filter-row">
+        <input type="text" id="searchBox" placeholder="Search customer, order no., item..." oninput="renderTable()">
+        <button class="tab active" data-tier="ALL" onclick="setTierFilter('ALL',this)">All</button>
+        <button class="tab" data-tier="RED" onclick="setTierFilter('RED',this)">Promise at Risk</button>
+        <button class="tab" data-tier="ORANGE" onclick="setTierFilter('ORANGE',this)">Promise Watch</button>
+        <button class="tab" data-tier="GREEN" onclick="setTierFilter('GREEN',this)">On Track</button>
+        <button class="tab" data-tier="UNVERIFIED" onclick="setTierFilter('UNVERIFIED',this)">Unverified</button>
+        <select id="locFilter" onchange="renderTable()"><option value="ALL">All locations</option></select>
+        <select id="ownerFilter" onchange="renderTable()">
+          <option value="ALL">All owners</option>
+          <option value="Buyer">Buyer</option>
+          <option value="Warehouse">Warehouse</option>
+        </select>
+        <span class="count-badge" id="resultCount"></span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortBy('tier')">Promise</th>
+              <th onclick="sortBy('custName')">Customer</th>
+              <th onclick="sortBy('docNo')">Document No.</th>
+              <th onclick="sortBy('itemNo')">Item</th>
+              <th onclick="sortBy('outstanding')">Outstanding Qty</th>
+              <th onclick="sortBy('openAmt')">Open $</th>
+              <th onclick="sortBy('loc')">Location</th>
+              <th onclick="sortBy('rootCause')">Root Cause</th>
+              <th onclick="sortBy('owner')">Owner</th>
+              <th onclick="sortBy('daysOverdue')" title="Days since the planned Shipment Date passed. Blank means it isn't due yet — not missing data.">Days Overdue ⓘ</th>
+              <th onclick="sortBy('dueInDays')" title="Days until (or since) the planned Shipment Date on this line. Negative = already past its planned date.">Due In (days) ⓘ</th>
+              <th onclick="sortBy('warehouseAge')" title="Strict early-warning signal: days since a REAL warehouse shipment was posted. Blank always means no warehouse match exists yet — never a fallback guess.">Warehouse Age ⓘ</th>
+              <th onclick="sortBy('orderAge')" title="Informational only — does not affect tier. Days since the order itself was created, regardless of warehouse activity.">Order Age ⓘ</th>
+              <th onclick="sortBy('wshpNo')">WSHP No.</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="emptyState" class="empty-state">
+    <div class="big">📋</div>
+    <p>Upload Sales Lines and Items to start. Add the other three for full urgency and root-cause detail.</p>
+  </div>
+
+  <footer>
+    <strong>PromiseGard™</strong> is part of the <strong>ConfigGard™</strong> suite of Business Central alignment tools.<br><br>
+    Built by <strong><a href="https://www.linkedin.com/in/ronjones4133/" target="_blank" rel="noopener">Ron Jones</a></strong> · Supply Chain &amp; ERP Systems<br><br>
+    © 2026 ConfigGard · All rights reserved · Source code proprietary · Not affiliated with Microsoft Corporation or Integrated Warehouse Solutions<br>
+    <a href="https://ronjones4133-cloud.github.io/ConfigGard/TERMS.md" target="_blank" rel="noopener">Terms of Use</a> · First published July 2026<br><br>
+    Standalone tool. All processing happens locally in your browser; no file data is uploaded anywhere.
+  </footer>
+</div>
+
+<script>
+let RAW = { salesOrders:null, salesLines:null, items:null, whShipments:null, shipStatus:null };
+let ROWS = [];
+let OVERSOLD = [];
+let BLANKETS = [];
+let LAST_METRICS = null;
+let sortState = { key:'openAmt', dir:-1 };
+let tierFilter = 'ALL';
+
+const slots = ['salesOrders','salesLines','items','whShipments','shipStatus'];
+slots.forEach(key => {
+  document.getElementById('file_'+key).addEventListener('change', (e) => handleFile(key, e.target.files[0]));
+
+  const slot = document.querySelector('.upload-slot[data-key="'+key+'"]');
+  slot.addEventListener('dragover', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    slot.classList.add('dragover');
+  });
+  slot.addEventListener('dragleave', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    slot.classList.remove('dragover');
+  });
+  slot.addEventListener('drop', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    slot.classList.remove('dragover');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(file) handleFile(key, file);
+  });
+});
+
+function handleFile(key, file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true });
+      RAW[key] = rows;
+      const slot = document.querySelector('.upload-slot[data-key="'+key+'"]');
+      slot.classList.add('filled');
+      slot.querySelector('.status').textContent = '✓ ' + file.name;
+      checkReady();
+    }catch(err){
+      alert('Could not read '+file.name+': '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function checkReady(){
+  const ready = RAW.salesLines && RAW.items;
+  document.getElementById('runBtn').disabled = !ready;
+  document.getElementById('runMsg').textContent = ready
+    ? 'Ready. Optional files loaded: ' + slots.filter(k=>RAW[k] && k!=='salesLines' && k!=='items').length + ' of 3.'
+    : 'Load Sales Lines and Items to begin.';
+}
+
+function loadSampleNote(){
+  var msg = "Days Overdue (primary): days since the Sales Line's planned Shipment Date passed. 'Not yet due' means the ship date hasn't arrived yet — that's a normal state, not missing data." + String.fromCharCode(10) + String.fromCharCode(10);
+  msg += "Due In (days): the same planned Shipment Date, shown as a countdown. Negative = already overdue." + String.fromCharCode(10) + String.fromCharCode(10);
+  msg += "Warehouse Age (secondary, strict): days since a REAL warehouse shipment was posted for this line. Blank always means no warehouse match exists — never a fallback guess. Can escalate a line to Promise Watch early, but can never push it straight to Promise at Risk on its own — only a broken promise date (or a true stockout with nothing incoming) does that." + String.fromCharCode(10) + String.fromCharCode(10);
+  msg += "Order Age (informational only): days since the order was created. Does not affect tier — it's context, not a trigger." + String.fromCharCode(10) + String.fromCharCode(10);
+  msg += "Promise at Risk (Red): planned ship date already passed, OR the item has zero stock AND zero incoming purchase orders." + String.fromCharCode(10);
+  msg += "Promise Watch (Orange): planned ship date approaching within your window, OR Warehouse Age beyond threshold, OR the item has zero stock but some replenishment is already on order." + String.fromCharCode(10);
+  msg += "On Track (Green): none of the above." + String.fromCharCode(10);
+  msg += "Unverified: no reliable date found at all for this line (rare)." + String.fromCharCode(10) + String.fromCharCode(10);
+  msg += "Blanket Orders and non-inventory charge lines (freight, surcharges, tariffs) are excluded from every tier — see the Blanket Orders reference tab and the Summary tab for details.";
+  alert(msg);
+}
+
+// ---- column finders (name-based, tolerant of minor header variation) ----
+function colIndex(header, names){
+  const lower = header.map(h => (h||'').toString().trim().toLowerCase());
+  for(const name of names){
+    const idx = lower.indexOf(name.toLowerCase());
+    if(idx !== -1) return idx;
+  }
+  return -1;
+}
+
+function parseShipmentStatusReport(rows){
+  const blocks = [];
+  let i = 0;
+  while(i < rows.length){
+    const r = rows[i];
+    if(r && r[0] === 'No.'){
+      const cur = {
+        wshpNo: r[1],
+        location: rows[i+1] ? rows[i+1][1] : null,
+        docStatus: rows[i+2] ? rows[i+2][1] : null,
+        lines: []
+      };
+      blocks.push(cur);
+      i += 1; continue;
+    }
+    if(r && r[0] === 'Status' && r[1] === 'Source Document'){
+      let j = i + 2;
+      while(j < rows.length && rows[j] && rows[j].some(x => x !== null && x !== '')){
+        const dr = rows[j];
+        blocks[blocks.length-1].lines.push({
+          status: dr[0], sourceDoc: dr[1], sourceNo: dr[2], binCode: dr[3],
+          itemNo: dr[6], qty: dr[7], qtyToShip: dr[8], qtyShipped: dr[10], qtyOutstanding: dr[11]
+        });
+        j += 1;
+      }
+      i = j; continue;
+    }
+    i += 1;
+  }
+  return blocks;
+}
+
+function runAnalysis(){
+  const _pgStart = performance.now();
+  const redAge = parseFloat(document.getElementById('redAge').value) || 14;
+  const orangeAge = parseFloat(document.getElementById('orangeAge').value) || 5;
+  const orangeDue = parseFloat(document.getElementById('orangeDue').value) || 5;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dayMs = 86400000;
+
+  // Sales Lines
+  const slRows = RAW.salesLines;
+  const slHeader = slRows[0];
+  const slData = slRows.slice(1);
+  const c = {
+    complete: colIndex(slHeader, ['Completely Shipped']),
+    docNo: colIndex(slHeader, ['Document No.']),
+    custNo: colIndex(slHeader, ['Sell-to Customer No.']),
+    custName: colIndex(slHeader, ['Sell-to Customer Name']),
+    itemNo: colIndex(slHeader, ['No.']),
+    desc: colIndex(slHeader, ['Description']),
+    loc: colIndex(slHeader, ['Location Code']),
+    qty: colIndex(slHeader, ['Quantity']),
+    outstanding: colIndex(slHeader, ['Outstanding Quantity']),
+    shipDate: colIndex(slHeader, ['Shipment Date']),
+    amount: colIndex(slHeader, ['Amount'])
+  };
+
+  // ---- Analysis metrics (tables/rows/fields cross-referenced) — powers the metrics banner ----
+  const FIELDS_PER_SOURCE = {
+    salesLines: 11,     // Completely Shipped, Document No., Cust No., Cust Name, Item No., Description, Location, Qty, Outstanding Qty, Shipment Date, Amount
+    items: 5,           // No., Description, Qty. on Sales Order, Quantity on Hand, Qty. on Purch. Order
+    salesOrders: 6,     // No., Customer PO No., Document Date, Status, Shipping Agent Code, Package Tracking No.
+    whShipments: 4,     // No., Posting Date, Shipment Date, Status
+    shipStatus: 6       // WSHP No., Location Code, Document Status, Source Document, Source No., Qty. Outstanding
+  };
+  const metrics = { tables: 0, rows: 0, dataPoints: 0, sources: [] };
+  function trackSource(key, rowCount){
+    metrics.tables += 1;
+    metrics.rows += rowCount;
+    metrics.dataPoints += rowCount * FIELDS_PER_SOURCE[key];
+    metrics.sources.push(key);
+  }
+
+  // Items
+  let itMap = new Map();
+  if(RAW.items){
+    const itRows = RAW.items; const itHeader = itRows[0]; const itData = itRows.slice(1);
+    const ic = { no: colIndex(itHeader,['No.']), desc: colIndex(itHeader,['Description']),
+      qtyOnSO: colIndex(itHeader,['Qty. on Sales Order']), qoh: colIndex(itHeader,['Quantity on Hand']),
+      qtyOnPO: colIndex(itHeader,['Qty. on Purch. Order']) };
+    itData.forEach(r => itMap.set(r[ic.no], { desc:r[ic.desc], qtyOnSO:r[ic.qtyOnSO], qoh:r[ic.qoh]||0, qtyOnPO:r[ic.qtyOnPO], qohIsBlank: (r[ic.qoh] === null || r[ic.qoh] === undefined) }));
+    trackSource('items', itData.length);
+  }
+
+  // Sales Order header (optional)
+  let soMap = new Map();
+  if(RAW.salesOrders){
+    const soRows = RAW.salesOrders; const soHeader = soRows[0]; const soData = soRows.slice(1);
+    const sc = { no: colIndex(soHeader,['No.']), custPO: colIndex(soHeader,['Customer Purchase Order No.']),
+      docDate: colIndex(soHeader,['Document Date']), status: colIndex(soHeader,['Status']),
+      shipAgent: colIndex(soHeader,['Shipping Agent Code']), tracking: colIndex(soHeader,['Package Tracking No.']) };
+    soData.forEach(r => soMap.set(r[sc.no], {
+      custPO:r[sc.custPO], docDate:r[sc.docDate], status:r[sc.status],
+      shipAgent:r[sc.shipAgent], tracking:r[sc.tracking]
+    }));
+    trackSource('salesOrders', soData.length);
+  }
+
+  // Warehouse Shipments header (optional)
+  let wsMap = new Map();
+  if(RAW.whShipments){
+    const wsRows = RAW.whShipments; const wsHeader = wsRows[0]; const wsData = wsRows.slice(1);
+    const wc = { no: colIndex(wsHeader,['No.']), posting: colIndex(wsHeader,['Posting Date']),
+      shipDate: colIndex(wsHeader,['Shipment Date']), status: colIndex(wsHeader,['Status']) };
+    wsData.forEach(r => wsMap.set(r[wc.no], { posting:r[wc.posting], shipDate:r[wc.shipDate], status:r[wc.status] }));
+    trackSource('whShipments', wsData.length);
+  }
+
+  // Bridge report (optional)
+  let bridgeByDocItem = new Map();
+  if(RAW.shipStatus){
+    const blocks = parseShipmentStatusReport(RAW.shipStatus);
+    let shipStatusLineCount = 0;
+    blocks.forEach(b => {
+      const wsInfo = wsMap.get(b.wshpNo) || {};
+      b.lines.forEach(l => {
+        shipStatusLineCount += 1;
+        if(l.sourceDoc !== 'Sales Order') return;
+        bridgeByDocItem.set(l.sourceNo + '|' + l.itemNo, {
+          wshpNo:b.wshpNo, qtyOutstandingWh:l.qtyOutstanding, lineStatus:l.status,
+          posting:wsInfo.posting, shipDate:wsInfo.shipDate, wshpStatus:wsInfo.status
+        });
+      });
+    });
+    trackSource('shipStatus', shipStatusLineCount);
+  }
+
+  trackSource('salesLines', slData.length);
+
+  ROWS = [];
+  BLANKETS = [];
+  slData.forEach(r => {
+    const complete = r[c.complete];
+    const outstanding = r[c.outstanding];
+    if(complete === 1 || !outstanding || outstanding <= 0) return;
+
+    const docNo = String(r[c.docNo] || '');
+    const itemNo = r[c.itemNo];
+    const qty = r[c.qty] || 1, amount = r[c.amount] || 0;
+
+    // Document-type routing. Sales Lines exports can carry more than Sales Orders: Return Orders
+    // (S-RETORD...) and Credit Memos (S-CR...) represent returns/credits, not open shippable
+    // demand — excluded entirely, they don't belong in a fulfillment triage at all. Blanket Sales
+    // Orders (numbering that doesn't match any of the above — confirmed against real BC screens
+    // to be Blanket Orders, not transfers) are real and shouldn't be scrubbed, but they carry no
+    // ship-date promise of their own and can double-count against the real Sales Order eventually
+    // cut from them via "Make Order" — so they're routed to a separate reference list instead of
+    // the tiered triage, rather than either being deleted or silently inflating Open $.
+    if(docNo.startsWith('S-RETORD') || docNo.startsWith('S-RET') || docNo.startsWith('S-CR')) return;
+    const isBlanket = !docNo.startsWith('S-ORD');
+
+    const so = soMap.get(docNo);
+    const bridge = bridgeByDocItem.get(docNo + '|' + itemNo);
+    const item = itMap.get(itemNo);
+
+    // Non-inventory charge lines (freight, surcharges, tooling charges, tariffs) have no physical
+    // stock concept at all. Detected structurally — Quantity on Hand left completely blank in the
+    // Items export (never configured as inventory-tracked) — rather than by name-matching, which
+    // risks catching a real item that happens to share a word. Excluded from triage entirely.
+    if(item && item.qohIsBlank) return;
+
+    if(isBlanket){
+      BLANKETS.push({
+        blanketNo: docNo, custName: r[c.custName], custNo: r[c.custNo], itemNo, desc: r[c.desc],
+        outstanding, amount, loc: r[c.loc] || '(none)'
+      });
+      return;
+    }
+
+    let rootCause = 'UNKNOWN', owner='Warehouse';
+    if(!item){ rootCause = 'NO ITEM MATCH'; owner='Data Quality'; }
+    else if(item.qoh < outstanding){ rootCause = 'STOCKOUT'; owner='Buyer'; }
+    else { rootCause = 'AVAILABLE_NOT_MOVING'; owner='Warehouse'; }
+
+    // Warehouse Age (secondary, early-warning signal) — STRICT: only a real Warehouse Shipment
+    // Posting Date match counts. No longer falls back to Sales Order Document Date — that fallback
+    // was mislabeling "time since the order was created" as "warehouse activity," which produced
+    // a populated Warehouse Age with no WSHP No. to back it up. Blank now means one thing only:
+    // no warehouse shipment exists for this line yet.
+    let warehouseAge = null;
+    if(bridge && bridge.posting){
+      const pd = new Date(bridge.posting); pd.setHours(0,0,0,0);
+      warehouseAge = Math.round((today - pd)/dayMs);
+    }
+
+    // Order Age (informational only — never escalates tier). Days since the order itself was
+    // created, independent of any warehouse activity. Catches an order that's sat a long time
+    // without ever reaching the warehouse — a different, earlier-stage problem than Warehouse Age.
+    let orderAge = null;
+    if(so && so.docDate){
+      const od = new Date(so.docDate); od.setHours(0,0,0,0);
+      orderAge = Math.round((today - od)/dayMs);
+    }
+
+    // Due clock: Sales Lines' own Shipment Date — populated on essentially every line (unlike the
+    // Sales Order header's Requested Delivery Date, which only covers a subset of orders).
+    // This field runs into the future for many lines by design (it's the planned/target ship
+    // date) — that's exactly what a due-clock needs: negative = already past the planned date,
+    // positive = still ahead of it. Never used for Warehouse Age or Order Age above.
+    let dueInDays = null;
+    const lineShipDate = r[c.shipDate];
+    if(lineShipDate){ const dd = new Date(lineShipDate); dd.setHours(0,0,0,0); dueInDays = Math.round((dd - today)/dayMs); }
+
+    // Days Overdue (primary triage number, near-100% coverage): the overdue side of the same
+    // due-clock, reframed for readability. Only populated once the planned ship date has actually
+    // passed — a line that isn't due yet correctly shows no "overdue" value at all, which is a
+    // legitimate state, not a data gap.
+    const daysOverdue = (dueInDays !== null && dueInDays < 0) ? -dueInDays : null;
+
+    // ---- Tiering ----
+    const SEV = { GREEN:0, ORANGE:1, RED:2, UNVERIFIED:0 };
+    let tier = 'GREEN';
+    if(dueInDays !== null && dueInDays < 0) tier = 'RED';
+    else if(dueInDays !== null && dueInDays <= orangeDue) tier = 'ORANGE';
+    if(dueInDays === null && warehouseAge === null) tier = 'UNVERIFIED';
+
+    // Warehouse Age escalation — early warning only, capped at Orange. It can never push a line
+    // to Red on its own: a line that's merely been sitting a while, but isn't due yet, hasn't
+    // actually broken the customer promise — that's a Watch situation, not an At-Risk one.
+    if(warehouseAge !== null && (warehouseAge > orangeAge || warehouseAge > redAge)){
+      if(SEV['ORANGE'] > SEV[tier]) tier = 'ORANGE';
+    }
+
+    // Stockout escalation — a line with no stock at all shouldn't sit quietly in On Track just
+    // because its ship date is comfortably in the future. No open PO to cover it is strictly worse
+    // (nothing incoming) than a stockout that already has replenishment on order, so it escalates
+    // further. Only ever escalates (via severity comparison) — never demotes an already-worse tier.
+    if(rootCause === 'STOCKOUT'){
+      const hasIncomingPO = item && item.qtyOnPO > 0;
+      const stockoutTier = hasIncomingPO ? 'ORANGE' : 'RED';
+      if(SEV[stockoutTier] > SEV[tier]) tier = stockoutTier;
+    }
+
+    const openAmt = amount * (outstanding / qty);
+
+    ROWS.push({
+      custName: r[c.custName], custNo: r[c.custNo], docNo, itemNo, desc: r[c.desc],
+      qty, outstanding, openAmt, loc: r[c.loc] || '(none)', rootCause, owner, tier,
+      daysOverdue, warehouseAge, orderAge, dueInDays, wshpNo: bridge ? bridge.wshpNo : null,
+      custPO: so ? so.custPO : null,
+      orderDate: so ? so.docDate : null,
+      plannedShipDate: lineShipDate || null,
+      openPOQty: item ? item.qtyOnPO : null
+    });
+  });
+
+  // ---- Oversold — Future Risk: item-level scan, independent of open lines ----
+  OVERSOLD = [];
+  if(RAW.items){
+    const itRows = RAW.items; const itHeader = itRows[0]; const itData = itRows.slice(1);
+    const ic = { no: colIndex(itHeader,['No.']), desc: colIndex(itHeader,['Description']),
+      qtyOnSO: colIndex(itHeader,['Qty. on Sales Order']), qoh: colIndex(itHeader,['Quantity on Hand']),
+      qtyOnPO: colIndex(itHeader,['Qty. on Purch. Order']) };
+    itData.forEach(r => {
+      // Skip non-inventory charge items (Freight, Surcharges, Tooling Charges, tariff codes) —
+      // same structural QOH-blank signal used for the line-level triage above. "Oversold" has no
+      // meaning for a line item that was never inventory-tracked in the first place.
+      if(r[ic.qoh] === null || r[ic.qoh] === undefined) return;
+      const qtyOnSO = r[ic.qtyOnSO] || 0, qoh = r[ic.qoh] || 0, qtyOnPO = r[ic.qtyOnPO] || 0;
+      const shortfall = qtyOnSO - (qoh + qtyOnPO);
+      if(shortfall > 0){
+        OVERSOLD.push({ itemNo: r[ic.no], desc: r[ic.desc], qtyOnSO, qoh, qtyOnPO, shortfall });
+      }
+    });
+    OVERSOLD.sort((a,b) => b.shortfall - a.shortfall);
+  }
+
+
+  const _pgElapsed = ((performance.now() - _pgStart) / 1000);
+  LAST_METRICS = {
+    tables: metrics.tables, rows: metrics.rows, dataPoints: metrics.dataPoints,
+    elapsed: _pgElapsed, lineCount: ROWS.length, oversoldCount: OVERSOLD.length, blanketCount: BLANKETS.length
+  };
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('emptyState').style.display = 'none';
+  renderMetricsBanner();
+  renderDashboard();
+  populateLocFilter();
+  renderTable();
+}
+
+function fmtMoney(n){
+  return '$' + Math.round(n).toLocaleString('en-US');
+}
+
+function fmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d);
+  if(isNaN(dt.getTime())) return '';
+  const mm = String(dt.getMonth()+1).padStart(2,'0');
+  const dd = String(dt.getDate()).padStart(2,'0');
+  return dt.getFullYear() + '-' + mm + '-' + dd;
+}
+
+function renderMetricsBanner(){
+  if(!LAST_METRICS) return;
+  const m = LAST_METRICS;
+  document.getElementById('metricsNum').textContent = m.dataPoints.toLocaleString();
+  const tableWord = m.tables === 1 ? 'table' : 'tables';
+  const timeStr = m.elapsed < 0.1 ? '<0.1s' : m.elapsed.toFixed(2) + 's';
+  document.getElementById('metricsSub').innerHTML =
+    '<strong>' + m.rows.toLocaleString() + ' rows</strong> analyzed across <strong>' + m.tables + ' ' + tableWord + '</strong> in <strong>' + timeStr + '</strong> — ' +
+    '<strong>' + m.lineCount.toLocaleString() + '</strong> open lines triaged, <strong>' + m.oversoldCount.toLocaleString() + '</strong> oversold items flagged, <strong>' + m.blanketCount.toLocaleString() + '</strong> blanket order lines set aside for reference.';
+}
+
+function renderDashboard(){
+  const red = ROWS.filter(r=>r.tier==='RED');
+  const orange = ROWS.filter(r=>r.tier==='ORANGE');
+  const green = ROWS.filter(r=>r.tier==='GREEN');
+  const grey = ROWS.filter(r=>r.tier==='UNVERIFIED');
+  const total = ROWS.length || 1;
+  const pct = (n) => ((n/total)*100).toFixed(1) + '%';
+
+  document.getElementById('redCount').innerHTML = red.length + ' <span class="pct">(' + pct(red.length) + ')</span>';
+  document.getElementById('orangeCount').innerHTML = orange.length + ' <span class="pct">(' + pct(orange.length) + ')</span>';
+  document.getElementById('greenCount').innerHTML = green.length + ' <span class="pct">(' + pct(green.length) + ')</span>';
+  document.getElementById('greyCount').innerHTML = grey.length + ' <span class="pct">(' + pct(grey.length) + ')</span>';
+
+  document.getElementById('redDollars').textContent = fmtMoney(red.reduce((s,r)=>s+r.openAmt,0)) + ' Open';
+  document.getElementById('orangeDollars').textContent = fmtMoney(orange.reduce((s,r)=>s+r.openAmt,0)) + ' Open';
+  document.getElementById('greenDollars').textContent = fmtMoney(green.reduce((s,r)=>s+r.openAmt,0)) + ' Open';
+  document.getElementById('greyDollars').textContent = fmtMoney(grey.reduce((s,r)=>s+r.openAmt,0)) + ' Open';
+
+  document.getElementById('oversoldCount').textContent = OVERSOLD.length;
+
+  document.getElementById('stockoutCount').textContent = ROWS.filter(r=>r.rootCause==='STOCKOUT').length;
+  document.getElementById('processGapCount').textContent = ROWS.filter(r=>r.rootCause==='AVAILABLE_NOT_MOVING').length;
+  document.getElementById('noMatchCount').textContent = ROWS.filter(r=>r.rootCause==='NO ITEM MATCH').length;
+  document.getElementById('totalExposure').textContent = fmtMoney(ROWS.reduce((s,r)=>s+r.openAmt,0));
+  document.getElementById('blanketCount').textContent = BLANKETS.length;
+  if(BLANKETS.length){
+    document.getElementById('blanketDollars').textContent = fmtMoney(BLANKETS.reduce((s,b)=>s+b.amount,0)) + ' referenced — excluded from tiers/Open $, see export tab';
+  }
+
+  const locTotals = {};
+  ROWS.forEach(r => { locTotals[r.loc] = (locTotals[r.loc]||0) + r.openAmt; });
+  const sorted = Object.entries(locTotals).sort((a,b)=>b[1]-a[1]);
+  const max = sorted.length ? sorted[0][1] : 1;
+  const barsEl = document.getElementById('locBars');
+  barsEl.innerHTML = sorted.map(([loc,amt]) => `
+    <div class="loc-row">
+      <div class="name">${loc}</div>
+      <div class="track"><div class="fill" style="width:${Math.max(2,(amt/max*100))}%"></div></div>
+      <div class="amt">${fmtMoney(amt)}</div>
+    </div>`).join('');
+}
+
+function populateLocFilter(){
+  const sel = document.getElementById('locFilter');
+  const locs = [...new Set(ROWS.map(r=>r.loc))].sort();
+  sel.innerHTML = '<option value="ALL">All locations</option>' + locs.map(l=>`<option value="${l}">${l}</option>`).join('');
+}
+
+function setTierFilter(tier, btn){
+  tierFilter = tier;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function sortBy(key){
+  if(sortState.key === key) sortState.dir *= -1;
+  else { sortState.key = key; sortState.dir = 1; }
+  renderTable();
+}
+
+function renderTable(){
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  const loc = document.getElementById('locFilter').value;
+  const owner = document.getElementById('ownerFilter').value;
+
+  let filtered = ROWS.filter(r => {
+    if(tierFilter !== 'ALL' && r.tier !== tierFilter) return false;
+    if(loc !== 'ALL' && r.loc !== loc) return false;
+    if(owner !== 'ALL' && r.owner !== owner) return false;
+    if(search){
+      const hay = [r.custName, r.docNo, r.itemNo, r.desc, r.custPO].join(' ').toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    let av = a[sortState.key], bv = b[sortState.key];
+    if(av === null || av === undefined) av = sortState.dir === 1 ? Infinity : -Infinity;
+    if(bv === null || bv === undefined) bv = sortState.dir === 1 ? Infinity : -Infinity;
+    if(typeof av === 'string') return av.localeCompare(bv) * sortState.dir;
+    return (av - bv) * sortState.dir;
+  });
+
+  document.getElementById('resultCount').textContent = filtered.length + ' of ' + ROWS.length + ' lines';
+
+  const tierPillHtml = (tier) => {
+    const label = tier==='RED' ? 'At Risk' : tier==='ORANGE' ? 'Watch' : tier==='UNVERIFIED' ? 'Unverified' : 'On Track';
+    const cls = tier==='UNVERIFIED' ? 'unverified' : tier.toLowerCase();
+    return `<span class="pill ${cls}">${label}</span>`;
+  };
+  const rootCauseLabel = (rc) => rc==='STOCKOUT' ? 'No Stock' : rc==='AVAILABLE_NOT_MOVING' ? 'Available — Not Moving' : rc==='NO ITEM MATCH' ? 'No Item Match' : rc;
+
+  document.getElementById('tableBody').innerHTML = filtered.slice(0,500).map(r => `
+    <tr>
+      <td>${tierPillHtml(r.tier)}</td>
+      <td>${r.custName || ''}</td>
+      <td>${r.docNo || ''}</td>
+      <td>${r.itemNo || ''}</td>
+      <td>${(r.outstanding||0).toLocaleString()}</td>
+      <td>${fmtMoney(r.openAmt)}</td>
+      <td>${r.loc}</td>
+      <td>${rootCauseLabel(r.rootCause)}</td>
+      <td class="owner">${r.owner}</td>
+      <td>${r.daysOverdue !== null ? r.daysOverdue : 'Not yet due'}</td>
+      <td>${r.dueInDays !== null ? r.dueInDays : '—'}</td>
+      <td>${r.warehouseAge !== null ? r.warehouseAge : '—'}</td>
+      <td>${r.orderAge !== null ? r.orderAge : '—'}</td>
+      <td>${r.wshpNo || '—'}</td>
+    </tr>`).join('');
+}
+
+function exportExcel(){
+  const rootCauseLabel = (rc) => rc==='STOCKOUT' ? 'No Stock' : rc==='AVAILABLE_NOT_MOVING' ? 'Available — Not Moving' : rc==='NO ITEM MATCH' ? 'No Item Match' : rc;
+
+  const toSheetRows = (rows) => rows.map(r => ({
+    'Customer': r.custName,
+    'Customer PO': r.custPO,
+    'Document No.': r.docNo,
+    'Order Date': fmtDate(r.orderDate),
+    'Item No.': r.itemNo,
+    'Description': r.desc,
+    'Outstanding Qty': r.outstanding,
+    'Open PO Qty': r.openPOQty !== null && r.openPOQty !== undefined ? r.openPOQty : '',
+    'Open $': Math.round(r.openAmt),
+    'Location': r.loc,
+    'Root Cause': rootCauseLabel(r.rootCause),
+    'Owner': r.owner,
+    'Days Overdue': r.daysOverdue !== null ? r.daysOverdue : 'Not yet due',
+    'Planned Ship Date': fmtDate(r.plannedShipDate),
+    'Due In (days)': r.dueInDays,
+    'Warehouse Age (days)': r.warehouseAge !== null ? r.warehouseAge : 'No warehouse match',
+    'Order Age (days, informational)': r.orderAge !== null ? r.orderAge : '',
+    'WSHP No.': r.wshpNo
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const all = [...ROWS].sort((a,b)=> b.openAmt - a.openAmt);
+  const redList = all.filter(r=>r.tier==='RED');
+  const orangeList = all.filter(r=>r.tier==='ORANGE');
+  const greenList = all.filter(r=>r.tier==='GREEN');
+  const greyList = all.filter(r=>r.tier==='UNVERIFIED');
+
+  // ---- Summary tab (first sheet): mirrors the dashboard tiles + a short how-to-read guide ----
+  const totalLines = ROWS.length || 1;
+  const pct = (n) => ((n/totalLines)*100).toFixed(1) + '%';
+  const sumOpen = (list) => Math.round(list.reduce((s,r)=>s+r.openAmt,0)).toLocaleString();
+  const blanketTotal = Math.round(BLANKETS.reduce((s,b)=>s+b.amount,0)).toLocaleString();
+  const genDate = new Date().toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' });
+
+  const summaryAoa = [
+    ['PromiseGard — Analysis Summary'],
+    ['Protecting the delivery promise. Part of the ConfigGard suite.'],
+    ['Generated: ' + genDate],
+    [],
+    ['PROMISE STATUS', 'Lines', '% of Total', 'Open $'],
+    ['Promise at Risk', redList.length, pct(redList.length), '$' + sumOpen(redList)],
+    ['Promise Watch', orangeList.length, pct(orangeList.length), '$' + sumOpen(orangeList)],
+    ['On Track', greenList.length, pct(greenList.length), '$' + sumOpen(greenList)],
+    ['Unverified', greyList.length, pct(greyList.length), '$' + sumOpen(greyList)],
+    [],
+    ['ROOT CAUSE', 'Lines'],
+    ['No Stock (Buyer action)', ROWS.filter(r=>r.rootCause==='STOCKOUT').length],
+    ['Available — Not Moving (Warehouse action)', ROWS.filter(r=>r.rootCause==='AVAILABLE_NOT_MOVING').length],
+    ['Data Quality Flags (item not found)', ROWS.filter(r=>r.rootCause==='NO ITEM MATCH').length],
+    [],
+    ['OTHER', 'Count', 'Value'],
+    ['Oversold — Future Risk (items, company-wide)', OVERSOLD.length, ''],
+    ['Blanket Orders (reference only, excluded from tiers)', BLANKETS.length, '$' + blanketTotal],
+    [],
+    ['HOW TO READ THIS WORKBOOK'],
+    ['Promise at Risk / Promise Watch / On Track / Unverified — one tab per tier, same labels as the on-screen tool.'],
+    ['Days Overdue is the primary triage number. "Not yet due" is a normal state, not missing data.'],
+    ['Warehouse Age is a secondary early-warning signal (real warehouse activity only). Order Age is informational only and never changes a tier.'],
+    ['Root Cause splits every line into No Stock (send to the buyer/procurement) or Available — Not Moving (send to the warehouse).'],
+    ['Oversold — Future Risk is item-level and company-wide, independent of any single order — a proactive shortage warning, not a line to ship.'],
+    ['Blanket Orders is reference-only. These carry no ship-date promise of their own and are excluded from Open $ and tiering to avoid double-counting the real Sales Order eventually cut from each one.'],
+    ['Non-inventory charge lines (freight, surcharges, tooling charges, tariffs) are excluded from every tab — they have no physical stock to triage.']
+  ];
+  const summaryWs = XLSX.utils.aoa_to_sheet(summaryAoa);
+  summaryWs['!cols'] = [{wch:46},{wch:14},{wch:12},{wch:14}];
+  summaryWs['!merges'] = [
+    { s:{r:0,c:0}, e:{r:0,c:3} }, { s:{r:1,c:0}, e:{r:1,c:3} }, { s:{r:2,c:0}, e:{r:2,c:3} },
+    { s:{r:18,c:0}, e:{r:18,c:3} }
+  ];
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(toSheetRows(redList)), 'Promise at Risk');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(toSheetRows(orangeList)), 'Promise Watch');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(toSheetRows(greenList)), 'On Track');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(toSheetRows(greyList)), 'Unverified');
+
+  // Oversold — Future Risk: item-level, company-wide (not location-specific). Note is a real
+  // merged text row above the header — structurally distinct from a data row — not a fake
+  // "NOTE:" item that could be mistaken for a real oversold entry.
+  const oversoldHeader = ['Item No.','Description','Qty. on Sales Order','Qty. on Hand','Qty. on Purch. Order','Shortfall'];
+  const oversoldAoa = [
+    ['NOTE: Figures below are COMPANY-WIDE (all locations combined), not location-specific. Non-inventory charge items (freight, surcharges, tooling charges, tariffs) are excluded.'],
+    [],
+    oversoldHeader,
+    ...OVERSOLD.map(o => [o.itemNo, o.desc, o.qtyOnSO, o.qoh, o.qtyOnPO, o.shortfall])
+  ];
+  const oversoldWs = XLSX.utils.aoa_to_sheet(oversoldAoa);
+  oversoldWs['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:5} }];
+  XLSX.utils.book_append_sheet(wb, oversoldWs, 'Oversold - Future Risk');
+
+  // Blanket Orders — Reference Only: excluded from tiered triage entirely to avoid double-counting
+  // against the real Sales Order eventually cut from each blanket via "Make Order."
+  const blanketHeader = ['Blanket No.','Customer','Item No.','Description','Outstanding Qty','Amount ($)','Location'];
+  const blanketAoa = [
+    ['REFERENCE ONLY — excluded from Promise tiers and Open $ to avoid double-counting the real Sales Order eventually cut from each blanket. Figures may overstate true remaining commitment if BC has not yet reduced this line following a release.'],
+    [],
+    blanketHeader,
+    ...BLANKETS.map(b => [b.blanketNo, b.custName, b.itemNo, b.desc, b.outstanding, Math.round(b.amount), b.loc])
+  ];
+  const blanketWs = XLSX.utils.aoa_to_sheet(blanketAoa);
+  blanketWs['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:6} }];
+  XLSX.utils.book_append_sheet(wb, blanketWs, 'Blanket Orders - Reference');
+
+  const dateStr = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `PromiseGard_Triage_${dateStr}.xlsx`);
+}
+
+function resetAll(){
+  RAW = { salesOrders:null, salesLines:null, items:null, whShipments:null, shipStatus:null };
+  ROWS = [];
+  OVERSOLD = [];
+  BLANKETS = [];
+  LAST_METRICS = null;
+  sortState = { key:'openAmt', dir:-1 };
+  tierFilter = 'ALL';
+
+  slots.forEach(key => {
+    const slot = document.querySelector('.upload-slot[data-key="'+key+'"]');
+    slot.classList.remove('filled');
+    slot.querySelector('.status').textContent = 'Click or drag a file here';
+    document.getElementById('file_'+key).value = '';
+  });
+
+  document.getElementById('searchBox').value = '';
+  document.getElementById('locFilter').innerHTML = '<option value="ALL">All locations</option>';
+  document.getElementById('ownerFilter').value = 'ALL';
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.tab[data-tier="ALL"]').classList.add('active');
+
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'block';
+  checkReady();
+}
+</script>
+</body>
+</html>
