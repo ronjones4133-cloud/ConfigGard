@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -245,6 +246,7 @@ footer a:hover{color:var(--gold)}
           <th data-key="onHandDoC">On-Hand DoC <span class="sort-arrow" id="sa_onHandDoC"></span></th>
           <th data-key="poDoC">Open PO DoC <span class="sort-arrow" id="sa_poDoC"></span></th>
           <th data-key="netDoC">Net DoC <span class="sort-arrow" id="sa_netDoC"></span></th>
+          <th data-key="netFlowDoC">Net Flow DoC <span class="sort-arrow" id="sa_netFlowDoC"></span></th>
           <th data-key="adu">ADU <span class="sort-arrow" id="sa_adu"></span></th>
           <th data-key="onHand">On-Hand Qty <span class="sort-arrow" id="sa_onHand"></span></th>
           <th data-key="poQty">Open PO Qty <span class="sort-arrow" id="sa_poQty"></span></th>
@@ -569,7 +571,7 @@ const SGX = (function() {
         // symmetry" call: dollars-visible bucket if anything is on-hand/on-order/on-SO,
         // otherwise it's a true cleanup candidate — never silently dropped anymore.
         const tier = !hasExposure ? 'DORMANT' : (aduStatus === 'ZERO' ? 'NODATA' : 'GAPEXPOSURE');
-        items.push({ ...m, adu:0, asp, lastSale, poQty, soQty, netDoC:null, onHandDoC:null, poDoC:null, revExposure, stockoutDate:null, pipelineLight:false, tier });
+        items.push({ ...m, adu:0, asp, lastSale, poQty, soQty, netDoC:null, netFlowDoC:null, onHandDoC:null, poDoC:null, revExposure, stockoutDate:null, pipelineLight:false, tier });
         return;
       }
 
@@ -579,6 +581,7 @@ const SGX = (function() {
       const onHandDoC = m.onHand / adu;
       const poDoC = poQty / adu;
       const netDoC = (m.onHand + poQty) / adu;
+      const netFlowDoC = (m.onHand + poQty - soQty) / adu; // DDMRP-style: nets out committed-but-unshipped demand; negative = already oversold
       let tier;
       if (netDoC < targetDoC) tier = 'CRITICAL';
       else if (netDoC < ropCeiling) tier = 'WATCH';
@@ -603,7 +606,7 @@ const SGX = (function() {
       const stockoutDate = new Date(now.getTime() + onHandDoC * 86400000);
       const pipelineLight = netDoC < leadTime;
 
-      items.push({ ...m, adu, asp, lastSale, poQty, soQty, netDoC, onHandDoC, poDoC, revExposure, stockoutDate, pipelineLight, tier });
+      items.push({ ...m, adu, asp, lastSale, poQty, soQty, netDoC, netFlowDoC, onHandDoC, poDoC, revExposure, stockoutDate, pipelineLight, tier });
     });
 
     render();
@@ -694,7 +697,7 @@ const SGX = (function() {
     return '<button class="fpill" data-t="'+t+'">'+label+' <span class="filter-count">'+count+'</span></button>';
   }
 
-  const NUMERIC_KEYS = ['onHandDoC','poDoC','netDoC','adu','onHand','poQty','asp','revExposure'];
+  const NUMERIC_KEYS = ['onHandDoC','poDoC','netDoC','netFlowDoC','adu','onHand','poQty','asp','revExposure'];
 
   function sortBy(key) {
     if (sortState.key === key) {
@@ -767,6 +770,7 @@ const SGX = (function() {
         '<td>'+fmt(i.onHandDoC)+'</td>' +
         '<td>'+fmt(i.poDoC)+'</td>' +
         '<td><strong>'+fmt(i.netDoC)+'</strong></td>' +
+        '<td>'+(i.netFlowDoC===null?'—':'<strong style="'+(i.netFlowDoC<0?'color:var(--red)':'')+'">'+fmt(i.netFlowDoC)+'</strong>')+'</td>' +
         '<td>'+(i.adu===null?'—':fmt(i.adu))+'</td>' +
         '<td>'+fmt(i.onHand)+'</td>' +
         '<td>'+fmt(i.poQty)+'</td>' +
@@ -785,12 +789,13 @@ const SGX = (function() {
     const today = new Date().toISOString().slice(0,10);
     const wb = XLSX.utils.book_new();
 
-    const hdr = ['Tier','Item No.','Description','Category','UOM','On-Hand DoC','Open PO DoC','Net DoC','ADU','On-Hand Qty','Open PO Qty','Sales Order Qty','ASP','Revenue Exposure','Last Sale Date','Stockout Date','Pipeline Light'];
+    const hdr = ['Tier','Item No.','Description','Category','UOM','On-Hand DoC','Open PO DoC','Net DoC','Net Flow DoC','ADU','On-Hand Qty','Open PO Qty','Sales Order Qty','ASP','Revenue Exposure','Last Sale Date','Stockout Date','Pipeline Light'];
     const rows = items.slice().sort((a,b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier)).map(i => [
       TIER_LABEL[i.tier], i.itemNo, i.desc, i.cat, i.uom,
       i.onHandDoC===null?'':Math.round(i.onHandDoC*100)/100,
       i.poDoC===null?'':Math.round(i.poDoC*100)/100,
       i.netDoC===null?'':Math.round(i.netDoC*100)/100,
+      i.netFlowDoC===null?'':Math.round(i.netFlowDoC*100)/100,
       i.adu===null?'':i.adu,
       i.onHand, i.poQty, i.soQty||0,
       i.asp===null?'':i.asp, i.revExposure===null?'':Math.round(i.revExposure*100)/100,
@@ -799,7 +804,7 @@ const SGX = (function() {
       i.pipelineLight ? 'LIGHT' : ''
     ]);
     const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
-    ws['!cols'] = [{wch:24},{wch:16},{wch:34},{wch:14},{wch:8},{wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:16},{wch:14},{wch:14},{wch:12}];
+    ws['!cols'] = [{wch:24},{wch:16},{wch:34},{wch:14},{wch:8},{wch:12},{wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:16},{wch:14},{wch:14},{wch:12}];
     XLSX.utils.book_append_sheet(wb, ws, 'Action Summary');
 
     const counts = {};
