@@ -1,0 +1,491 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReceiptGard™ — Warehouse Receipt Reconciliation for Business Central</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --navy-deep:#081525; --navy:#0D1F35; --navy-mid:#162942; --navy-border:#1E3550;
+  --gold:#E9A535; --gold-dim:#b87d1f;
+  --red:#C0392B; --red-bg:#fce4d6; --red-border:#e8a090;
+  --orange:#d4820a; --orange-bg:#fff2cc; --orange-border:#f0c870;
+  --green:#27AE60; --green-bg:#e2efda; --green-border:#90c87a;
+  --blue:#2980b9; --blue-bg:#e3f0fa; --blue-border:#9dc7e8;
+  --purple:#8e44ad; --purple-bg:#f0e6f6; --purple-border:#c9a8db;
+  --gray:#f5f6f8; --gray-mid:#e0e2e6; --dark:#1a1a2e;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--navy-deep);color:var(--dark);font-size:13px}
+nav{background:var(--navy-deep);padding:0 32px;height:52px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--navy-border)}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-dot{width:9px;height:9px;background:var(--gold);border-radius:50%;box-shadow:0 0 8px rgba(233,165,53,.4)}
+.nav-name{color:#fff;font-size:16px;font-weight:800;letter-spacing:-.3px}
+.nav-name sup{color:var(--gold);font-size:9px;vertical-align:super;font-weight:600}
+.nav-suite{color:rgba(255,255,255,.3);font-size:11px;margin-left:2px}
+.nav-tag{color:rgba(255,255,255,.3);font-size:11px}
+#hero{background:linear-gradient(140deg,var(--navy-deep) 0%,#0f2440 45%,#112035 100%);padding:52px 32px 48px;position:relative;overflow:hidden;height:calc(100vh - 52px);display:flex;flex-direction:column;justify-content:center;transition:padding .3s,height .3s}
+#hero.compact{height:auto;min-height:unset;padding:16px 32px}
+#hero.compact .hero-left{display:none}
+#hero.compact .hero-right{opacity:.4;pointer-events:none}
+.hero-grid{max-width:1140px;margin:0 auto;display:grid;grid-template-columns:1fr 480px;gap:56px;align-items:stretch;position:relative;z-index:1;width:100%}
+.hero-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.hero-eyebrow span{background:rgba(233,165,53,.12);border:1px solid rgba(233,165,53,.25);color:var(--gold);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+h1{font-size:36px;font-weight:900;color:#fff;line-height:1.15;letter-spacing:-.6px;margin-bottom:18px}
+h1 em{font-style:normal;color:var(--gold)}
+.hero-desc{color:rgba(255,255,255,.6);font-size:14px;line-height:1.75;margin-bottom:28px;max-width:440px}
+.hero-feats{display:flex;flex-direction:column;gap:8px}
+.feat{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.55);font-size:12px}
+.feat::before{content:'';width:4px;height:4px;background:var(--gold);border-radius:50%}
+.slot-grid{display:flex;flex-direction:column;gap:14px}
+.drop-slot{background:rgba(255,255,255,.035);border:1.5px dashed rgba(255,255,255,.18);border-radius:14px;padding:28px 26px;cursor:pointer;transition:all .2s;text-align:left;display:flex;align-items:center;gap:18px}
+.drop-slot:hover,.drop-slot.drag{background:rgba(233,165,53,.06);border-color:rgba(233,165,53,.5)}
+.drop-slot.filled{border-style:solid;border-color:var(--green-border);background:rgba(39,174,96,.08)}
+.slot-icon{font-size:32px;flex-shrink:0}
+.slot-body{flex:1}
+.slot-title{color:#fff;font-size:15px;font-weight:700}
+.slot-req{color:var(--gold);font-size:9.5px;font-weight:600;text-transform:uppercase;margin-left:6px}
+.slot-sub{color:rgba(255,255,255,.4);font-size:11.5px;line-height:1.5;margin-top:5px}
+.slot-status{color:var(--green);font-size:12px;font-weight:700;margin-top:8px;min-height:16px}
+#btnAnalyze{width:100%;margin-top:14px;padding:13px;background:var(--gold);color:var(--navy-deep);border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;opacity:.4;pointer-events:none;transition:opacity .2s}
+#btnAnalyze.ready{opacity:1;pointer-events:auto}
+#btnAnalyze:hover{background:var(--gold-dim);color:#fff}
+#main{padding:0 32px;max-width:1300px;margin:0 auto;width:100%;background:#fff}
+.sbar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin:16px 0 0;display:none;align-items:center;gap:10px;font-size:12px}
+.sbar.on{display:flex}
+.sbar.loading{border-color:#2980b9;background:#ebf5fb}
+.sbar.ok{border-color:var(--green-border);background:var(--green-bg)}
+.sbar.err{border-color:var(--red-border);background:var(--red-bg)}
+.spin{width:14px;height:14px;border:2px solid var(--gray-mid);border-top-color:#2980b9;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.total-banner{background:var(--navy);border:1px solid var(--navy-border);border-radius:12px;padding:20px 28px;margin:16px 0 12px;display:flex;align-items:center;gap:20px;box-shadow:0 4px 20px rgba(8,21,37,.3)}
+.total-num{font-size:46px;font-weight:900;color:var(--gold);line-height:1;letter-spacing:-2px;min-width:100px}
+.total-right{flex:1}
+.total-label{color:rgba(255,255,255,.45);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.total-sub{color:rgba(255,255,255,.6);font-size:13px;line-height:1.5}
+.total-sub strong{color:#fff}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--gray);border-radius:10px;padding:16px 18px;border:1px solid var(--gray-mid)}
+.card .num{font-size:26px;font-weight:800;line-height:1}
+.card .lbl{font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.card.green{border-color:var(--green-border);background:var(--green-bg)}.card.green .num{color:var(--green)}
+.card.blue{border-color:var(--blue-border);background:var(--blue-bg)}.card.blue .num{color:var(--blue)}
+.card.purple{border-color:var(--purple-border);background:var(--purple-bg)}.card.purple .num{color:var(--purple)}
+.card.red{border-color:var(--red-border);background:var(--red-bg)}.card.red .num{color:var(--red)}
+.action-bar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none}
+.btn-gold{background:var(--gold);color:var(--navy-deep);font-weight:800}.btn-gold:hover{background:var(--gold-dim);color:#fff}
+.btn-outline{background:#fff;color:var(--navy);border:1.5px solid var(--gray-mid)}.btn-outline:hover{border-color:var(--navy);background:var(--gray)}
+.fnote{color:#aaa;font-size:11px}
+.filter-bar{display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.fpill{padding:5px 14px;border-radius:20px;border:1px solid var(--gray-mid);background:#fff;cursor:pointer;font-size:12px;font-weight:700;color:#888}
+.fpill.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.filter-count{font-size:10px;background:rgba(0,0,0,.08);border-radius:10px;padding:1px 6px;margin-left:4px}
+.table-wrap{border:1px solid var(--gray-mid);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow-x:auto}
+table.itbl{width:100%;border-collapse:collapse;font-size:12px}
+table.itbl th{background:#f0f2f5;color:#666;font-weight:700;padding:9px 10px;text-align:left;border-bottom:2px solid var(--gray-mid);white-space:nowrap;font-size:10.5px;text-transform:uppercase;cursor:pointer;user-select:none}
+table.itbl th:hover{background:#e4e8ee}
+.sort-arrow{font-size:9px;color:var(--gold-dim);margin-left:2px}
+table.itbl td{padding:8px 10px;border-bottom:1px solid #f2f3f5;vertical-align:top}
+table.itbl tr:hover td{background:#fafbfc}
+.badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:10.5px;font-weight:800;text-transform:uppercase;white-space:nowrap}
+.badge.exact{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.badge.alt{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.badge.received{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
+.badge.none{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.opt-list{font-size:11px;line-height:1.7;margin-top:2px}
+.opt-list div{padding:2px 0}
+.opt-qty-match{color:var(--green);font-weight:700}
+.opt-qty-diff{color:var(--orange);font-weight:700}
+.empty-state{padding:48px;text-align:center;color:#bbb;font-size:13px}
+footer{background:var(--navy-deep);padding:24px 32px;border-top:1px solid var(--navy-border);text-align:center;margin-top:48px}
+footer p{color:rgba(255,255,255,.28);font-size:11px;line-height:1.9}
+footer a{color:rgba(255,255,255,.5);text-decoration:none}
+footer a:hover{color:var(--gold)}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-brand">
+    <div class="nav-dot"></div>
+    <span class="nav-name">ReceiptGard<sup>™</sup></span>
+    <span class="nav-suite">&nbsp;by ConfigGard</span>
+  </div>
+  <span class="nav-tag">Warehouse Receipt Reconciliation for Business Central</span>
+</nav>
+
+<div id="hero">
+  <div class="hero-grid">
+    <div class="hero-left">
+      <div class="hero-eyebrow"><span>Receiving Tool</span></div>
+      <h1>Same item.<br>Different PO.<br>Nobody told <em>the warehouse.</em></h1>
+      <p class="hero-desc">Exact match. Working alternate. Already received. Or a new PO. ReceiptGard tells you which, line by line.</p>
+      <p style="color:rgba(255,255,255,.35);font-size:12px;font-style:italic;margin:-16px 0 22px;max-width:420px">Most teams pause the shipment and get procurement on the phone. We had too many lines a month for that to scale.</p>
+      <div class="hero-feats">
+        <div class="feat">PO + Item match. Line numbers don't count.</div>
+        <div class="feat">Already received, flagged separately — not lumped with "missing."</div>
+        <div class="feat">Multiple options? You pick. Always.</div>
+        <div class="feat">Lot numbers carry through. Print and go.</div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="slot-grid">
+        <div class="drop-slot" id="slotPO" onclick="document.getElementById('filePO').click()">
+          <span class="slot-icon">📋</span>
+          <div class="slot-body">
+            <div class="slot-title">Step 1 — Purchase Lines <span class="slot-req">required</span></div>
+            <div class="slot-sub">Document No., No., Quantity, Outstanding Quantity</div>
+            <div class="slot-status" id="statusPO"></div>
+          </div>
+        </div>
+        <input type="file" id="filePO" accept=".xlsx,.xls,.csv" style="display:none">
+
+        <div class="drop-slot" id="slotPack" onclick="document.getElementById('filePack').click()">
+          <span class="slot-icon">📦</span>
+          <div class="slot-body">
+            <div class="slot-title">Step 2 — Packing List <span class="slot-req">required</span></div>
+            <div class="slot-sub">PO No., Item No., Qty. to Receive, Lot No., Container No.</div>
+            <div class="slot-status" id="statusPack"></div>
+          </div>
+        </div>
+        <input type="file" id="filePack" accept=".xlsx,.xls,.csv" style="display:none">
+      </div>
+      <button id="btnAnalyze" onclick="RG.analyze()">Reconcile →</button>
+    </div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="sbar" class="sbar"></div>
+  <div id="results" style="display:none;padding:24px 0 40px">
+    <div class="total-banner">
+      <div class="total-num" id="totalNum">0</div>
+      <div class="total-right">
+        <div class="total-label">Packing List Lines</div>
+        <div class="total-sub" id="totalSub">Analyzing…</div>
+      </div>
+      <div style="text-align:right">
+        <div class="total-num" id="totalMs" style="font-size:32px">—</div>
+        <div class="total-label">Reconciled In</div>
+      </div>
+    </div>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div class="action-bar">
+      <button class="btn btn-gold" onclick="RG.exportXlsx()">📥 Export Worklist</button>
+      <button class="btn btn-outline" onclick="RG.reset()">↩ Start Over</button>
+      <span class="fnote" id="fnote"></span>
+    </div>
+    <div class="filter-bar" id="filterBar"></div>
+    <div class="table-wrap">
+      <table class="itbl">
+        <thead><tr>
+          <th data-key="poNo">Packing List PO <span class="sort-arrow" id="sa_poNo"></span></th>
+          <th data-key="item">Item <span class="sort-arrow" id="sa_item"></span></th>
+          <th data-key="qtyToReceive">Qty to Receive <span class="sort-arrow" id="sa_qtyToReceive"></span></th>
+          <th data-key="lotNo">Lot No. <span class="sort-arrow" id="sa_lotNo"></span></th>
+          <th data-key="container">Container <span class="sort-arrow" id="sa_container"></span></th>
+          <th data-key="outcome">Result <span class="sort-arrow" id="sa_outcome"></span></th>
+          <th>Matched PO / Options</th>
+        </tr></thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none">No lines match the current filter.</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>ReceiptGard™ is part of the <strong style="color:rgba(255,255,255,.45)">ConfigGard™</strong> suite of Business Central alignment tools.</p>
+  <p>Built by <a href="https://www.linkedin.com/in/ronjones4133/" target="_blank">Ron Jones</a> · Supply Chain &amp; ERP Systems</p>
+</footer>
+
+<script>
+const RG = (function() {
+
+  const slotState = { po: null, pack: null };
+  let results = [];
+  let activeFilter = 'ALL';
+  let sortState = { key: null, dir: 'asc' };
+  const NUMERIC_KEYS = ['qtyToReceive'];
+  document.querySelectorAll('table.itbl th[data-key]').forEach(th => {
+    th.addEventListener('click', () => sortBy(th.dataset.key));
+  });
+  function sortBy(key) {
+    if (sortState.key===key) sortState.dir = sortState.dir==='asc'?'desc':'asc';
+    else sortState = { key, dir:'asc' };
+    document.querySelectorAll('.sort-arrow').forEach(el=>el.textContent='');
+    const arrow = document.getElementById('sa_'+key); if (arrow) arrow.textContent = sortState.dir==='asc'?'▲':'▼';
+    renderTable();
+  }
+
+  function wireSlot(slotId, inputId, key) {
+    const slot = document.getElementById(slotId);
+    const input = document.getElementById(inputId);
+    slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag'); });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag'));
+    slot.addEventListener('drop', e => { e.preventDefault(); slot.classList.remove('drag'); handleFile(key, e.dataTransfer.files[0], slotId); });
+    input.addEventListener('change', e => { if (e.target.files[0]) handleFile(key, e.target.files[0], slotId); });
+  }
+  wireSlot('slotPO','filePO','po');
+  wireSlot('slotPack','filePack','pack');
+
+  function readWorkbook(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      const isCsv = /\.csv$/i.test(file.name);
+      r.onload = e => {
+        try {
+          const wb = isCsv ? XLSX.read(e.target.result,{type:'string'}) : XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          resolve(XLSX.utils.sheet_to_json(ws, {header:1, defval:''}));
+        } catch(err) { reject(err); }
+      };
+      r.onerror = () => reject(new Error('Could not read '+file.name));
+      if (isCsv) r.readAsText(file); else r.readAsArrayBuffer(file);
+    });
+  }
+
+  async function handleFile(key, file, slotId) {
+    if (!file) return;
+    const statusEl = document.getElementById('status'+(key==='po'?'PO':'Pack'));
+    statusEl.textContent = 'Reading…';
+    try {
+      const raw = await readWorkbook(file);
+      slotState[key] = { name: file.name, raw };
+      statusEl.textContent = '✓ ' + file.name;
+      document.getElementById(slotId).classList.add('filled');
+      updateAnalyzeButton();
+    } catch(err) {
+      statusEl.textContent = '✗ ' + err.message;
+    }
+  }
+
+  function updateAnalyzeButton() {
+    const btn = document.getElementById('btnAnalyze');
+    if (slotState.po && slotState.pack) btn.classList.add('ready'); else btn.classList.remove('ready');
+  }
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmt(n){ return n==null?'—':Number(n).toLocaleString(); }
+  function fmtDate(v) {
+    if (!v && v !== 0) return '';
+    if (v instanceof Date) return isNaN(v.getTime()) ? '' : v.toISOString().slice(0,10);
+    const n = Number(v);
+    if (!isNaN(n) && n > 20000 && n < 60000) {
+      const d = new Date(Math.round((n - 25569) * 86400 * 1000));
+      return isNaN(d.getTime()) ? '' : d.toISOString().slice(0,10);
+    }
+    return String(v);
+  }
+
+  // Packing lists are inconsistent: some have a blank row + header row, some have no header
+  // row at all and start straight into data. Scan for a literal "PO No." cell in the first
+  // few rows; if not found, assume no header and data starts at row 0.
+  function findPackingHeaderRow(raw) {
+    for (let i = 0; i < Math.min(raw.length, 5); i++) {
+      const rowVals = raw[i].map(v => String(v).trim().toLowerCase());
+      if (rowVals.includes('po no.')) return i;
+    }
+    return -1;
+  }
+
+  function excelSerialToDate(n) {
+    // Lot No. in these packing lists is a plain date-coded number (e.g. 20260615), not an
+    // Excel date serial — keep it as-is, just stringified. No conversion needed.
+    return n;
+  }
+
+  function analyze() {
+    document.getElementById('hero').classList.add('compact');
+    sb('loading','Reconciling…');
+    const _start = performance.now();
+    setTimeout(() => {
+      try { process(_start); } catch(err) { sb('err','✗ '+err.message); }
+    }, 20);
+  }
+
+  function process(_start) {
+    // ── Parse Purchase Lines ──
+    const poRaw = slotState.po.raw;
+    const poHdr = poRaw[0].map(h => String(h).trim());
+    const idx = name => poHdr.findIndex(h => h.toLowerCase() === name.toLowerCase());
+    const cDoc = idx('Document No.'), cItem = idx('No.'), cDesc = idx('Description'),
+          cQty = idx('Quantity'), cExp = idx('Expected Receipt Date'), cOut = idx('Outstanding Quantity');
+    if (cDoc===-1 || cItem===-1 || cOut===-1) throw new Error('Purchase Lines file missing Document No. / No. / Outstanding Quantity columns.');
+
+    const allPoLines = [];
+    for (let i = 1; i < poRaw.length; i++) {
+      const row = poRaw[i];
+      if (!row[cDoc]) continue;
+      allPoLines.push({
+        docNo: String(row[cDoc]).trim(),
+        item: String(row[cItem]).trim(),
+        desc: cDesc!==-1 ? String(row[cDesc]).trim() : '',
+        qty: Number(row[cQty])||0,
+        expDate: cExp!==-1 ? row[cExp] : '',
+        outstanding: Number(row[cOut])||0
+      });
+    }
+    const byPo = {};
+    allPoLines.forEach(l => { (byPo[l.docNo] = byPo[l.docNo]||[]).push(l); });
+
+    // ── Parse Packing List (header-row-optional) ──
+    const packRaw = slotState.pack.raw;
+    const hdrRowIdx = findPackingHeaderRow(packRaw);
+    const dataStart = hdrRowIdx === -1 ? 0 : hdrRowIdx + 1;
+
+    const packLines = [];
+    for (let i = dataStart; i < packRaw.length; i++) {
+      const row = packRaw[i];
+      if (row.every(v => v==='' )) continue;
+      const rawPo = row[0];
+      if (rawPo === '' || rawPo == null) continue;
+      const poNo = String(typeof rawPo === 'number' ? Math.trunc(rawPo) : rawPo).trim();
+      packLines.push({
+        poNo,
+        lineNo: row[1],
+        item: String(row[2]).trim(),
+        qtyToReceive: Number(row[3])||0,
+        uom: row[4],
+        lotNo: excelSerialToDate(row[5]),
+        container: row[6]
+      });
+    }
+    if (!packLines.length) throw new Error('No data rows found in the packing list.');
+
+    // ── Reconcile each packing list line ──
+    results = packLines.map(pl => {
+      const statedPoLines = (byPo[pl.poNo] || []).filter(l => l.item === pl.item);
+      const openOnStatedPo = statedPoLines.filter(l => l.outstanding > 0);
+
+      if (openOnStatedPo.length > 0) {
+        return { ...pl, outcome:'exact', options: openOnStatedPo };
+      }
+
+      const altOpen = allPoLines.filter(l => l.item === pl.item && l.outstanding > 0 && l.docNo !== pl.poNo);
+      if (altOpen.length > 0) {
+        return { ...pl, outcome:'alt', options: altOpen };
+      }
+
+      if (statedPoLines.length > 0) {
+        return { ...pl, outcome:'received', options: statedPoLines };
+      }
+
+      return { ...pl, outcome:'none', options: [] };
+    });
+
+    const elapsedMs = Math.round(performance.now() - _start);
+    render(elapsedMs);
+    sb('ok', '✓ Reconciled ' + results.length + ' packing list lines against ' + allPoLines.length + ' open purchase lines in ' + elapsedMs + 'ms');
+    setTimeout(()=>document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}), 150);
+  }
+
+  const OUTCOME_LABEL = { exact:'✅ Exact PO Match', alt:'🔵 Alternate PO', received:'🟣 Already Received', none:'🔴 No Match — New PO' };
+
+  function render(elapsedMs) {
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('totalNum').textContent = results.length;
+    document.getElementById('totalMs').textContent = (elapsedMs!==undefined ? elapsedMs : '—') + 'ms';
+    document.getElementById('totalSub').innerHTML = 'From <strong style="color:#E9A535">'+esc(slotState.pack.name)+'</strong>';
+
+    const counts = { exact:0, alt:0, received:0, none:0 };
+    results.forEach(r => counts[r.outcome]++);
+
+    document.getElementById('summaryGrid').innerHTML =
+      cardHtml('green', counts.exact, '✅ Exact PO Match') +
+      cardHtml('blue', counts.alt, '🔵 Alternate PO Found') +
+      cardHtml('purple', counts.received, '🟣 Already Received') +
+      cardHtml('red', counts.none, '🔴 No Match — New PO Needed');
+
+    const fb = document.getElementById('filterBar');
+    fb.innerHTML = '<span style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;margin-right:4px">Filter:</span>' +
+      pill('ALL','All',results.length) + pill('exact','✅ Exact',counts.exact) + pill('alt','🔵 Alternate',counts.alt) +
+      pill('received','🟣 Received',counts.received) + pill('none','🔴 No Match',counts.none);
+    fb.querySelectorAll('.fpill').forEach(b=>b.addEventListener('click',()=>{ activeFilter=b.dataset.t; fb.querySelectorAll('.fpill').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderTable(); }));
+    (fb.querySelector('.fpill[data-t="'+activeFilter+'"]')||fb.querySelector('.fpill[data-t="ALL"]')).classList.add('active');
+
+    document.getElementById('fnote').textContent = results.length + ' packing list lines';
+    renderTable();
+  }
+  function cardHtml(cls,n,lbl){ return '<div class="card '+cls+'"><div class="num">'+n+'</div><div class="lbl">'+lbl+'</div></div>'; }
+  function pill(t,label,count){ return '<button class="fpill" data-t="'+t+'">'+label+' <span class="filter-count">'+count+'</span></button>'; }
+
+  function renderTable() {
+    const body = document.getElementById('resultBody');
+    const empty = document.getElementById('emptyState');
+    let filtered = activeFilter==='ALL' ? results : results.filter(r=>r.outcome===activeFilter);
+    if (sortState.key) {
+      const key = sortState.key, dir = sortState.dir==='asc'?1:-1;
+      filtered = filtered.slice().sort((a,b) => {
+        if (NUMERIC_KEYS.includes(key)) return dir*((a[key]||0)-(b[key]||0));
+        return dir*String(a[key]||'').localeCompare(String(b[key]||''));
+      });
+    }
+    if (!filtered.length) { empty.style.display='block'; return; }
+    empty.style.display='none';
+
+    body.innerHTML = filtered.map(r => {
+      const badge = '<span class="badge '+r.outcome+'">'+OUTCOME_LABEL[r.outcome]+'</span>';
+      let optHtml = '—';
+      if (r.options.length) {
+        optHtml = '<div class="opt-list">' + r.options.map(o => {
+          const qtyClass = o.outstanding===r.qtyToReceive ? 'opt-qty-match' : 'opt-qty-diff';
+          return '<div><strong>PO '+esc(o.docNo)+'</strong> — outstanding: <span class="'+qtyClass+'">'+fmt(o.outstanding)+'</span>'+(o.expDate?' · exp. '+esc(fmtDate(o.expDate)):'')+'</div>';
+        }).join('') + '</div>';
+      } else if (r.outcome==='none') {
+        optHtml = '<span style="color:var(--red);font-weight:700">Create new PO for this item</span>';
+      }
+      return '<tr>'+
+        '<td>'+esc(r.poNo)+'</td>'+
+        '<td>'+esc(r.item)+'</td>'+
+        '<td>'+fmt(r.qtyToReceive)+'</td>'+
+        '<td>'+esc(r.lotNo)+'</td>'+
+        '<td>'+esc(r.container)+'</td>'+
+        '<td>'+badge+'</td>'+
+        '<td>'+optHtml+'</td>'+
+        '</tr>';
+    }).join('');
+  }
+
+  function exportXlsx() {
+    if (!results.length) return;
+    const today = new Date().toISOString().slice(0,10);
+    const wb = XLSX.utils.book_new();
+    const hdr = ['Packing List PO','Item','Qty to Receive','Lot No.','Container','Result','Best Option PO','Best Option Outstanding Qty','All Options'];
+    const rows = results.map(r => {
+      const best = r.options[0];
+      const allOpts = r.options.map(o => o.docNo+' (qty '+o.outstanding+')').join('; ');
+      return [r.poNo, r.item, r.qtyToReceive, r.lotNo, r.container, OUTCOME_LABEL[r.outcome],
+        best?best.docNo:'', best?best.outstanding:'', allOpts];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
+    ws['!cols'] = [{wch:14},{wch:18},{wch:14},{wch:12},{wch:14},{wch:20},{wch:14},{wch:18},{wch:40}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Receiving Worklist');
+    const data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob = new Blob([data],{type:'application/octet-stream'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ReceiptGard_Worklist_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  function reset() {
+    slotState.po = null; slotState.pack = null; results = []; activeFilter = 'ALL';
+    ['PO','Pack'].forEach(s => { document.getElementById('slot'+s).classList.remove('filled'); document.getElementById('status'+s).textContent=''; });
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('sbar').className = 'sbar';
+    document.getElementById('hero').classList.remove('compact');
+    updateAnalyzeButton();
+  }
+
+  function sb(type,msg) {
+    const b = document.getElementById('sbar');
+    b.className = 'sbar on'+(type?' '+type:'');
+    b.innerHTML = type==='loading' ? '<div class="spin"></div><span>'+msg+'</span>' : '<span>'+msg+'</span>';
+  }
+
+  return { analyze, exportXlsx, reset };
+})();
+</script>
+</body>
+</html>
