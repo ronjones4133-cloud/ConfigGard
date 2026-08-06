@@ -74,6 +74,8 @@ h1 em{font-style:normal;color:var(--gold)}
 .card.green{border-color:var(--green-border);background:var(--green-bg)}.card.green .num{color:var(--green)}
 .card.blue{border-color:var(--blue-border);background:var(--blue-bg)}.card.blue .num{color:var(--blue)}
 .card.purple{border-color:var(--purple-border);background:var(--purple-bg)}.card.purple .num{color:var(--purple)}
+.card.orange{border-color:var(--orange-border);background:var(--orange-bg)}.card.orange .num{color:var(--orange)}
+.card.yellow{border-color:#f0c870;background:#fff8e6}.card.yellow .num{color:#a3760a}
 .card.red{border-color:var(--red-border);background:var(--red-bg)}.card.red .num{color:var(--red)}
 .action-bar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .btn{padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none}
@@ -95,6 +97,8 @@ table.itbl tr:hover td{background:#fafbfc}
 .badge.exact{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
 .badge.alt{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
 .badge.received{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
+.badge.claimed{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.badge.short{background:#fff8e6;color:#a3760a;border:1px solid #f0c870}
 .badge.none{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
 .opt-list{font-size:11px;line-height:1.7;margin-top:2px}
 .opt-list div{padding:2px 0}
@@ -152,6 +156,16 @@ footer a:hover{color:var(--gold)}
           </div>
         </div>
         <input type="file" id="filePack" accept=".xlsx,.xls,.csv" style="display:none">
+
+        <div class="drop-slot" id="slotWhr" onclick="document.getElementById('fileWhr').click()">
+          <span class="slot-icon">🔒</span>
+          <div class="slot-body">
+            <div class="slot-title">Step 3 — Open Warehouse Receipt Lines <span class="slot-req">required</span></div>
+            <div class="slot-sub">Source Document, Source No., Item No., Qty. to Receive, Qty. Outstanding — so a PO already being pulled by another receipt is never recommended twice</div>
+            <div class="slot-status" id="statusWhr"></div>
+          </div>
+        </div>
+        <input type="file" id="fileWhr" accept=".xlsx,.xls,.csv" style="display:none">
       </div>
       <button id="btnAnalyze" onclick="RG.analyze()">Reconcile →</button>
     </div>
@@ -174,7 +188,7 @@ footer a:hover{color:var(--gold)}
     </div>
     <div class="summary-grid" id="summaryGrid"></div>
     <div class="action-bar">
-      <button class="btn btn-gold" onclick="RG.exportXlsx()">📥 Export Worklist</button>
+      <button class="btn btn-gold" onclick="RG.exportXlsx()">📥 Export WRCT Upload</button>
       <button class="btn btn-outline" onclick="RG.reset()">↩ Start Over</button>
       <span class="fnote" id="fnote"></span>
     </div>
@@ -182,6 +196,7 @@ footer a:hover{color:var(--gold)}
     <div class="table-wrap">
       <table class="itbl">
         <thead><tr>
+          <th style="width:36px">✓</th>
           <th data-key="poNo">Packing List PO <span class="sort-arrow" id="sa_poNo"></span></th>
           <th data-key="item">Item <span class="sort-arrow" id="sa_item"></span></th>
           <th data-key="qtyToReceive">Qty to Receive <span class="sort-arrow" id="sa_qtyToReceive"></span></th>
@@ -205,7 +220,7 @@ footer a:hover{color:var(--gold)}
 <script>
 const RG = (function() {
 
-  const slotState = { po: null, pack: null };
+  const slotState = { po: null, pack: null, whr: null };
   let results = [];
   let activeFilter = 'ALL';
   let sortState = { key: null, dir: 'asc' };
@@ -231,6 +246,7 @@ const RG = (function() {
   }
   wireSlot('slotPO','filePO','po');
   wireSlot('slotPack','filePack','pack');
+  wireSlot('slotWhr','fileWhr','whr');
 
   function readWorkbook(file) {
     return new Promise((resolve, reject) => {
@@ -248,9 +264,10 @@ const RG = (function() {
     });
   }
 
+  const STATUS_ID = { po:'statusPO', pack:'statusPack', whr:'statusWhr' };
   async function handleFile(key, file, slotId) {
     if (!file) return;
-    const statusEl = document.getElementById('status'+(key==='po'?'PO':'Pack'));
+    const statusEl = document.getElementById(STATUS_ID[key]);
     statusEl.textContent = 'Reading…';
     try {
       const raw = await readWorkbook(file);
@@ -265,7 +282,7 @@ const RG = (function() {
 
   function updateAnalyzeButton() {
     const btn = document.getElementById('btnAnalyze');
-    if (slotState.po && slotState.pack) btn.classList.add('ready'); else btn.classList.remove('ready');
+    if (slotState.po && slotState.pack && slotState.whr) btn.classList.add('ready'); else btn.classList.remove('ready');
   }
 
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -313,8 +330,10 @@ const RG = (function() {
     const poHdr = poRaw[0].map(h => String(h).trim());
     const idx = name => poHdr.findIndex(h => h.toLowerCase() === name.toLowerCase());
     const cDoc = idx('Document No.'), cItem = idx('No.'), cDesc = idx('Description'),
-          cQty = idx('Quantity'), cExp = idx('Expected Receipt Date'), cOut = idx('Outstanding Quantity');
+          cQty = idx('Quantity'), cExp = idx('Expected Receipt Date'), cOut = idx('Outstanding Quantity'),
+          cLine = idx('Line No.');
     if (cDoc===-1 || cItem===-1 || cOut===-1) throw new Error('Purchase Lines file missing Document No. / No. / Outstanding Quantity columns.');
+    const hasLineNo = cLine !== -1;
 
     const allPoLines = [];
     for (let i = 1; i < poRaw.length; i++) {
@@ -326,11 +345,59 @@ const RG = (function() {
         desc: cDesc!==-1 ? String(row[cDesc]).trim() : '',
         qty: Number(row[cQty])||0,
         expDate: cExp!==-1 ? row[cExp] : '',
-        outstanding: Number(row[cOut])||0
+        outstanding: Number(row[cOut])||0,
+        lineNo: hasLineNo ? row[cLine] : null
       });
     }
-    const byPo = {};
-    allPoLines.forEach(l => { (byPo[l.docNo] = byPo[l.docNo]||[]).push(l); });
+
+    // Group by PO+Item — the same item can legitimately sit on two different lines of the
+    // same PO, and neither the WHR claims file nor the packing list carry line-level detail,
+    // so netting and matching both have to work at this grain. Line No. is a suggested
+    // default within the group, always editable by the human.
+    const poGroups = {};
+    allPoLines.forEach(l => {
+      const key = l.docNo+'|'+l.item;
+      if (!poGroups[key]) poGroups[key] = { docNo:l.docNo, item:l.item, lines:[], totalOutstanding:0, expDate:l.expDate };
+      poGroups[key].lines.push(l);
+      poGroups[key].totalOutstanding += l.outstanding;
+    });
+    function suggestedLineNo(group) {
+      const openLine = group.lines.find(l => l.outstanding > 0);
+      const line = openLine || group.lines[0];
+      return line && line.lineNo != null ? line.lineNo : '';
+    }
+
+    // ── Parse Open Warehouse Receipt Lines (third cross-reference) ──
+    const whrRaw = slotState.whr.raw;
+    const whrHdr = whrRaw[0].map(h => String(h).trim());
+    const widx = name => whrHdr.findIndex(h => h.toLowerCase() === name.toLowerCase());
+    const wSrcDoc = widx('Source Document'), wSrcNo = widx('Source No.'), wItem = widx('Item No.'), wQtyRec = widx('Qty. to Receive'), wVendShip = widx('Vendor Shipment No.');
+    if (wSrcNo===-1 || wItem===-1 || wQtyRec===-1) throw new Error('Warehouse Receipt Lines file missing Source No. / Item No. / Qty. to Receive columns.');
+    const claimedMap = {};
+    const containerToPo = {}; // Vendor Shipment No. -> Set of PO Nos already open on a receipt for that container — informational only, no quantities (see below)
+    for (let i = 1; i < whrRaw.length; i++) {
+      const row = whrRaw[i];
+      if (!row[wSrcNo]) continue;
+      if (wSrcDoc!==-1 && String(row[wSrcDoc]).trim() !== 'Purchase Order') continue;
+      const key = String(row[wSrcNo]).trim()+'|'+String(row[wItem]).trim();
+      claimedMap[key] = (claimedMap[key]||0) + (Number(row[wQtyRec])||0);
+      // Deliberately not summing any quantity here — this export carries duplicate rows per
+      // item whose meaning isn't fully understood yet, so this cross-reference only ever
+      // says "this container also appears on PO X," never a quantity, to avoid presenting a
+      // number that might be wrong right next to a PO match that's right.
+      if (wVendShip!==-1 && row[wVendShip]) {
+        const container = String(row[wVendShip]).trim();
+        if (!containerToPo[container]) containerToPo[container] = new Set();
+        containerToPo[container].add(String(row[wSrcNo]).trim());
+      }
+    }
+
+    function netAvail(key) {
+      const g = poGroups[key];
+      if (!g) return { group:null, net:0 };
+      const net = g.totalOutstanding - (claimedMap[key]||0);
+      return { group:g, net };
+    }
 
     // ── Parse Packing List (header-row-optional) ──
     const packRaw = slotState.pack.raw;
@@ -351,39 +418,111 @@ const RG = (function() {
         qtyToReceive: Number(row[3])||0,
         uom: row[4],
         lotNo: excelSerialToDate(row[5]),
-        container: row[6]
+        container: String(row[6]).trim()
       });
     }
     if (!packLines.length) throw new Error('No data rows found in the packing list.');
 
-    // ── Reconcile each packing list line ──
-    results = packLines.map(pl => {
-      const statedPoLines = (byPo[pl.poNo] || []).filter(l => l.item === pl.item);
-      const openOnStatedPo = statedPoLines.filter(l => l.outstanding > 0);
+    // ── Reconcile each packing list line — six outcomes ──
+    // An option only counts as viable if it can cover the FULL quantity being received —
+    // a line with some net availability but not enough is not a safe recommendation.
+    results = packLines.map((pl, idx) => {
+      const statedKey = pl.poNo+'|'+pl.item;
+      const stated = netAvail(statedKey);
+      let outcome, options = [], shortBy;
 
-      if (openOnStatedPo.length > 0) {
-        return { ...pl, outcome:'exact', options: openOnStatedPo };
+      if (stated.group && stated.net >= pl.qtyToReceive) {
+        outcome = 'exact';
+        options = [{ docNo: stated.group.docNo, lineNo: suggestedLineNo(stated.group), net: stated.net, expDate: stated.group.expDate }];
+      } else {
+        // Search every other PO carrying this item for enough net-available quantity to
+        // fully cover this line — a partial-only alternate is not offered as a match.
+        const altOptions = [];
+        Object.keys(poGroups).forEach(k => {
+          if (k === statedKey) return;
+          const g = poGroups[k];
+          if (g.item !== pl.item) return;
+          const a = netAvail(k);
+          if (a.net >= pl.qtyToReceive) altOptions.push({ docNo: g.docNo, lineNo: suggestedLineNo(g), net: a.net, expDate: g.expDate });
+        });
+        if (altOptions.length > 0) {
+          outcome = 'alt'; options = altOptions;
+        } else if (stated.group && stated.net > 0 && stated.net < pl.qtyToReceive) {
+          // BC's own Over-Receipt mechanism is the real fix here, not a forced PO edit —
+          // two legitimate paths: reduce to what's actually available (no code needed), or
+          // keep the full quantity and supply BC's required Over-Receipt Code.
+          outcome = 'short'; shortBy = pl.qtyToReceive - stated.net;
+          options = [
+            { docNo: stated.group.docNo, lineNo: suggestedLineNo(stated.group), net: stated.net, reduceQty: true },
+            { docNo: stated.group.docNo, lineNo: suggestedLineNo(stated.group), net: stated.net, overReceipt: true }
+          ];
+        } else if (stated.group && stated.group.totalOutstanding > 0 && stated.net <= 0) {
+          outcome = 'claimed'; // still outstanding in BC, but another open receipt already claims all of it
+        } else if (stated.group) {
+          outcome = 'received'; // fully received, nothing outstanding
+        } else {
+          outcome = 'none';
+        }
       }
 
-      const altOpen = allPoLines.filter(l => l.item === pl.item && l.outstanding > 0 && l.docNo !== pl.poNo);
-      if (altOpen.length > 0) {
-        return { ...pl, outcome:'alt', options: altOpen };
-      }
+      // Container match is offered on every outcome, not just "no match" — even a clean
+      // exact match can still benefit from seeing "this container is also on PO X," and it
+      // never hurts to show it since it's purely informational until deliberately selected.
+      const containerPosForItem = (containerToPo[pl.container] || new Set());
+      containerPosForItem.forEach(docNo => {
+        if (options.some(o => o.docNo === docNo)) return; // already covered by a real match
+        const g = poGroups[docNo+'|'+pl.item];
+        if (g) options.push({ docNo, lineNo: suggestedLineNo(g), net: g.totalOutstanding, expDate: g.expDate, containerMatch: true });
+      });
 
-      if (statedPoLines.length > 0) {
-        return { ...pl, outcome:'received', options: statedPoLines };
-      }
-
-      return { ...pl, outcome:'none', options: [] };
+      return { ...pl, id:idx, outcome, options, shortBy };
     });
+
+    // Attach the container hint to every row regardless of outcome — informational only,
+    // never used to auto-select or auto-check anything.
+    results.forEach(r => {
+      const s = containerToPo[r.container];
+      r.containerPos = s ? Array.from(s) : [];
+    });
+
+    // ── Duplicate-item defense: if the same item appears more than once in the packing
+    // list, don't let two rows both default to the same PO/line beyond its real capacity.
+    // Walk items with duplicates and greedily allocate each occurrence to an option that
+    // still has enough remaining capacity after accounting for earlier occurrences. ──
+    const dupItems = new Set();
+    const itemCounts = {};
+    results.forEach(r => { itemCounts[r.item] = (itemCounts[r.item]||0) + 1; });
+    Object.keys(itemCounts).forEach(item => { if (itemCounts[item] > 1) dupItems.add(item); });
+
+    const consumed = {};
+    results.forEach(r => {
+      if (!dupItems.has(r.item) || (r.outcome!=='exact' && r.outcome!=='alt')) { r._defaultPick = r.options.length ? 0 : -1; return; }
+      let pick = -1;
+      for (let i = 0; i < r.options.length; i++) {
+        const o = r.options[i];
+        const key = o.docNo+'|'+r.item;
+        const used = consumed[key]||0;
+        if (o.net - used >= r.qtyToReceive) { pick = i; break; }
+      }
+      if (pick >= 0) {
+        const o = r.options[pick];
+        const key = o.docNo+'|'+r.item;
+        consumed[key] = (consumed[key]||0) + r.qtyToReceive;
+      }
+      r._defaultPick = pick; // -1 = no option left with enough room after siblings — default to "add new PO"
+    });
+    results.forEach(r => { r._isDup = dupItems.has(r.item); });
+
 
     const elapsedMs = Math.round(performance.now() - _start);
     render(elapsedMs);
-    sb('ok', '✓ Reconciled ' + results.length + ' packing list lines against ' + allPoLines.length + ' open purchase lines in ' + elapsedMs + 'ms');
+    sb('ok', '✓ Reconciled ' + results.length + ' packing list lines against ' + allPoLines.length + ' open purchase lines in ' + elapsedMs + 'ms' + (hasLineNo?'':' — Line No. missing from Purchase Lines file, options will show blank line numbers'));
     setTimeout(()=>document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}), 150);
   }
 
-  const OUTCOME_LABEL = { exact:'✅ Exact PO Match', alt:'🔵 Alternate PO', received:'🟣 Already Received', none:'🔴 No Match — New PO' };
+  const OUTCOME_LABEL = { exact:'✅ Exact PO Match', alt:'🔵 Alternate PO', short:'🟡 Short Qty — Choose Fix', claimed:'🟠 Claimed by Other Receipt', received:'🟣 Already Received', none:'🔴 No Match — New PO' };
+
+  let rowState = {};
 
   function render(elapsedMs) {
     document.getElementById('results').style.display = 'block';
@@ -391,19 +530,39 @@ const RG = (function() {
     document.getElementById('totalMs').textContent = (elapsedMs!==undefined ? elapsedMs : '—') + 'ms';
     document.getElementById('totalSub').innerHTML = 'From <strong style="color:#E9A535">'+esc(slotState.pack.name)+'</strong>';
 
-    const counts = { exact:0, alt:0, received:0, none:0 };
+    rowState = {};
+    results.forEach(r => {
+      const defaultPick = (r.outcome==='exact' || r.outcome==='alt')
+        ? (r._defaultPick != null && r._defaultPick >= 0 ? r._defaultPick : r.options.length) // -1 => fall back to "add new PO"
+        : 0; // Short defaults to its one "confirm adjusted" option; None has no options at all
+      rowState[r.id] = {
+        // Exact/Alt can safely auto-check when a real option was found. Short/Claimed/Received/None
+        // all require the human to take an action first (confirm an adjustment, or supply a new PO) —
+        // never auto-check those, even though they're now checkable.
+        checked: (r.outcome==='exact' || r.outcome==='alt') && defaultPick < r.options.length && !(r.options.length && r.options.every(o => o.containerMatch)),
+        selectedOpt: defaultPick,
+        newPoNo: '', newPoLine: '',
+        lineOverride: r.options.map(o => o.lineNo != null ? o.lineNo : ''),
+        qtyOverride: r.options.map(o => o.reduceQty ? o.net : r.qtyToReceive),
+        overReceiptCode: ''
+      };
+    });
+
+    const counts = { exact:0, alt:0, short:0, claimed:0, received:0, none:0 };
     results.forEach(r => counts[r.outcome]++);
 
     document.getElementById('summaryGrid').innerHTML =
       cardHtml('green', counts.exact, '✅ Exact PO Match') +
       cardHtml('blue', counts.alt, '🔵 Alternate PO Found') +
+      cardHtml('yellow', counts.short, '🟡 Short Qty') +
+      cardHtml('orange', counts.claimed, '🟠 Claimed by Other Receipt') +
       cardHtml('purple', counts.received, '🟣 Already Received') +
       cardHtml('red', counts.none, '🔴 No Match — New PO Needed');
 
     const fb = document.getElementById('filterBar');
     fb.innerHTML = '<span style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;margin-right:4px">Filter:</span>' +
       pill('ALL','All',results.length) + pill('exact','✅ Exact',counts.exact) + pill('alt','🔵 Alternate',counts.alt) +
-      pill('received','🟣 Received',counts.received) + pill('none','🔴 No Match',counts.none);
+      pill('short','🟡 Short',counts.short) + pill('claimed','🟠 Claimed',counts.claimed) + pill('received','🟣 Received',counts.received) + pill('none','🔴 No Match',counts.none);
     fb.querySelectorAll('.fpill').forEach(b=>b.addEventListener('click',()=>{ activeFilter=b.dataset.t; fb.querySelectorAll('.fpill').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderTable(); }));
     (fb.querySelector('.fpill[data-t="'+activeFilter+'"]')||fb.querySelector('.fpill[data-t="ALL"]')).classList.add('active');
 
@@ -412,6 +571,29 @@ const RG = (function() {
   }
   function cardHtml(cls,n,lbl){ return '<div class="card '+cls+'"><div class="num">'+n+'</div><div class="lbl">'+lbl+'</div></div>'; }
   function pill(t,label,count){ return '<button class="fpill" data-t="'+t+'">'+label+' <span class="filter-count">'+count+'</span></button>'; }
+
+  function toggleCheck(id) { rowState[id].checked = !rowState[id].checked; renderTable(); }
+  function selectOption(id, i) { rowState[id].selectedOpt = i; renderTable(); }
+  function updateLineOverride(id, i, val) { rowState[id].lineOverride[i] = val; }
+  function updateNewPo(id, field, val) { rowState[id][field] = val; }
+  function updateQtyOverride(id, i, val) { rowState[id].qtyOverride[i] = val; }
+  function updateOverReceiptCode(id, val) { rowState[id].overReceiptCode = val; }
+
+  function newPoInputs(r, st) {
+    const warn = (st.checked && (!st.newPoNo || !st.newPoLine))
+      ? '<div style="color:var(--red);font-weight:700;margin-top:3px">Add PO before checking this line</div>' : '';
+    return '<div style="margin-top:6px;font-size:11px">' +
+      'New PO: <input type="text" placeholder="PO No." value="'+esc(st.newPoNo)+'" oninput="RG.updateNewPo('+r.id+',\'newPoNo\',this.value)" style="width:80px;margin-right:4px;border:1px solid var(--gray-mid);border-radius:4px;padding:2px 5px">' +
+      '<input type="text" placeholder="Line No." value="'+esc(st.newPoLine)+'" oninput="RG.updateNewPo('+r.id+',\'newPoLine\',this.value)" style="width:70px;border:1px solid var(--gray-mid);border-radius:4px;padding:2px 5px">' +
+      warn + '</div>';
+  }
+
+  function newPoInputsInline(r, st) {
+    const warn = (st.checked && (!st.newPoNo || !st.newPoLine))
+      ? ' <span style="color:var(--red);font-weight:700">— add PO before checking this line</span>' : '';
+    return ' <input type="text" placeholder="PO No." value="'+esc(st.newPoNo)+'" oninput="RG.updateNewPo('+r.id+',\'newPoNo\',this.value)" style="width:70px;margin-left:6px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">' +
+      '<input type="text" placeholder="Line No." value="'+esc(st.newPoLine)+'" oninput="RG.updateNewPo('+r.id+',\'newPoLine\',this.value)" style="width:60px;margin-left:3px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">' + warn;
+  }
 
   function renderTable() {
     const body = document.getElementById('resultBody');
@@ -428,22 +610,55 @@ const RG = (function() {
     empty.style.display='none';
 
     body.innerHTML = filtered.map(r => {
+      const st = rowState[r.id];
       const badge = '<span class="badge '+r.outcome+'">'+OUTCOME_LABEL[r.outcome]+'</span>';
-      let optHtml = '—';
-      if (r.options.length) {
-        optHtml = '<div class="opt-list">' + r.options.map(o => {
-          const qtyClass = o.outstanding===r.qtyToReceive ? 'opt-qty-match' : 'opt-qty-diff';
-          return '<div><strong>PO '+esc(o.docNo)+'</strong> — outstanding: <span class="'+qtyClass+'">'+fmt(o.outstanding)+'</span>'+(o.expDate?' · exp. '+esc(fmtDate(o.expDate)):'')+'</div>';
-        }).join('') + '</div>';
-      } else if (r.outcome==='none') {
-        optHtml = '<span style="color:var(--red);font-weight:700">Create new PO for this item</span>';
-      }
+      const checkboxHtml = '<input type="checkbox" '+(st.checked?'checked':'')+' onchange="RG.toggleCheck('+r.id+')">';
+      const dupTag = r._isDup ? ' <span class="badge" style="background:#fdf0d5;color:#a3760a;border:1px solid #f0c870" title="This item appears more than once in the packing list — check the PO/line picks don\'t overlap">⚠ duplicate item</span>' : '';
+
+      const contextMsg = {
+        claimed: '<div style="color:var(--orange);font-weight:700;margin-bottom:4px">Already claimed by another open receipt — nothing free to pull on the stated PO.</div>',
+        received: '<div style="color:var(--purple);font-weight:700;margin-bottom:4px">Fully received on the stated PO — nothing outstanding there.</div>',
+        none: '<div style="color:var(--red);font-weight:700;margin-bottom:4px">No PO found for this item.</div>'
+      }[r.outcome] || '';
+
+      const realOpts = r.options.map((o,i) => {
+        const radio = '<input type="radio" name="opt_'+r.id+'" '+(st.selectedOpt===i?'checked':'')+' onchange="RG.selectOption('+r.id+','+i+')"> ';
+        const lineInput = '<input type="text" value="'+esc(st.lineOverride[i])+'" oninput="RG.updateLineOverride('+r.id+','+i+',this.value)" style="width:60px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">';
+        if (o.reduceQty) {
+          const qtyInput = '<input type="text" value="'+esc(st.qtyOverride[i])+'" oninput="RG.updateQtyOverride('+r.id+','+i+',this.value)" style="width:70px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">';
+          return '<div>'+radio+'<strong>Reduce Qty to Receive</strong> to '+qtyInput+' — PO '+esc(o.docNo)+' line '+lineInput+' <span style="color:#999">(matches what\'s actually available — no Over-Receipt Code needed)</span></div>';
+        }
+        if (o.overReceipt) {
+          const codeInput = '<input type="text" placeholder="Over-Receipt Code" value="'+esc(st.overReceiptCode)+'" oninput="RG.updateOverReceiptCode('+r.id+',this.value)" style="width:110px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">';
+          const warn = (st.selectedOpt===i && !st.overReceiptCode) ? '<div style="color:var(--red);font-weight:700;margin-top:2px">Over-Receipt Code required to keep the full quantity</div>' : '';
+          return '<div>'+radio+'<strong>Keep full Qty ('+fmt(r.qtyToReceive)+')</strong> — PO '+esc(o.docNo)+' line '+lineInput+' '+codeInput+warn+'</div>';
+        }
+        if (o.containerMatch) {
+          const shortOnContainer = o.net < r.qtyToReceive;
+          const codeInput = shortOnContainer
+            ? ' <input type="text" placeholder="Over-Receipt Code" value="'+esc(st.overReceiptCode)+'" oninput="RG.updateOverReceiptCode('+r.id+',this.value)" style="width:110px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">'
+            : '';
+          const warn = (shortOnContainer && st.selectedOpt===i && !st.overReceiptCode) ? '<div style="color:var(--red);font-weight:700;margin-top:2px">Over-Receipt Code required — this container\'s PO only has '+fmt(o.net)+' outstanding, less than the '+fmt(r.qtyToReceive)+' being received</div>' : '';
+          return '<div>'+radio+'🚢 <strong>Container match</strong> — PO '+esc(o.docNo)+' line '+lineInput+codeInput+' <span style="color:#2980b9">(this container is already on an open receipt for this PO — verify in BC before checking, this will overwrite that receipt)</span>'+warn+'</div>';
+        }
+        const qtyClass = o.net===r.qtyToReceive ? 'opt-qty-match' : 'opt-qty-diff';
+        return '<div>'+radio+'<strong>PO '+esc(o.docNo)+'</strong> line '+lineInput+
+          ' — net avail: <span class="'+qtyClass+'">'+fmt(o.net)+'</span>'+(o.expDate?' · exp. '+esc(fmtDate(o.expDate)):'')+
+          '</div>';
+      }).join('');
+      const addNewIdx = r.options.length;
+      const addNewSelected = st.selectedOpt === addNewIdx;
+      const addNewRadio = '<div><input type="radio" name="opt_'+r.id+'" '+(addNewSelected?'checked':'')+' onchange="RG.selectOption('+r.id+','+addNewIdx+')"> <em>+ Add New PO (create line)</em>'+
+        (addNewSelected ? newPoInputsInline(r,st) : '') + '</div>';
+      const optHtml = contextMsg + '<div class="opt-list">' + realOpts + addNewRadio + '</div>';
+
       return '<tr>'+
+        '<td>'+checkboxHtml+'</td>'+
         '<td>'+esc(r.poNo)+'</td>'+
-        '<td>'+esc(r.item)+'</td>'+
+        '<td>'+esc(r.item)+dupTag+'</td>'+
         '<td>'+fmt(r.qtyToReceive)+'</td>'+
         '<td>'+esc(r.lotNo)+'</td>'+
-        '<td>'+esc(r.container)+'</td>'+
+        '<td>'+esc(r.container)+(r.containerPos && r.containerPos.length ? '<div style="margin-top:3px;font-size:10.5px;color:#2980b9" title="Informational only — this container also appears on an open receipt for this PO. Confirm before relying on it.">🚢 also on PO '+r.containerPos.map(esc).join(', ')+'</div>' : '')+'</td>'+
         '<td>'+badge+'</td>'+
         '<td>'+optHtml+'</td>'+
         '</tr>';
@@ -451,27 +666,74 @@ const RG = (function() {
   }
 
   function exportXlsx() {
-    if (!results.length) return;
+    const rowsToExport = [];
+    const problems = [];
+
+    results.forEach(r => {
+      const st = rowState[r.id];
+      if (!st.checked) return;
+      let poNo, lineNo, qty = r.qtyToReceive, orCode = '';
+
+      if (st.selectedOpt === r.options.length) {
+        // "+ Add New PO" sentinel chosen instead of any listed option.
+        poNo = st.newPoNo; lineNo = st.newPoLine;
+        if (!poNo || !lineNo) { problems.push('PO '+r.poNo+' / '+r.item+' — "Add New PO" selected but PO/Line info is missing'); return; }
+      } else {
+        const opt = r.options[st.selectedOpt];
+        poNo = opt.docNo;
+        lineNo = st.lineOverride[st.selectedOpt];
+        if (!lineNo) { problems.push('PO '+r.poNo+' / '+r.item+' — missing Line No.'); return; }
+        if (opt.reduceQty) {
+          qty = Number(st.qtyOverride[st.selectedOpt]) || 0;
+          if (qty <= 0) { problems.push('PO '+r.poNo+' / '+r.item+' — reduced quantity must be greater than zero'); return; }
+        } else if (opt.overReceipt) {
+          orCode = st.overReceiptCode;
+          if (!orCode) { problems.push('PO '+r.poNo+' / '+r.item+' — Over-Receipt Code is required to keep the full quantity'); return; }
+        } else if (opt.containerMatch && opt.net < r.qtyToReceive) {
+          orCode = st.overReceiptCode;
+          if (!orCode) { problems.push('PO '+r.poNo+' / '+r.item+' — container match PO only has '+opt.net+' outstanding, less than qty being received — Over-Receipt Code required'); return; }
+        }
+      }
+      rowsToExport.push({ poNo:String(poNo), lineNo:String(lineNo), item:r.item, qty, uom:r.uom, lot:r.lotNo, container:r.container, orCode });
+    });
+
+    if (problems.length) { sb('err','✗ Fix before exporting: '+problems.join('; ')); return; }
+    if (!rowsToExport.length) { sb('err','✗ No checked lines to export.'); return; }
+
+    // Same-line duplicate guard: BC rejects an upload with two rows against the same PO+Line
+    // unless the PO itself genuinely has two distinct lines for that item. Auto-combining is
+    // only safe if the same PO+Line ends up as one row per BC's upload rules — combining
+    // quantities across different Lot Nos is fine at Vision specifically, since the factory
+    // lot is traceable either way. Distinct lots are joined with "|" rather than blocked.
+    const byLine = {};
+    rowsToExport.forEach(row => { (byLine[row.poNo+'|'+row.lineNo] = byLine[row.poNo+'|'+row.lineNo]||[]).push(row); });
+    const finalRows = [];
+    Object.keys(byLine).forEach(key => {
+      const group = byLine[key];
+      if (group.length === 1) { finalRows.push(group[0]); return; }
+      const lots = Array.from(new Set(group.map(g => g.lot)));
+      const combined = { ...group[0] };
+      combined.qty = group.reduce((a,g)=>a+g.qty, 0);
+      combined.lot = lots.join('|');
+      finalRows.push(combined);
+    });
+
     const today = new Date().toISOString().slice(0,10);
     const wb = XLSX.utils.book_new();
-    const hdr = ['Packing List PO','Item','Qty to Receive','Lot No.','Container','Result','Best Option PO','Best Option Outstanding Qty','All Options'];
-    const rows = results.map(r => {
-      const best = r.options[0];
-      const allOpts = r.options.map(o => o.docNo+' (qty '+o.outstanding+')').join('; ');
-      return [r.poNo, r.item, r.qtyToReceive, r.lotNo, r.container, OUTCOME_LABEL[r.outcome],
-        best?best.docNo:'', best?best.outstanding:'', allOpts];
-    });
+    const hdr = ['PO No.','PO Line No.','Item No.','Qty. to Receive','Unit of Measure Code','Lot No.','Container No.','Over-Receipt Code'];
+    const rows = finalRows.map(r => [r.poNo, r.lineNo, r.item, r.qty, r.uom, r.lot, r.container, r.orCode]);
     const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
-    ws['!cols'] = [{wch:14},{wch:18},{wch:14},{wch:12},{wch:14},{wch:20},{wch:14},{wch:18},{wch:40}];
-    XLSX.utils.book_append_sheet(wb, ws, 'Receiving Worklist');
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:hdr.length-1}}) };
+    ws['!cols'] = [{wch:12},{wch:12},{wch:18},{wch:14},{wch:14},{wch:12},{wch:16},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Lines');
     const data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
     const blob = new Blob([data],{type:'application/octet-stream'});
-    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ReceiptGard_Worklist_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='WRCT_Upload_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
   }
 
   function reset() {
-    slotState.po = null; slotState.pack = null; results = []; activeFilter = 'ALL';
-    ['PO','Pack'].forEach(s => { document.getElementById('slot'+s).classList.remove('filled'); document.getElementById('status'+s).textContent=''; });
+    slotState.po = null; slotState.pack = null; slotState.whr = null; results = []; rowState = {}; activeFilter = 'ALL';
+    ['PO','Pack','Whr'].forEach(s => { document.getElementById('slot'+s).classList.remove('filled'); document.getElementById('status'+s).textContent=''; });
     document.getElementById('results').style.display = 'none';
     document.getElementById('sbar').className = 'sbar';
     document.getElementById('hero').classList.remove('compact');
@@ -484,7 +746,7 @@ const RG = (function() {
     b.innerHTML = type==='loading' ? '<div class="spin"></div><span>'+msg+'</span>' : '<span>'+msg+'</span>';
   }
 
-  return { analyze, exportXlsx, reset };
+  return { analyze, exportXlsx, reset, toggleCheck, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode };
 })();
 </script>
 </body>
