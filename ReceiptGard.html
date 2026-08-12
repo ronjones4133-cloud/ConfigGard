@@ -162,6 +162,7 @@ footer a:hover{color:var(--gold)}
           <div class="slot-body">
             <div class="slot-title">Step 3 — Open Warehouse Receipt Lines <span class="slot-req">required</span></div>
             <div class="slot-sub">Source Document, Source No., Item No., Qty. to Receive, Qty. Outstanding — so a PO already being pulled by another receipt is never recommended twice</div>
+            <div class="slot-sub" style="color:#e9a535;margin-top:4px">⚠ Must be the <strong>Edit in Excel</strong> download from BC, not the standard export — the standard version is missing columns this tool needs.</div>
             <div class="slot-status" id="statusWhr"></div>
           </div>
         </div>
@@ -189,8 +190,17 @@ footer a:hover{color:var(--gold)}
     <div class="summary-grid" id="summaryGrid"></div>
     <div class="action-bar">
       <button class="btn btn-gold" onclick="RG.exportXlsx()">📥 Export WRCT Upload</button>
+      <button class="btn btn-outline" onclick="RG.exportNewPo()" style="border-color:var(--gold-dim);color:var(--gold-dim)">➕ Create Bundled PO</button>
       <button class="btn btn-outline" onclick="RG.reset()">↩ Start Over</button>
+      <label style="font-size:12px;font-weight:600;color:#555;margin-left:8px">Due Date <span style="color:var(--red)">*</span>
+        <input type="date" id="dueDateInput" style="margin-left:4px;padding:5px 8px;border:1.5px solid var(--gray-mid);border-radius:6px;font-size:12px">
+      </label>
       <span class="fnote" id="fnote"></span>
+    </div>
+    <div style="background:#fffbe8;border:1px solid #f0d878;border-radius:8px;padding:9px 16px;margin-bottom:16px;display:flex;align-items:center;gap:22px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.4px">Bulk select (applies to current filter view):</span>
+      <label style="font-size:13px;font-weight:700;color:#333;display:flex;align-items:center;gap:6px"><input type="checkbox" id="selectAllChk" onchange="RG.toggleSelectAll(this.checked)" style="width:16px;height:16px"> Select all rows for WRCT Upload</label>
+      <label style="font-size:13px;font-weight:700;color:var(--gold-dim);display:flex;align-items:center;gap:6px"><input type="checkbox" id="selectAllCreatePoChk" onchange="RG.toggleSelectAllCreatePo(this.checked)" style="width:16px;height:16px"> Select all rows for Bundled PO (switches them to "+ Add New PO")</label>
     </div>
     <div class="filter-bar" id="filterBar"></div>
     <div class="table-wrap">
@@ -320,7 +330,7 @@ const RG = (function() {
     sb('loading','Reconciling…');
     const _start = performance.now();
     setTimeout(() => {
-      try { process(_start); } catch(err) { sb('err','✗ '+err.message); }
+      try { process(_start); } catch(err) { sb('err','✗ '+err.message, true); }
     }, 20);
   }
 
@@ -544,7 +554,8 @@ const RG = (function() {
         newPoNo: '', newPoLine: '',
         lineOverride: r.options.map(o => o.lineNo != null ? o.lineNo : ''),
         qtyOverride: r.options.map(o => o.reduceQty ? o.net : r.qtyToReceive),
-        overReceiptCode: ''
+        overReceiptCode: 'MAX',
+        createPo: false
       };
     });
 
@@ -573,7 +584,30 @@ const RG = (function() {
   function pill(t,label,count){ return '<button class="fpill" data-t="'+t+'">'+label+' <span class="filter-count">'+count+'</span></button>'; }
 
   function toggleCheck(id) { rowState[id].checked = !rowState[id].checked; renderTable(); }
-  function selectOption(id, i) { rowState[id].selectedOpt = i; renderTable(); }
+  function toggleSelectAll(checked) {
+    const visible = activeFilter==='ALL' ? results : results.filter(r=>r.outcome===activeFilter);
+    visible.forEach(r => { rowState[r.id].checked = checked; });
+    renderTable();
+  }
+  function toggleSelectAllCreatePo(checked) {
+    const visible = activeFilter==='ALL' ? results : results.filter(r=>r.outcome===activeFilter);
+    visible.forEach(r => {
+      const st = rowState[r.id];
+      if (checked) {
+        st.selectedOpt = r.options.length; // switch to "+ Add New PO" so the field is exposed
+        st.createPo = true;
+      } else {
+        st.createPo = false; // unchecking only clears the flag, doesn't revert the radio pick
+      }
+    });
+    renderTable();
+  }
+  function selectOption(id, i) {
+    rowState[id].selectedOpt = i;
+    if (i !== results.find(r=>r.id===id).options.length) rowState[id].createPo = false; // no longer on the sentinel — clear any stray Create PO flag
+    renderTable();
+  }
+  function toggleCreatePo(id, checked) { rowState[id].createPo = checked; renderTable(); }
   function updateLineOverride(id, i, val) { rowState[id].lineOverride[i] = val; }
   function updateNewPo(id, field, val) { rowState[id][field] = val; }
   function updateQtyOverride(id, i, val) { rowState[id].qtyOverride[i] = val; }
@@ -586,6 +620,23 @@ const RG = (function() {
       'New PO: <input type="text" placeholder="PO No." value="'+esc(st.newPoNo)+'" oninput="RG.updateNewPo('+r.id+',\'newPoNo\',this.value)" style="width:80px;margin-right:4px;border:1px solid var(--gray-mid);border-radius:4px;padding:2px 5px">' +
       '<input type="text" placeholder="Line No." value="'+esc(st.newPoLine)+'" oninput="RG.updateNewPo('+r.id+',\'newPoLine\',this.value)" style="width:70px;border:1px solid var(--gray-mid);border-radius:4px;padding:2px 5px">' +
       warn + '</div>';
+  }
+
+  // Live availability check: as an operator selects/deselects rows, two rows for the same
+  // duplicate item can end up both pointed at the same PO/line. This tells a given row how
+  // much of that pool every OTHER currently-checked row has already claimed, so displayed
+  // "net avail" reflects live competition, not just the one-time snapshot from load.
+  function otherRowsClaim(excludeId, docNo, item) {
+    let claimed = 0;
+    results.forEach(r => {
+      if (r.id === excludeId || r.item !== item) return;
+      const st = rowState[r.id];
+      if (!st.checked || st.selectedOpt >= r.options.length) return;
+      const opt = r.options[st.selectedOpt];
+      if (opt.docNo !== docNo) return;
+      claimed += opt.reduceQty ? (Number(st.qtyOverride[st.selectedOpt])||0) : r.qtyToReceive;
+    });
+    return claimed;
   }
 
   function newPoInputsInline(r, st) {
@@ -624,6 +675,7 @@ const RG = (function() {
       const realOpts = r.options.map((o,i) => {
         const radio = '<input type="radio" name="opt_'+r.id+'" '+(st.selectedOpt===i?'checked':'')+' onchange="RG.selectOption('+r.id+','+i+')"> ';
         const lineInput = '<input type="text" value="'+esc(st.lineOverride[i])+'" oninput="RG.updateLineOverride('+r.id+','+i+',this.value)" style="width:60px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">';
+        const liveNet = o.net - otherRowsClaim(r.id, o.docNo, r.item);
         if (o.reduceQty) {
           const qtyInput = '<input type="text" value="'+esc(st.qtyOverride[i])+'" oninput="RG.updateQtyOverride('+r.id+','+i+',this.value)" style="width:70px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">';
           return '<div>'+radio+'<strong>Reduce Qty to Receive</strong> to '+qtyInput+' — PO '+esc(o.docNo)+' line '+lineInput+' <span style="color:#999">(matches what\'s actually available — no Over-Receipt Code needed)</span></div>';
@@ -634,21 +686,28 @@ const RG = (function() {
           return '<div>'+radio+'<strong>Keep full Qty ('+fmt(r.qtyToReceive)+')</strong> — PO '+esc(o.docNo)+' line '+lineInput+' '+codeInput+warn+'</div>';
         }
         if (o.containerMatch) {
-          const shortOnContainer = o.net < r.qtyToReceive;
+          const shortOnContainer = liveNet < r.qtyToReceive;
           const codeInput = shortOnContainer
             ? ' <input type="text" placeholder="Over-Receipt Code" value="'+esc(st.overReceiptCode)+'" oninput="RG.updateOverReceiptCode('+r.id+',this.value)" style="width:110px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">'
             : '';
-          const warn = (shortOnContainer && st.selectedOpt===i && !st.overReceiptCode) ? '<div style="color:var(--red);font-weight:700;margin-top:2px">Over-Receipt Code required — this container\'s PO only has '+fmt(o.net)+' outstanding, less than the '+fmt(r.qtyToReceive)+' being received</div>' : '';
+          const warn = (shortOnContainer && st.selectedOpt===i && !st.overReceiptCode) ? '<div style="color:var(--red);font-weight:700;margin-top:2px">Over-Receipt Code required — this container\'s PO only has '+fmt(liveNet)+' outstanding, less than the '+fmt(r.qtyToReceive)+' being received</div>' : '';
           return '<div>'+radio+'🚢 <strong>Container match</strong> — PO '+esc(o.docNo)+' line '+lineInput+codeInput+' <span style="color:#2980b9">(this container is already on an open receipt for this PO — verify in BC before checking, this will overwrite that receipt)</span>'+warn+'</div>';
         }
-        const qtyClass = o.net===r.qtyToReceive ? 'opt-qty-match' : 'opt-qty-diff';
+        const overDrawn = liveNet < r.qtyToReceive;
+        const qtyClass = overDrawn ? 'opt-qty-diff' : (liveNet===r.qtyToReceive ? 'opt-qty-match' : '');
+        const liveTag = liveNet !== o.net ? ' <span style="color:#999;font-size:10px">(was '+fmt(o.net)+' before other selections)</span>' : '';
+        const overWarn = (overDrawn && st.selectedOpt===i)
+          ? '<div style="color:var(--red);font-weight:700;margin-top:2px">Only '+fmt(liveNet)+' left after other checked rows on this same item/PO — Over-Receipt Code will be used ('+esc(st.overReceiptCode||'none set')+')</div>' : '';
         return '<div>'+radio+'<strong>PO '+esc(o.docNo)+'</strong> line '+lineInput+
-          ' — net avail: <span class="'+qtyClass+'">'+fmt(o.net)+'</span>'+(o.expDate?' · exp. '+esc(fmtDate(o.expDate)):'')+
+          ' — net avail: <span class="'+qtyClass+'">'+fmt(liveNet)+'</span>'+liveTag+(o.expDate?' · exp. '+esc(fmtDate(o.expDate)):'')+overWarn+
           '</div>';
       }).join('');
       const addNewIdx = r.options.length;
       const addNewSelected = st.selectedOpt === addNewIdx;
-      const addNewRadio = '<div><input type="radio" name="opt_'+r.id+'" '+(addNewSelected?'checked':'')+' onchange="RG.selectOption('+r.id+','+addNewIdx+')"> <em>+ Add New PO (create line)</em>'+
+      const createPoBox = addNewSelected
+        ? ' <label style="margin-left:8px;font-weight:700;color:var(--gold-dim)"><input type="checkbox" '+(st.createPo?'checked':'')+' onchange="RG.toggleCreatePo('+r.id+',this.checked)"> Include in bundled new PO</label>'
+        : '';
+      const addNewRadio = '<div><input type="radio" name="opt_'+r.id+'" '+(addNewSelected?'checked':'')+' onchange="RG.selectOption('+r.id+','+addNewIdx+')"> <em>+ Add New PO (create line)</em>'+createPoBox+
         (addNewSelected ? newPoInputsInline(r,st) : '') + '</div>';
       const optHtml = contextMsg + '<div class="opt-list">' + realOpts + addNewRadio + '</div>';
 
@@ -666,7 +725,10 @@ const RG = (function() {
   }
 
   function exportXlsx() {
+    const dueDate = document.getElementById('dueDateInput').value;
+    if (!dueDate) { sb('err','✗ Due Date is required before exporting — every line on this upload needs it.'); return; }
     const rowsToExport = [];
+    const poolConsumed = {};
     const problems = [];
 
     results.forEach(r => {
@@ -692,6 +754,15 @@ const RG = (function() {
         } else if (opt.containerMatch && opt.net < r.qtyToReceive) {
           orCode = st.overReceiptCode;
           if (!orCode) { problems.push('PO '+r.poNo+' / '+r.item+' — container match PO only has '+opt.net+' outstanding, less than qty being received — Over-Receipt Code required'); return; }
+        }
+        // Pool-consumption check: two rows can each look individually fine and still
+        // over-draw the same PO+Item pool together — this is the duplicate-item case.
+        const poolKey = opt.docNo+'|'+r.item;
+        const before = poolConsumed[poolKey] || 0;
+        poolConsumed[poolKey] = before + qty;
+        if (poolConsumed[poolKey] > opt.net && !orCode) {
+          orCode = st.overReceiptCode;
+          if (!orCode) { problems.push('PO '+r.poNo+' / '+r.item+' — combined with another checked row on the same PO/item, this exceeds what\'s available — Over-Receipt Code required'); return; }
         }
       }
       rowsToExport.push({ poNo:String(poNo), lineNo:String(lineNo), item:r.item, qty, uom:r.uom, lot:r.lotNo, container:r.container, orCode });
@@ -720,15 +791,55 @@ const RG = (function() {
 
     const today = new Date().toISOString().slice(0,10);
     const wb = XLSX.utils.book_new();
-    const hdr = ['PO No.','PO Line No.','Item No.','Qty. to Receive','Unit of Measure Code','Lot No.','Container No.','Over-Receipt Code'];
-    const rows = finalRows.map(r => [r.poNo, r.lineNo, r.item, r.qty, r.uom, r.lot, r.container, r.orCode]);
+    const hdr = ['PO No.','PO Line No.','Item No.','Qty. to Receive','Unit of Measure Code','Lot No.','Container No.','Due Date','Over-Receipt Code'];
+    const rows = finalRows.map(r => [r.poNo, r.lineNo, r.item, r.qty, r.uom, r.lot, r.container, dueDate, r.orCode]);
     const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
     ws['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:hdr.length-1}}) };
-    ws['!cols'] = [{wch:12},{wch:12},{wch:18},{wch:14},{wch:14},{wch:12},{wch:16},{wch:16}];
+    ws['!cols'] = [{wch:12},{wch:12},{wch:18},{wch:14},{wch:14},{wch:12},{wch:16},{wch:12},{wch:16}];
     XLSX.utils.book_append_sheet(wb, ws, 'Lines');
     const data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
     const blob = new Blob([data],{type:'application/octet-stream'});
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='WRCT_Upload_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  function exportNewPo() {
+    const dueDate = document.getElementById('dueDateInput').value; // reused as Expected Receipt Date
+    if (!dueDate) { sb('err','✗ Due Date is required — it doubles as Expected Receipt Date on the new PO.'); return; }
+    const linesData = [];
+    results.forEach(r => {
+      const st = rowState[r.id];
+      if (!st.createPo) return;
+      linesData.push({ item: r.item, desc: r.desc||'', qty: r.qtyToReceive });
+    });
+    if (!linesData.length) { sb('err','✗ No lines marked "Include in bundled new PO." Select + Add New PO and check the box on at least one row.'); return; }
+
+    // Full 122-column header, exact order from Vision's real "Purchase Order Lines" Edit in
+    // Excel template — so the output can be copy-pasted straight into it, column for column,
+    // instead of needing to be manually realigned. Only 8 of these columns get real values;
+    // everything else stays blank, in position, matching the template exactly.
+    const hdr = ['Document Type','Type','No.','Item Reference No.','IC Partner Code','IC Partner Ref. Type','IC Partner Reference','Variant Code','Catalog','GST/HST','Gen. Bus. Posting Group','Gen. Prod. Posting Group','VAT Bus. Posting Group','VAT Prod. Posting Group','Withholding Tax Bus. Post. Group','Withholding Tax Prod. Post. Group','Description','Description 2','Drop Shipment','Return Reason Code','Location Code','Bin Code','Sustainability Account No.','Energy Source Code','Quantity','Reserved Quantity','Project Remaining Qty.','Unit of Measure Code','Unit of Measure','Direct Unit Cost','Indirect Cost %','Unit Cost ($)','Unit Price ($)','Tax Liable','Tax Area Code','Provincial Tax Area Code','Tax Group Code','Use Tax','Line Discount %','Line Amount','Line Discount Amount','Non-Deductible Tax Base','Non-Deductible Tax Amount','Prepayment %','Prepmt. Line Amount','Prepmt. Amt. Inv.','Allow Invoice Disc.','Inv. Discount Amount','Inv. Disc. Amount to Invoice','Qty. to Receive','Quantity Received','Qty. to Invoice','Quantity Invoiced','Unit for Sust. Formulas','Fuel/Electricity','Distance','Custom Amount','Installation Multiplier','Time Factor','Renewable Energy','Emission CO2','Emission CH4','Emission N2O','Energy Consumption','Source of Emission Data','Emission Verified','CBAM Compliance','Total Emission Cost','Matched Invoice/Cr. Memo Lines','Prepmt Amt to Deduct','Prepmt Amt Deducted','Allow Item Charge Assignment','Qty. to Assign','Item Charge Qty. to Handle','Qty. Assigned','Allocation Account No.','Project No.','Project Task No.','Project Planning Line No.','Project Line Type','Project Unit Price','Project Line Amount','Project Line Discount Amount','Project Line Discount %','Project Total Price','Project Unit Price ($)','Project Total Price ($)','Project Line Amount ($)','Project Line Disc. Amount ($)','Requested Receipt Date','Promised Receipt Date','Planned Receipt Date','Expected Receipt Date','Order Date','Lead Time Calculation','Planning Flexibility','Prod. Order No.','Prod. Order Line No.','Operation No.','Work Center No.','Finished','Whse. Outstanding Qty. (Base)','Inbound Whse. Handling Time','Blanket Order No.','Blanket Order Line No.','Appl.-to Item Entry','Deferral Code','Shortcut Dimension 1 Code','Shortcut Dimension 2 Code','1099 Liable','Document No.','Line No.','Over-Receipt Quantity','Over-Receipt Code','Gross Weight','Net Weight','Unit Volume','Units per Parcel','FA Posting Date','No. of Fixed Asset Cards','Attached to Line No.','Attached Lines Count'];
+
+    const IDX = { docType:0, type:1, no:2, desc:16, loc:20, bin:21, qty:24, expReceipt:92 };
+    const lines = linesData.map(l => {
+      const row = new Array(hdr.length).fill('');
+      row[IDX.docType] = 'Order';
+      row[IDX.type] = 'Item';
+      row[IDX.no] = l.item;
+      row[IDX.desc] = l.desc;
+      row[IDX.loc] = 'FRANKLIN';
+      row[IDX.bin] = 'RDOCK1';
+      row[IDX.qty] = l.qty;
+      row[IDX.expReceipt] = dueDate;
+      return row;
+    });
+
+    const today = new Date().toISOString().slice(0,10);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([hdr, ...lines]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Lines');
+    const data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob = new Blob([data],{type:'application/octet-stream'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='New_PO_Bundle_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
   }
 
   function reset() {
@@ -737,16 +848,20 @@ const RG = (function() {
     document.getElementById('results').style.display = 'none';
     document.getElementById('sbar').className = 'sbar';
     document.getElementById('hero').classList.remove('compact');
+    const selAll = document.getElementById('selectAllChk'); if (selAll) selAll.checked = false;
+    const selAllPo = document.getElementById('selectAllCreatePoChk'); if (selAllPo) selAllPo.checked = false;
     updateAnalyzeButton();
   }
 
-  function sb(type,msg) {
+  function sb(type,msg,showReset) {
     const b = document.getElementById('sbar');
     b.className = 'sbar on'+(type?' '+type:'');
-    b.innerHTML = type==='loading' ? '<div class="spin"></div><span>'+msg+'</span>' : '<span>'+msg+'</span>';
+    const link = showReset ? ' <a href="#" id="sbarReset" style="margin-left:12px;font-weight:700;text-decoration:underline;cursor:pointer">↺ Start over</a>' : '';
+    b.innerHTML = (type==='loading' ? '<div class="spin"></div><span>'+msg+'</span>' : '<span>'+msg+'</span>') + link;
+    if (showReset) document.getElementById('sbarReset').addEventListener('click', e=>{e.preventDefault(); reset();});
   }
 
-  return { analyze, exportXlsx, reset, toggleCheck, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode };
+  return { analyze, exportXlsx, exportNewPo, reset, toggleCheck, toggleSelectAll, toggleSelectAllCreatePo, toggleCreatePo, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode };
 })();
 </script>
 </body>
