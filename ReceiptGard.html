@@ -191,6 +191,7 @@ footer a:hover{color:var(--gold)}
     <div class="action-bar">
       <button class="btn btn-gold" onclick="RG.exportXlsx()">📥 Export WRCT Upload</button>
       <button class="btn btn-outline" onclick="RG.exportNewPo()" style="border-color:var(--gold-dim);color:var(--gold-dim)">➕ Create Bundled PO</button>
+      <button class="btn btn-outline" onclick="RG.exportSkipped()">📋 Export Skipped Lines</button>
       <button class="btn btn-outline" onclick="RG.reset()">↩ Start Over</button>
       <label style="font-size:12px;font-weight:600;color:#555;margin-left:8px">Due Date <span style="color:var(--red)">*</span>
         <input type="date" id="dueDateInput" style="margin-left:4px;padding:5px 8px;border:1.5px solid var(--gray-mid);border-radius:6px;font-size:12px">
@@ -376,6 +377,7 @@ const RG = (function() {
       const line = openLine || group.lines[0];
       return line && line.lineNo != null ? line.lineNo : '';
     }
+    lastPoGroups = poGroups; // expose for export-time per-line capacity checks
 
     // ── Parse Open Warehouse Receipt Lines (third cross-reference) ──
     const whrRaw = slotState.whr.raw;
@@ -533,6 +535,7 @@ const RG = (function() {
   const OUTCOME_LABEL = { exact:'✅ Exact PO Match', alt:'🔵 Alternate PO', short:'🟡 Short Qty — Choose Fix', claimed:'🟠 Claimed by Other Receipt', received:'🟣 Already Received', none:'🔴 No Match — New PO' };
 
   let rowState = {};
+  let lastPoGroups = {}; // per-PO+Item line capacity, needed at export time to validate combines
 
   function render(elapsedMs) {
     document.getElementById('results').style.display = 'block';
@@ -776,17 +779,58 @@ const RG = (function() {
     // only safe if the same PO+Line ends up as one row per BC's upload rules — combining
     // quantities across different Lot Nos is fine at Vision specifically, since the factory
     // lot is traceable either way. Distinct lots are joined with "|" rather than blocked.
+    // BUT: combining onto one line is only valid if that line can actually hold the combined
+    // quantity. A PO can have two genuinely separate lines for the same item — if two rows
+    // both defaulted to the same suggested line, the correct fix is putting each row on its
+    // own real line, not silently over-stuffing one line past what it can support.
     const byLine = {};
     rowsToExport.forEach(row => { (byLine[row.poNo+'|'+row.lineNo] = byLine[row.poNo+'|'+row.lineNo]||[]).push(row); });
     const finalRows = [];
     Object.keys(byLine).forEach(key => {
       const group = byLine[key];
       if (group.length === 1) { finalRows.push(group[0]); return; }
+      const [poNo, lineNo] = key.split('|');
+      const combinedQty = group.reduce((a,g)=>a+g.qty, 0);
       const lots = Array.from(new Set(group.map(g => g.lot)));
-      const combined = { ...group[0] };
-      combined.qty = group.reduce((a,g)=>a+g.qty, 0);
-      combined.lot = lots.join('|');
-      finalRows.push(combined);
+
+      const poGroup = lastPoGroups[poNo+'|'+group[0].item];
+      const thisLine = poGroup ? poGroup.lines.find(l => String(l.lineNo)===String(lineNo)) : null;
+
+      if (!thisLine || combinedQty <= thisLine.outstanding) {
+        // No capacity data to check against, or it genuinely fits on this one line.
+        const combined = { ...group[0] };
+        combined.qty = combinedQty;
+        combined.lot = lots.join('|');
+        finalRows.push(combined);
+        return;
+      }
+
+      // Doesn't fit on this one line — try placing each row on its own real PO line
+      // instead of over-stuffing one line number past its actual capacity. Assign the
+      // LARGEST quantity first — otherwise a small row can grab the only line big enough
+      // for a bigger one, and a valid split gets wrongly rejected.
+      const availableLines = poGroup.lines.map(l => ({ lineNo: String(l.lineNo), remaining: l.outstanding })).sort((a,b)=>b.remaining-a.remaining);
+      const usedCapacity = {};
+      let allFit = true;
+      const sortedGroup = group.slice().sort((a,b)=>b.qty-a.qty);
+      const reassigned = sortedGroup.map(row => {
+        const fit = availableLines.find(l => (l.remaining - (usedCapacity[l.lineNo]||0)) >= row.qty);
+        if (!fit) { allFit = false; return row; }
+        usedCapacity[fit.lineNo] = (usedCapacity[fit.lineNo]||0) + row.qty;
+        return { ...row, lineNo: fit.lineNo };
+      });
+
+      if (allFit) {
+        reassigned.forEach(rr => finalRows.push(rr));
+      } else {
+        // Couldn't cleanly split across real lines either — combine, but force an
+        // Over-Receipt Code so it's never silently over what the line can hold.
+        const combined = { ...group[0] };
+        combined.qty = combinedQty;
+        combined.lot = lots.join('|');
+        combined.orCode = combined.orCode || 'MAX';
+        finalRows.push(combined);
+      }
     });
 
     const today = new Date().toISOString().slice(0,10);
@@ -842,6 +886,27 @@ const RG = (function() {
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='New_PO_Bundle_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
   }
 
+  function exportSkipped() {
+    // Skipped = anything NOT checked for this round's WRCT Upload, regardless of why —
+    // no viable match yet, a conflict that needs resolving, or just not gotten to. Re-emits
+    // the ORIGINAL packing list values untouched, in the same format the tool reads, so this
+    // file can be dropped straight back in as the packing list for a second pass on the same
+    // container once documents are refreshed.
+    const skipped = results.filter(r => !rowState[r.id].checked);
+    if (!skipped.length) { sb('err','✗ Nothing skipped — every line is currently checked for export.'); return; }
+
+    const today = new Date().toISOString().slice(0,10);
+    const wb = XLSX.utils.book_new();
+    const hdr = ['PO No.','PO Line No.','Item No.','Qty. to Receive','Unit of Measure Code','Lot No.','Container No.'];
+    const rows = skipped.map(r => [r.poNo, r.lineNo, r.item, r.qtyToReceive, r.uom, r.lotNo, r.container]);
+    const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
+    ws['!cols'] = [{wch:12},{wch:12},{wch:18},{wch:14},{wch:14},{wch:12},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Skipped');
+    const data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob = new Blob([data],{type:'application/octet-stream'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Skipped_Lines_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+  }
+
   function reset() {
     slotState.po = null; slotState.pack = null; slotState.whr = null; results = []; rowState = {}; activeFilter = 'ALL';
     ['PO','Pack','Whr'].forEach(s => { document.getElementById('slot'+s).classList.remove('filled'); document.getElementById('status'+s).textContent=''; });
@@ -850,6 +915,7 @@ const RG = (function() {
     document.getElementById('hero').classList.remove('compact');
     const selAll = document.getElementById('selectAllChk'); if (selAll) selAll.checked = false;
     const selAllPo = document.getElementById('selectAllCreatePoChk'); if (selAllPo) selAllPo.checked = false;
+    const dueDateEl = document.getElementById('dueDateInput'); if (dueDateEl) dueDateEl.value = '';
     updateAnalyzeButton();
   }
 
@@ -861,7 +927,7 @@ const RG = (function() {
     if (showReset) document.getElementById('sbarReset').addEventListener('click', e=>{e.preventDefault(); reset();});
   }
 
-  return { analyze, exportXlsx, exportNewPo, reset, toggleCheck, toggleSelectAll, toggleSelectAllCreatePo, toggleCreatePo, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode };
+  return { analyze, exportXlsx, exportNewPo, exportSkipped, reset, toggleCheck, toggleSelectAll, toggleSelectAllCreatePo, toggleCreatePo, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode };
 })();
 </script>
 </body>
