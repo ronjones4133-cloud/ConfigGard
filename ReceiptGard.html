@@ -41,6 +41,10 @@ h1 em{font-style:normal;color:var(--gold)}
 .feat{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.55);font-size:12px}
 .feat::before{content:'';width:4px;height:4px;background:var(--gold);border-radius:50%}
 .slot-grid{display:flex;flex-direction:column;gap:14px}
+.mode-toggle{display:flex;gap:8px;margin-bottom:14px}
+.mode-btn{flex:1;padding:9px 12px;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:rgba(255,255,255,.5);font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.mode-btn.active{background:rgba(233,165,53,.15);border-color:var(--gold);color:var(--gold)}
+.mode-btn:hover{border-color:rgba(233,165,53,.4)}
 .drop-slot{background:rgba(255,255,255,.035);border:1.5px dashed rgba(255,255,255,.18);border-radius:14px;padding:28px 26px;cursor:pointer;transition:all .2s;text-align:left;display:flex;align-items:center;gap:18px}
 .drop-slot:hover,.drop-slot.drag{background:rgba(233,165,53,.06);border-color:rgba(233,165,53,.5)}
 .drop-slot.filled{border-style:solid;border-color:var(--green-border);background:rgba(39,174,96,.08)}
@@ -53,6 +57,9 @@ h1 em{font-style:normal;color:var(--gold)}
 #btnAnalyze{width:100%;margin-top:14px;padding:13px;background:var(--gold);color:var(--navy-deep);border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;opacity:.4;pointer-events:none;transition:opacity .2s}
 #btnAnalyze.ready{opacity:1;pointer-events:auto}
 #btnAnalyze:hover{background:var(--gold-dim);color:#fff}
+#btnAnalyzeCreate{width:100%;margin-top:14px;padding:13px;background:var(--gold);color:var(--navy-deep);border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;opacity:.4;pointer-events:none;transition:opacity .2s}
+#btnAnalyzeCreate.ready{opacity:1;pointer-events:auto}
+#btnAnalyzeCreate:hover{background:var(--gold-dim);color:#fff}
 #main{padding:0 32px;max-width:1300px;margin:0 auto;width:100%;background:#fff}
 .sbar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin:16px 0 0;display:none;align-items:center;gap:10px;font-size:12px}
 .sbar.on{display:flex}
@@ -137,6 +144,12 @@ footer a:hover{color:var(--gold)}
       </div>
     </div>
     <div class="hero-right">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="modeBtnReconcile" onclick="RG.setMode('reconcile')">🔗 Reconcile Against POs</button>
+        <button class="mode-btn" id="modeBtnCreate" onclick="RG.setMode('create')">🧹 Create PO Only</button>
+      </div>
+
+      <div id="modeReconcile">
       <div class="slot-grid">
         <div class="drop-slot" id="slotPO" onclick="document.getElementById('filePO').click()">
           <span class="slot-icon">📋</span>
@@ -170,12 +183,52 @@ footer a:hover{color:var(--gold)}
         <input type="file" id="fileWhr" accept=".xlsx,.xls,.csv" style="display:none">
       </div>
       <button id="btnAnalyze" onclick="RG.analyze()">Reconcile →</button>
+      </div>
+
+      <div id="modeCreate" style="display:none">
+        <div class="drop-slot" id="slotPackOnly" onclick="document.getElementById('filePackOnly').click()">
+          <span class="slot-icon">📦</span>
+          <div class="slot-body">
+            <div class="slot-title">Packing List <span class="slot-req">required</span></div>
+            <div class="slot-sub">PO No., Item No., Qty. to Receive, Lot No., Container No.</div>
+            <div class="slot-status" id="statusPackOnly"></div>
+          </div>
+        </div>
+        <input type="file" id="filePackOnly" accept=".xlsx,.xls,.csv" style="display:none">
+        <div style="background:#fff2cc;border:1px solid #f0c870;border-radius:8px;padding:10px 14px;margin-top:12px;font-size:11.5px;color:#7a5c00">⚠ No reconciliation here — nothing checked against open POs, no over-receipt protection, no duplicate-claim check. Every line becomes a brand-new PO, no exceptions. Use this only when you already know nothing existing applies.</div>
+        <button id="btnAnalyzeCreate" onclick="RG.analyzeCreateOnly()">Create PO Lines →</button>
+      </div>
     </div>
   </div>
 </div>
 
 <div id="main">
   <div id="sbar" class="sbar"></div>
+  <div id="resultsCreateOnly" style="display:none;padding:24px 0 40px">
+    <div class="total-banner">
+      <div class="total-num" id="createOnlyCount">0</div>
+      <div class="total-right">
+        <div class="total-label">Packing List Lines</div>
+        <div class="total-sub">Every line becomes a new PO line — nothing checked against existing POs</div>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-gold" onclick="RG.exportCreateOnlyPo()">➕ Create PO</button>
+      <button class="btn btn-outline" onclick="RG.reset()">↩ Start Over</button>
+      <label style="font-size:12px;font-weight:600;color:#555;margin-left:8px">Due Date <span style="color:var(--red)">*</span>
+        <input type="date" id="dueDateInputCreateOnly" style="margin-left:4px;padding:5px 8px;border:1.5px solid var(--gray-mid);border-radius:6px;font-size:12px">
+      </label>
+    </div>
+    <div style="background:#fffbe8;border:1px solid #f0d878;border-radius:8px;padding:9px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+      <label style="font-size:13px;font-weight:700;color:#333;display:flex;align-items:center;gap:6px"><input type="checkbox" id="selectAllCreateOnlyChk" onchange="RG.toggleSelectAllCreateOnly(this.checked)" style="width:16px;height:16px" checked> Select / deselect all</label>
+    </div>
+    <div class="table-wrap">
+      <table class="itbl">
+        <thead><tr><th style="width:36px">✓</th><th>Item</th><th>Qty</th><th>Lot No.</th><th>Container</th></tr></thead>
+        <tbody id="createOnlyBody"></tbody>
+      </table>
+    </div>
+  </div>
   <div id="results" style="display:none;padding:24px 0 40px">
     <div class="total-banner">
       <div class="total-num" id="totalNum">0</div>
@@ -260,6 +313,76 @@ const RG = (function() {
   wireSlot('slotPack','filePack','pack');
   wireSlot('slotWhr','fileWhr','whr');
 
+  document.getElementById('filePackOnly').addEventListener('change', e => { if (e.target.files[0]) handleCreateOnlyFile(e.target.files[0]); });
+  document.getElementById('slotPackOnly').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('slotPackOnly').classList.add('drag'); });
+  document.getElementById('slotPackOnly').addEventListener('dragleave', () => document.getElementById('slotPackOnly').classList.remove('drag'));
+  document.getElementById('slotPackOnly').addEventListener('drop', e => { e.preventDefault(); document.getElementById('slotPackOnly').classList.remove('drag'); if (e.dataTransfer.files[0]) handleCreateOnlyFile(e.dataTransfer.files[0]); });
+
+  let createOnlyRaw = null;
+  async function handleCreateOnlyFile(file) {
+    const statusEl = document.getElementById('statusPackOnly');
+    statusEl.textContent = 'Reading…';
+    try {
+      const raw = await readWorkbook(file);
+      createOnlyRaw = raw;
+      statusEl.textContent = '✓ ' + file.name;
+      document.getElementById('slotPackOnly').classList.add('filled');
+      document.getElementById('btnAnalyzeCreate').classList.add('ready');
+    } catch(err) {
+      statusEl.textContent = '✗ ' + err.message;
+    }
+  }
+
+  let createOnlyLines = [];
+  let createOnlyChecked = {};
+
+  function setMode(mode) {
+    document.getElementById('modeBtnReconcile').classList.toggle('active', mode==='reconcile');
+    document.getElementById('modeBtnCreate').classList.toggle('active', mode==='create');
+    document.getElementById('modeReconcile').style.display = mode==='reconcile' ? '' : 'none';
+    document.getElementById('modeCreate').style.display = mode==='create' ? '' : 'none';
+  }
+
+  function analyzeCreateOnly() {
+    if (!createOnlyRaw) return;
+    document.getElementById('hero').classList.add('compact');
+    sb('loading','Loading packing list…');
+    setTimeout(() => {
+      try {
+        createOnlyLines = parsePackingList(createOnlyRaw);
+        if (!createOnlyLines.length) throw new Error('No data rows found in the packing list.');
+        createOnlyChecked = {};
+        createOnlyLines.forEach((l,i) => { createOnlyChecked[i] = true; });
+        renderCreateOnly();
+        sb('ok','✓ Loaded ' + createOnlyLines.length + ' lines — every line will become a new PO line unless unchecked.');
+      } catch(err) {
+        sb('err','✗ '+err.message, true);
+        document.getElementById('hero').classList.remove('compact');
+      }
+    }, 20);
+  }
+
+  function renderCreateOnly() {
+    document.getElementById('resultsCreateOnly').style.display = 'block';
+    document.getElementById('createOnlyCount').textContent = createOnlyLines.length;
+    document.getElementById('createOnlyBody').innerHTML = createOnlyLines.map((l,i) =>
+      '<tr><td><input type="checkbox" '+(createOnlyChecked[i]?'checked':'')+' onchange="RG.toggleCreateOnlyCheck('+i+',this.checked)"></td>'+
+      '<td>'+esc(l.item)+'</td><td>'+fmt(l.qtyToReceive)+'</td><td>'+esc(l.lotNo)+'</td><td>'+esc(l.container)+'</td></tr>'
+    ).join('');
+    setTimeout(()=>document.getElementById('resultsCreateOnly').scrollIntoView({behavior:'smooth',block:'start'}), 150);
+  }
+
+  function toggleCreateOnlyCheck(i, checked) { createOnlyChecked[i] = checked; }
+  function toggleSelectAllCreateOnly(checked) { createOnlyLines.forEach((l,i) => createOnlyChecked[i] = checked); renderCreateOnly(); }
+
+  function exportCreateOnlyPo() {
+    const dueDate = document.getElementById('dueDateInputCreateOnly').value;
+    if (!dueDate) { sb('err','✗ Due Date is required — it doubles as Expected Receipt Date on the new PO.'); return; }
+    const linesData = createOnlyLines.filter((l,i) => createOnlyChecked[i]).map(l => ({ item:l.item, desc:'', qty:l.qtyToReceive }));
+    if (!linesData.length) { sb('err','✗ No lines checked.'); return; }
+    buildAndDownloadNewPo(linesData, dueDate, 'New_PO_From_Packing_List');
+  }
+
   function readWorkbook(file) {
     return new Promise((resolve, reject) => {
       const r = new FileReader();
@@ -319,6 +442,29 @@ const RG = (function() {
       if (rowVals.includes('po no.')) return i;
     }
     return -1;
+  }
+
+  function parsePackingList(packRaw) {
+    const hdrRowIdx = findPackingHeaderRow(packRaw);
+    const dataStart = hdrRowIdx === -1 ? 0 : hdrRowIdx + 1;
+    const packLines = [];
+    for (let i = dataStart; i < packRaw.length; i++) {
+      const row = packRaw[i];
+      if (row.every(v => v==='' )) continue;
+      const rawPo = row[0];
+      if (rawPo === '' || rawPo == null) continue;
+      const poNo = String(typeof rawPo === 'number' ? Math.trunc(rawPo) : rawPo).trim();
+      packLines.push({
+        poNo,
+        lineNo: row[1],
+        item: String(row[2]).trim(),
+        qtyToReceive: Number(row[3])||0,
+        uom: row[4],
+        lotNo: excelSerialToDate(row[5]),
+        container: String(row[6]).trim()
+      });
+    }
+    return packLines;
   }
 
   function excelSerialToDate(n) {
@@ -413,27 +559,7 @@ const RG = (function() {
     }
 
     // ── Parse Packing List (header-row-optional) ──
-    const packRaw = slotState.pack.raw;
-    const hdrRowIdx = findPackingHeaderRow(packRaw);
-    const dataStart = hdrRowIdx === -1 ? 0 : hdrRowIdx + 1;
-
-    const packLines = [];
-    for (let i = dataStart; i < packRaw.length; i++) {
-      const row = packRaw[i];
-      if (row.every(v => v==='' )) continue;
-      const rawPo = row[0];
-      if (rawPo === '' || rawPo == null) continue;
-      const poNo = String(typeof rawPo === 'number' ? Math.trunc(rawPo) : rawPo).trim();
-      packLines.push({
-        poNo,
-        lineNo: row[1],
-        item: String(row[2]).trim(),
-        qtyToReceive: Number(row[3])||0,
-        uom: row[4],
-        lotNo: excelSerialToDate(row[5]),
-        container: String(row[6]).trim()
-      });
-    }
+    const packLines = parsePackingList(slotState.pack.raw);
     if (!packLines.length) throw new Error('No data rows found in the packing list.');
 
     // ── Reconcile each packing list line — six outcomes ──
@@ -492,10 +618,12 @@ const RG = (function() {
     });
 
     // Attach the container hint to every row regardless of outcome — informational only,
-    // never used to auto-select or auto-check anything.
+    // never used to auto-select or auto-check anything. Only show a PO here if this
+    // specific item actually exists on it — not just "this container touched this PO
+    // somewhere," which was the earlier bug.
     results.forEach(r => {
       const s = containerToPo[r.container];
-      r.containerPos = s ? Array.from(s) : [];
+      r.containerPos = s ? Array.from(s).filter(docNo => !!poGroups[docNo+'|'+r.item]) : [];
     });
 
     // ── Duplicate-item defense: if the same item appears more than once in the packing
@@ -847,17 +975,7 @@ const RG = (function() {
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='WRCT_Upload_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
   }
 
-  function exportNewPo() {
-    const dueDate = document.getElementById('dueDateInput').value; // reused as Expected Receipt Date
-    if (!dueDate) { sb('err','✗ Due Date is required — it doubles as Expected Receipt Date on the new PO.'); return; }
-    const linesData = [];
-    results.forEach(r => {
-      const st = rowState[r.id];
-      if (!st.createPo) return;
-      linesData.push({ item: r.item, desc: r.desc||'', qty: r.qtyToReceive });
-    });
-    if (!linesData.length) { sb('err','✗ No lines marked "Include in bundled new PO." Select + Add New PO and check the box on at least one row.'); return; }
-
+  function buildAndDownloadNewPo(linesData, dueDate, filenamePrefix) {
     // Full 122-column header, exact order from Vision's real "Purchase Order Lines" Edit in
     // Excel template — so the output can be copy-pasted straight into it, column for column,
     // instead of needing to be manually realigned. Only 8 of these columns get real values;
@@ -870,7 +988,7 @@ const RG = (function() {
       row[IDX.docType] = 'Order';
       row[IDX.type] = 'Item';
       row[IDX.no] = l.item;
-      row[IDX.desc] = l.desc;
+      row[IDX.desc] = l.desc||'';
       row[IDX.loc] = 'FRANKLIN';
       row[IDX.bin] = 'RDOCK1';
       row[IDX.qty] = l.qty;
@@ -884,7 +1002,20 @@ const RG = (function() {
     XLSX.utils.book_append_sheet(wb, ws, 'Lines');
     const data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
     const blob = new Blob([data],{type:'application/octet-stream'});
-    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='New_PO_Bundle_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filenamePrefix+'_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  function exportNewPo() {
+    const dueDate = document.getElementById('dueDateInput').value; // reused as Expected Receipt Date
+    if (!dueDate) { sb('err','✗ Due Date is required — it doubles as Expected Receipt Date on the new PO.'); return; }
+    const linesData = [];
+    results.forEach(r => {
+      const st = rowState[r.id];
+      if (!st.createPo) return;
+      linesData.push({ item: r.item, desc: r.desc||'', qty: r.qtyToReceive });
+    });
+    if (!linesData.length) { sb('err','✗ No lines marked "Include in bundled new PO." Select + Add New PO and check the box on at least one row.'); return; }
+    buildAndDownloadNewPo(linesData, dueDate, 'New_PO_Bundle');
   }
 
   function exportSkipped() {
@@ -918,6 +1049,15 @@ const RG = (function() {
     const selAllPo = document.getElementById('selectAllCreatePoChk'); if (selAllPo) selAllPo.checked = false;
     const dueDateEl = document.getElementById('dueDateInput'); if (dueDateEl) dueDateEl.value = '';
     updateAnalyzeButton();
+    // Create-only mode
+    createOnlyRaw = null; createOnlyLines = []; createOnlyChecked = {};
+    document.getElementById('slotPackOnly').classList.remove('filled');
+    document.getElementById('statusPackOnly').textContent = '';
+    document.getElementById('btnAnalyzeCreate').classList.remove('ready');
+    document.getElementById('resultsCreateOnly').style.display = 'none';
+    document.getElementById('filePackOnly').value = '';
+    const dueDateCO = document.getElementById('dueDateInputCreateOnly'); if (dueDateCO) dueDateCO.value = '';
+    const selAllCO = document.getElementById('selectAllCreateOnlyChk'); if (selAllCO) selAllCO.checked = true;
   }
 
   function sb(type,msg,showReset) {
@@ -928,7 +1068,7 @@ const RG = (function() {
     if (showReset) document.getElementById('sbarReset').addEventListener('click', e=>{e.preventDefault(); reset();});
   }
 
-  return { analyze, exportXlsx, exportNewPo, exportSkipped, reset, toggleCheck, toggleSelectAll, toggleSelectAllCreatePo, toggleCreatePo, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode };
+  return { analyze, exportXlsx, exportNewPo, exportSkipped, reset, toggleCheck, toggleSelectAll, toggleSelectAllCreatePo, toggleCreatePo, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode, setMode, analyzeCreateOnly, toggleCreateOnlyCheck, toggleSelectAllCreateOnly, exportCreateOnlyPo };
 })();
 </script>
 </body>
