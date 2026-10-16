@@ -60,6 +60,9 @@ h1 em{font-style:normal;color:var(--gold)}
 #btnAnalyzeCreate{width:100%;margin-top:14px;padding:13px;background:var(--gold);color:var(--navy-deep);border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;opacity:.4;pointer-events:none;transition:opacity .2s}
 #btnAnalyzeCreate.ready{opacity:1;pointer-events:auto}
 #btnAnalyzeCreate:hover{background:var(--gold-dim);color:#fff}
+#btnAnalyzeAudit{width:100%;margin-top:14px;padding:13px;background:var(--gold);color:var(--navy-deep);border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;opacity:.4;pointer-events:none;transition:opacity .2s}
+#btnAnalyzeAudit.ready{opacity:1;pointer-events:auto}
+#btnAnalyzeAudit:hover{background:var(--gold-dim);color:#fff}
 #main{padding:0 32px;max-width:1300px;margin:0 auto;width:100%;background:#fff}
 .sbar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin:16px 0 0;display:none;align-items:center;gap:10px;font-size:12px}
 .sbar.on{display:flex}
@@ -81,8 +84,10 @@ h1 em{font-style:normal;color:var(--gold)}
 .card.green{border-color:var(--green-border);background:var(--green-bg)}.card.green .num{color:var(--green)}
 .card.blue{border-color:var(--blue-border);background:var(--blue-bg)}.card.blue .num{color:var(--blue)}
 .card.purple{border-color:var(--purple-border);background:var(--purple-bg)}.card.purple .num{color:var(--purple)}
+.card.gray{border-color:#d0d0d0;background:#f2f2f2}.card.gray .num{color:#5B6B7C}
 .card.orange{border-color:var(--orange-border);background:var(--orange-bg)}.card.orange .num{color:var(--orange)}
 .card.yellow{border-color:#f0c870;background:#fff8e6}.card.yellow .num{color:#a3760a}
+.card.amber{border-color:#f0c870;background:#fdf0d5}.card.amber .num{color:#a3760a}
 .card.red{border-color:var(--red-border);background:var(--red-bg)}.card.red .num{color:var(--red)}
 .action-bar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .btn{padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none}
@@ -147,6 +152,7 @@ footer a:hover{color:var(--gold)}
       <div class="mode-toggle">
         <button class="mode-btn active" id="modeBtnReconcile" onclick="RG.setMode('reconcile')">🔗 Reconcile Against POs</button>
         <button class="mode-btn" id="modeBtnCreate" onclick="RG.setMode('create')">🧹 Create PO Only</button>
+        <button class="mode-btn" id="modeBtnAudit" onclick="RG.setMode('audit')">🔍 Audit Open Receipts</button>
       </div>
 
       <div id="modeReconcile">
@@ -198,12 +204,88 @@ footer a:hover{color:var(--gold)}
         <div style="background:#fff2cc;border:1px solid #f0c870;border-radius:8px;padding:10px 14px;margin-top:12px;font-size:11.5px;color:#7a5c00">⚠ No reconciliation here — nothing checked against open POs, no over-receipt protection, no duplicate-claim check. Every line becomes a brand-new PO, no exceptions. Use this only when you already know nothing existing applies.</div>
         <button id="btnAnalyzeCreate" onclick="RG.analyzeCreateOnly()">Create PO Lines →</button>
       </div>
+
+      <div id="modeAudit" style="display:none">
+        <div class="slot-grid">
+          <div class="drop-slot" id="slotPOAudit" onclick="document.getElementById('filePOAudit').click()">
+            <span class="slot-icon">📋</span>
+            <div class="slot-body">
+              <div class="slot-title">Purchase Lines <span class="slot-req">required</span></div>
+              <div class="slot-sub">Document No., Line No., No., Quantity, Outstanding Quantity</div>
+              <div class="slot-status" id="statusPOAudit"></div>
+            </div>
+          </div>
+          <input type="file" id="filePOAudit" accept=".xlsx,.xls,.csv" style="display:none">
+
+          <div class="drop-slot" id="slotWhrAudit" onclick="document.getElementById('fileWhrAudit').click()">
+            <span class="slot-icon">🔒</span>
+            <div class="slot-body">
+              <div class="slot-title">ACG Warehouse Receipt Lines <span class="slot-req">required</span></div>
+              <div class="slot-sub">Every open receipt, every line — No., Source No., Item No., Line No., Qty. to Receive, Qty. Received, Over-Receipt Code</div>
+              <div class="slot-sub" style="color:#e9a535;margin-top:4px">⚠ Must be the <strong>Edit in Excel</strong> download — the standard export is missing columns this needs.</div>
+              <div class="slot-status" id="statusWhrAudit"></div>
+            </div>
+          </div>
+          <input type="file" id="fileWhrAudit" accept=".xlsx,.xls,.csv" style="display:none">
+
+          <div class="drop-slot" id="slotInvAudit" onclick="document.getElementById('fileInvAudit').click()">
+            <span class="slot-icon">🧾</span>
+            <div class="slot-body">
+              <div class="slot-title">Posted Purchase Invoice Lines <span class="slot-opt">optional</span></div>
+              <div class="slot-sub">Document No., Buy-from Vendor No., Order No. — lets the audit confirm a PO was actually invoiced, not just guess from it being closed</div>
+              <div class="slot-status" id="statusInvAudit"></div>
+            </div>
+          </div>
+          <input type="file" id="fileInvAudit" accept=".xlsx,.xls,.csv" style="display:none">
+        </div>
+        <div style="background:#e3f0fa;border:1px solid #9dc7e8;border-radius:8px;padding:10px 14px;margin-top:12px;font-size:11.5px;color:#1a4a6b">ℹ Checks every line on every currently open receipt against its real PO line — no packing list needed. Same pass/fail logic the upload itself enforces, surfaced ahead of time.</div>
+        <button id="btnAnalyzeAudit" onclick="RG.analyzeAudit()">Run Audit →</button>
+      </div>
     </div>
   </div>
 </div>
 
 <div id="main">
   <div id="sbar" class="sbar"></div>
+  <div id="resultsAudit" style="display:none;padding:24px 0 40px">
+    <div class="total-banner">
+      <div class="total-num" id="auditTotalNum">0</div>
+      <div class="total-right">
+        <div class="total-label">Lines Checked, Every Open Receipt</div>
+        <div class="total-sub" id="auditTotalSub"></div>
+      </div>
+      <div style="text-align:right">
+        <div class="total-num" id="auditTotalMs" style="font-size:32px">—</div>
+        <div class="total-label">Checked In</div>
+      </div>
+    </div>
+    <div class="summary-grid" id="auditSummaryGrid"></div>
+    <div class="action-bar">
+      <button class="btn btn-gold" onclick="RG.exportAudit()">📥 Export Audit</button>
+      <button class="btn btn-outline" onclick="RG.reset()">↩ Start Over</button>
+      <label style="font-size:12px;font-weight:600;color:#555;margin-left:8px">Filter to one WRCT: <input type="text" id="auditWrctFilter" placeholder="e.g. WRCT000226" oninput="RG.filterAuditWrct(this.value)" style="margin-left:4px;padding:5px 8px;border:1.5px solid var(--gray-mid);border-radius:6px;font-size:12px;width:140px"></label>
+    </div>
+    <div class="filter-bar" id="auditFilterBar"></div>
+    <div class="table-wrap">
+      <table class="itbl">
+        <thead><tr>
+          <th data-key="wrct">WRCT No. <span class="sort-arrow" id="sa_audit_wrct"></span></th>
+          <th data-key="po">PO No. <span class="sort-arrow" id="sa_audit_po"></span></th>
+          <th data-key="item">Item No. <span class="sort-arrow" id="sa_audit_item"></span></th>
+          <th data-key="qtyRec">Qty to Receive <span class="sort-arrow" id="sa_audit_qtyRec"></span></th>
+          <th data-key="orig">Original PO Qty <span class="sort-arrow" id="sa_audit_orig"></span></th>
+          <th data-key="ratio">Ratio <span class="sort-arrow" id="sa_audit_ratio"></span></th>
+          <th data-key="cap">Qty Outstanding <span class="sort-arrow" id="sa_audit_cap"></span></th>
+          <th data-key="orCode">Over-Receipt Code <span class="sort-arrow" id="sa_audit_orCode"></span></th>
+          <th data-key="otherWrcts">Other WRCTs on this Item <span class="sort-arrow" id="sa_audit_otherWrcts"></span></th>
+          <th data-key="status">Status <span class="sort-arrow" id="sa_audit_status"></span></th>
+        </tr></thead>
+        <tbody id="auditBody"></tbody>
+      </table>
+      <div class="empty-state" id="auditEmptyState" style="display:none">No lines match the current filter.</div>
+    </div>
+  </div>
+
   <div id="resultsCreateOnly" style="display:none;padding:24px 0 40px">
     <div class="total-banner">
       <div class="total-num" id="createOnlyCount">0</div>
@@ -244,6 +326,7 @@ footer a:hover{color:var(--gold)}
     <div class="summary-grid" id="summaryGrid"></div>
     <div class="action-bar">
       <button class="btn btn-gold" onclick="RG.exportXlsx()">📥 Export WRCT Upload</button>
+      <button class="btn btn-outline" onclick="RG.exportAnalysis()">📊 Export All Lines (Analysis Only)</button>
       <button class="btn btn-outline" onclick="RG.exportNewPo()" style="border-color:var(--gold-dim);color:var(--gold-dim)">➕ Create Bundled PO</button>
       <button class="btn btn-outline" onclick="RG.exportSkipped()">📋 Export Skipped Lines</button>
       <button class="btn btn-outline" onclick="RG.reset()">↩ Start Over</button>
@@ -339,8 +422,10 @@ const RG = (function() {
   function setMode(mode) {
     document.getElementById('modeBtnReconcile').classList.toggle('active', mode==='reconcile');
     document.getElementById('modeBtnCreate').classList.toggle('active', mode==='create');
+    document.getElementById('modeBtnAudit').classList.toggle('active', mode==='audit');
     document.getElementById('modeReconcile').style.display = mode==='reconcile' ? '' : 'none';
     document.getElementById('modeCreate').style.display = mode==='create' ? '' : 'none';
+    document.getElementById('modeAudit').style.display = mode==='audit' ? '' : 'none';
   }
 
   function analyzeCreateOnly() {
@@ -530,9 +615,10 @@ const RG = (function() {
     const whrRaw = slotState.whr.raw;
     const whrHdr = whrRaw[0].map(h => String(h).trim());
     const widx = name => whrHdr.findIndex(h => h.toLowerCase() === name.toLowerCase());
-    const wSrcDoc = widx('Source Document'), wSrcNo = widx('Source No.'), wItem = widx('Item No.'), wQtyRec = widx('Qty. to Receive'), wVendShip = widx('Vendor Shipment No.');
+    const wSrcDoc = widx('Source Document'), wSrcNo = widx('Source No.'), wItem = widx('Item No.'), wQtyRec = widx('Qty. to Receive'), wVendShip = widx('Vendor Shipment No.'), wNo = widx('No.');
     if (wSrcNo===-1 || wItem===-1 || wQtyRec===-1) throw new Error('Warehouse Receipt Lines file missing Source No. / Item No. / Qty. to Receive columns.');
     const claimedMap = {};
+    const claimedByWrct = {}; // PO+Item key -> Set of WRCT Nos already claiming it — named in the UI so a "fully claimed" flag isn't just a number, it points at the exact receipt to go check.
     const containerToPo = {}; // Vendor Shipment No. -> Set of PO Nos already open on a receipt for that container — informational only, no quantities (see below)
     for (let i = 1; i < whrRaw.length; i++) {
       const row = whrRaw[i];
@@ -540,10 +626,10 @@ const RG = (function() {
       if (wSrcDoc!==-1 && String(row[wSrcDoc]).trim() !== 'Purchase Order') continue;
       const key = String(row[wSrcNo]).trim()+'|'+String(row[wItem]).trim();
       claimedMap[key] = (claimedMap[key]||0) + (Number(row[wQtyRec])||0);
-      // Deliberately not summing any quantity here — this export carries duplicate rows per
-      // item whose meaning isn't fully understood yet, so this cross-reference only ever
-      // says "this container also appears on PO X," never a quantity, to avoid presenting a
-      // number that might be wrong right next to a PO match that's right.
+      if (wNo!==-1 && row[wNo]) {
+        if (!claimedByWrct[key]) claimedByWrct[key] = new Set();
+        claimedByWrct[key].add(String(row[wNo]).trim());
+      }
       if (wVendShip!==-1 && row[wVendShip]) {
         const container = String(row[wVendShip]).trim();
         if (!containerToPo[container]) containerToPo[container] = new Set();
@@ -584,6 +670,10 @@ const RG = (function() {
           const a = netAvail(k);
           if (a.net >= pl.qtyToReceive) altOptions.push({ docNo: g.docNo, lineNo: suggestedLineNo(g), net: a.net, expDate: g.expDate });
         });
+        // Default policy: oldest PO first, by PO number ascending — matches the sequence
+        // Ron confirmed for Phase I cleanup. Still fully overridable per row; this only
+        // changes the default pick and display order, not what's available.
+        altOptions.sort((a,b) => (parseInt(a.docNo,10)||0) - (parseInt(b.docNo,10)||0));
         if (altOptions.length > 0) {
           outcome = 'alt'; options = altOptions;
         } else if (stated.group && stated.net > 0 && stated.net < pl.qtyToReceive) {
@@ -610,8 +700,20 @@ const RG = (function() {
       const containerPosForItem = (containerToPo[pl.container] || new Set());
       containerPosForItem.forEach(docNo => {
         if (options.some(o => o.docNo === docNo)) return; // already covered by a real match
-        const g = poGroups[docNo+'|'+pl.item];
-        if (g) options.push({ docNo, lineNo: suggestedLineNo(g), net: g.totalOutstanding, expDate: g.expDate, containerMatch: true });
+        const cmKey = docNo+'|'+pl.item;
+        const g = poGroups[cmKey];
+        if (!g) return;
+        // Net-of-claims, not gross outstanding — a container match found via the WRCT
+        // cross-reference can be the SAME open receipt line that already claims this exact
+        // quantity (same PO, same item, often the same container). Reporting gross here
+        // made an already-fully-claimed line look identical to a genuinely free one.
+        const a = netAvail(cmKey);
+        options.push({
+          docNo, lineNo: suggestedLineNo(g), net: a.net, grossOutstanding: g.totalOutstanding,
+          expDate: g.expDate, containerMatch: true,
+          alreadyClaimed: a.net <= 0,
+          claimWrct: Array.from(claimedByWrct[cmKey] || [])
+        });
       });
 
       return { ...pl, id:idx, outcome, options, shortBy };
@@ -651,6 +753,24 @@ const RG = (function() {
         consumed[key] = (consumed[key]||0) + r.qtyToReceive;
       }
       r._defaultPick = pick; // -1 = no option left with enough room after siblings — default to "add new PO"
+      // A real PO line was found (outcome exact/alt) but a sibling duplicate row already used
+      // up its capacity — the fix is increasing the PO line's Quantity in BC, not creating a
+      // second PO for the same item/shipment. Flag distinctly; no export path needed for this —
+      // once the qty is bumped in BC and this file is re-run, the row resolves to a normal match.
+      r._dupOverflow = pick === -1;
+      if (r._dupOverflow) {
+        // Suggest which line to bump and by how much: the option with the most remaining
+        // room after siblings is the cheapest one to top up. Shortfall is exactly enough to
+        // cover THIS row on top of what's already validly claimed by earlier duplicate rows —
+        // not a guess, a hard floor (increase by at least this much).
+        let best = null;
+        r.options.forEach(o => {
+          const key = o.docNo+'|'+r.item;
+          const remaining = o.net - (consumed[key]||0);
+          if (!best || remaining > best.remaining) best = { docNo:o.docNo, lineNo:o.lineNo, remaining };
+        });
+        if (best) r._dupSuggest = { docNo:best.docNo, lineNo:best.lineNo, remaining:best.remaining, shortfall: r.qtyToReceive - best.remaining };
+      }
     });
     results.forEach(r => { r._isDup = dupItems.has(r.item); });
 
@@ -691,12 +811,13 @@ const RG = (function() {
       };
     });
 
-    const counts = { exact:0, alt:0, short:0, claimed:0, received:0, none:0 };
-    results.forEach(r => counts[r.outcome]++);
+    const counts = { exact:0, alt:0, short:0, claimed:0, received:0, none:0, dupOverflow:0 };
+    results.forEach(r => { counts[r.outcome]++; if (r._dupOverflow) counts.dupOverflow++; });
 
     document.getElementById('summaryGrid').innerHTML =
       cardHtml('green', counts.exact, '✅ Exact PO Match') +
       cardHtml('blue', counts.alt, '🔵 Alternate PO Found') +
+      cardHtml('amber', counts.dupOverflow, '⚠ Duplicate — Increase Qty') +
       cardHtml('yellow', counts.short, '🟡 Short Qty') +
       cardHtml('orange', counts.claimed, '🟠 Claimed by Other Receipt') +
       cardHtml('purple', counts.received, '🟣 Already Received') +
@@ -705,6 +826,7 @@ const RG = (function() {
     const fb = document.getElementById('filterBar');
     fb.innerHTML = '<span style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;margin-right:4px">Filter:</span>' +
       pill('ALL','All',results.length) + pill('exact','✅ Exact',counts.exact) + pill('alt','🔵 Alternate',counts.alt) +
+      pill('dupOverflow','⚠ Dup/Increase',counts.dupOverflow) +
       pill('short','🟡 Short',counts.short) + pill('claimed','🟠 Claimed',counts.claimed) + pill('received','🟣 Received',counts.received) + pill('none','🔴 No Match',counts.none);
     fb.querySelectorAll('.fpill').forEach(b=>b.addEventListener('click',()=>{ activeFilter=b.dataset.t; fb.querySelectorAll('.fpill').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderTable(); }));
     (fb.querySelector('.fpill[data-t="'+activeFilter+'"]')||fb.querySelector('.fpill[data-t="ALL"]')).classList.add('active');
@@ -715,14 +837,21 @@ const RG = (function() {
   function cardHtml(cls,n,lbl){ return '<div class="card '+cls+'"><div class="num">'+n+'</div><div class="lbl">'+lbl+'</div></div>'; }
   function pill(t,label,count){ return '<button class="fpill" data-t="'+t+'">'+label+' <span class="filter-count">'+count+'</span></button>'; }
 
+  // 'dupOverflow' is a pseudo-outcome — it's a flag layered on top of the real exact/alt
+  // outcome, not a value of r.outcome itself, so filtering by it needs its own check.
+  function matchesFilter(r) {
+    if (activeFilter === 'ALL') return true;
+    if (activeFilter === 'dupOverflow') return !!r._dupOverflow;
+    return r.outcome === activeFilter;
+  }
   function toggleCheck(id) { rowState[id].checked = !rowState[id].checked; renderTable(); }
   function toggleSelectAll(checked) {
-    const visible = activeFilter==='ALL' ? results : results.filter(r=>r.outcome===activeFilter);
+    const visible = results.filter(matchesFilter);
     visible.forEach(r => { rowState[r.id].checked = checked; });
     renderTable();
   }
   function toggleSelectAllCreatePo(checked) {
-    const visible = activeFilter==='ALL' ? results : results.filter(r=>r.outcome===activeFilter);
+    const visible = results.filter(matchesFilter);
     visible.forEach(r => {
       const st = rowState[r.id];
       if (checked) {
@@ -781,7 +910,7 @@ const RG = (function() {
   function renderTable() {
     const body = document.getElementById('resultBody');
     const empty = document.getElementById('emptyState');
-    let filtered = activeFilter==='ALL' ? results : results.filter(r=>r.outcome===activeFilter);
+    let filtered = results.filter(matchesFilter);
     if (sortState.key) {
       const key = sortState.key, dir = sortState.dir==='asc'?1:-1;
       filtered = filtered.slice().sort((a,b) => {
@@ -798,11 +927,15 @@ const RG = (function() {
       const checkboxHtml = '<input type="checkbox" '+(st.checked?'checked':'')+' onchange="RG.toggleCheck('+r.id+')">';
       const dupTag = r._isDup ? ' <span class="badge" style="background:#fdf0d5;color:#a3760a;border:1px solid #f0c870" title="This item appears more than once in the packing list — check the PO/line picks don\'t overlap">⚠ duplicate item</span>' : '';
 
-      const contextMsg = {
+      const contextMsg = r._dupOverflow
+        ? '<div style="color:#a3760a;font-weight:700;margin-bottom:4px">⚠ Duplicate Item — Increase Qty on PO '+esc(r._dupSuggest.docNo)+' line '+esc(r._dupSuggest.lineNo)+
+          ' by at least '+fmt(r._dupSuggest.shortfall)+
+          ' <span style="font-weight:400">(that line has '+fmt(r._dupSuggest.remaining)+' left after another row in this packing list already claimed part of it — increase the Purchase Line quantity in BC by at least '+fmt(r._dupSuggest.shortfall)+' to cover this row too, then re-run this file. No new PO needed. This row is left unchecked until then.)</span></div>'
+        : ({
         claimed: '<div style="color:var(--orange);font-weight:700;margin-bottom:4px">Already claimed by another open receipt — nothing free to pull on the stated PO.</div>',
         received: '<div style="color:var(--purple);font-weight:700;margin-bottom:4px">Fully received on the stated PO — nothing outstanding there.</div>',
         none: '<div style="color:var(--red);font-weight:700;margin-bottom:4px">No PO found for this item.</div>'
-      }[r.outcome] || '';
+      }[r.outcome] || '');
 
       const realOpts = r.options.map((o,i) => {
         const radio = '<input type="radio" name="opt_'+r.id+'" '+(st.selectedOpt===i?'checked':'')+' onchange="RG.selectOption('+r.id+','+i+')"> ';
@@ -822,8 +955,14 @@ const RG = (function() {
           const codeInput = shortOnContainer
             ? ' <input type="text" placeholder="Over-Receipt Code" value="'+esc(st.overReceiptCode)+'" oninput="RG.updateOverReceiptCode('+r.id+',this.value)" style="width:110px;border:1px solid var(--gray-mid);border-radius:4px;padding:1px 4px">'
             : '';
-          const warn = (shortOnContainer && st.selectedOpt===i && !st.overReceiptCode) ? '<div style="color:var(--red);font-weight:700;margin-top:2px">Over-Receipt Code required — this container\'s PO only has '+fmt(liveNet)+' outstanding, less than the '+fmt(r.qtyToReceive)+' being received</div>' : '';
-          return '<div>'+radio+'🚢 <strong>Container match</strong> — PO '+esc(o.docNo)+' line '+lineInput+codeInput+' <span style="color:#2980b9">(this container is already on an open receipt for this PO — verify in BC before checking, this will overwrite that receipt)</span>'+warn+'</div>';
+          if (o.alreadyClaimed) {
+            const wrctList = o.claimWrct && o.claimWrct.length ? o.claimWrct.join(', ') : 'an existing open receipt';
+            const warn = (st.selectedOpt===i && !st.overReceiptCode) ? '<div style="color:var(--red);font-weight:700;margin-top:2px">Over-Receipt Code required — this is not new availability, it\'s a duplicate claim</div>' : '';
+            return '<div>'+radio+'⚠️ <strong style="color:var(--red)">Already on open receipt '+esc(wrctList)+'</strong> — PO '+esc(o.docNo)+' line '+lineInput+codeInput+
+              ' <span style="color:var(--red)">(0 truly available — this container/item/PO is already fully claimed by '+esc(wrctList)+'. Go verify that receipt before doing anything with this row; selecting this option will create a duplicate claim, not a new one)</span>'+warn+'</div>';
+          }
+          const warn = (shortOnContainer && st.selectedOpt===i && !st.overReceiptCode) ? '<div style="color:var(--red);font-weight:700;margin-top:2px">Over-Receipt Code required — this container\'s PO only has '+fmt(liveNet)+' truly available (net of existing claims), less than the '+fmt(r.qtyToReceive)+' being received</div>' : '';
+          return '<div>'+radio+'🚢 <strong>Container match</strong> — PO '+esc(o.docNo)+' line '+lineInput+' — net avail (of claims): '+fmt(liveNet)+codeInput+' <span style="color:#2980b9">(this container is already on an open receipt for this PO — verify in BC before checking, this will overwrite that receipt)</span>'+warn+'</div>';
         }
         const overDrawn = liveNet < r.qtyToReceive;
         const qtyClass = overDrawn ? 'opt-qty-diff' : (liveNet===r.qtyToReceive ? 'opt-qty-match' : '');
@@ -839,7 +978,10 @@ const RG = (function() {
       const createPoBox = addNewSelected
         ? ' <label style="margin-left:8px;font-weight:700;color:var(--gold-dim)"><input type="checkbox" '+(st.createPo?'checked':'')+' onchange="RG.toggleCreatePo('+r.id+',this.checked)"> Include in bundled new PO</label>'
         : '';
-      const addNewRadio = '<div><input type="radio" name="opt_'+r.id+'" '+(addNewSelected?'checked':'')+' onchange="RG.selectOption('+r.id+','+addNewIdx+')"> <em>+ Add New PO (create line)</em>'+createPoBox+
+      const addNewLabel = r._dupOverflow
+        ? '<em>+ Add New PO (create line) <span style="color:#a3760a;font-weight:400">— not recommended, see note above; increase the existing PO line instead</span></em>'
+        : '<em>+ Add New PO (create line)</em>';
+      const addNewRadio = '<div><input type="radio" name="opt_'+r.id+'" '+(addNewSelected?'checked':'')+' onchange="RG.selectOption('+r.id+','+addNewIdx+')"> '+addNewLabel+createPoBox+
         (addNewSelected ? newPoInputsInline(r,st) : '') + '</div>';
       const optHtml = contextMsg + '<div class="opt-list">' + realOpts + addNewRadio + '</div>';
 
@@ -854,6 +996,35 @@ const RG = (function() {
         '<td>'+optHtml+'</td>'+
         '</tr>';
     }).join('');
+  }
+
+  function exportAnalysis() {
+    if (!results.length) { sb('err','✗ Nothing to export.'); return; }
+    const today = new Date().toISOString().slice(0,10);
+    const wb = XLSX.utils.book_new();
+    const hdr = ['Packing List PO','Item No.','Qty to Receive','Lot No.','Container No.','Outcome','Checked','Selected Choice','Selected PO','Selected Line','Net Avail (selected)','Short By','Container Match Note'];
+    const rows = results.map(r => {
+      const st = rowState[r.id];
+      const isSentinel = st.selectedOpt === r.options.length;
+      const opt = isSentinel ? null : r.options[st.selectedOpt];
+      const selectedChoice = isSentinel ? (r._dupOverflow ? '⚠ Duplicate Item — Increase Qty on PO' : '+ Add New PO') : (opt ? (opt.confirmAdjusted?'Confirm PO Adjusted':opt.reduceQty?'Reduce Qty':opt.overReceipt?'Keep Full Qty':opt.containerMatch?(opt.alreadyClaimed?'⚠ Already Claimed':'Container Match'):'Matched PO') : '—');
+      const selectedPo = isSentinel ? (r._dupOverflow ? r._dupSuggest.docNo : st.newPoNo) : (opt ? opt.docNo : '');
+      const selectedLine = isSentinel ? (r._dupOverflow ? r._dupSuggest.lineNo : st.newPoLine) : (opt ? st.lineOverride[st.selectedOpt] : '');
+      // For a duplicate-overflow row, "Net Avail" and "Short By" carry the actionable numbers —
+      // what's currently left on the suggested line, and exactly how much to increase it by —
+      // instead of sitting blank the way a genuine "+Add New PO" row correctly does.
+      const netAvailCol = r._dupOverflow ? r._dupSuggest.remaining : (opt ? opt.net : '');
+      const shortByCol = r._dupOverflow ? r._dupSuggest.shortfall : (r.shortBy || '');
+      const containerNote = (r.containerPos && r.containerPos.length) ? r.containerPos.join(', ') : '';
+      const claimNote = opt && opt.alreadyClaimed ? ' — see WRCT '+(opt.claimWrct&&opt.claimWrct.length?opt.claimWrct.join(', '):'?')+' before proceeding' : '';
+      return [r.poNo, r.item, r.qtyToReceive, r.lotNo, r.container, OUTCOME_LABEL[r.outcome], st.checked?'Yes':'No', selectedChoice, selectedPo, selectedLine, netAvailCol, shortByCol, containerNote+claimNote];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
+    ws['!cols'] = [{wch:12},{wch:18},{wch:14},{wch:12},{wch:16},{wch:24},{wch:9},{wch:20},{wch:12},{wch:12},{wch:14},{wch:10},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Full Analysis');
+    const data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob = new Blob([data],{type:'application/octet-stream'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ReceiptGard_Analysis_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
   }
 
   function exportXlsx() {
@@ -885,7 +1056,10 @@ const RG = (function() {
           if (!orCode) { problems.push('PO '+r.poNo+' / '+r.item+' — Over-Receipt Code is required to keep the full quantity'); return; }
         } else if (opt.containerMatch && opt.net < r.qtyToReceive) {
           orCode = st.overReceiptCode;
-          if (!orCode) { problems.push('PO '+r.poNo+' / '+r.item+' — container match PO only has '+opt.net+' outstanding, less than qty being received — Over-Receipt Code required'); return; }
+          const claimMsg = opt.alreadyClaimed
+            ? 'container match PO is already fully claimed by open receipt '+(opt.claimWrct&&opt.claimWrct.length?opt.claimWrct.join(', '):'another receipt')+' — 0 truly available, this would be a duplicate claim'
+            : 'container match PO only has '+opt.net+' truly available (net of existing claims), less than qty being received';
+          if (!orCode) { problems.push('PO '+r.poNo+' / '+r.item+' — '+claimMsg+' — Over-Receipt Code required'); return; }
         }
         // Pool-consumption check: two rows can each look individually fine and still
         // over-draw the same PO+Item pool together — this is the duplicate-item case.
@@ -904,14 +1078,15 @@ const RG = (function() {
     if (!rowsToExport.length) { sb('err','✗ No checked lines to export.'); return; }
 
     // Same-line duplicate guard: BC rejects an upload with two rows against the same PO+Line
-    // unless the PO itself genuinely has two distinct lines for that item. Auto-combining is
-    // only safe if the same PO+Line ends up as one row per BC's upload rules — combining
-    // quantities across different Lot Nos is fine at Vision specifically, since the factory
-    // lot is traceable either way. Distinct lots are joined with "|" rather than blocked.
-    // BUT: combining onto one line is only valid if that line can actually hold the combined
-    // quantity. A PO can have two genuinely separate lines for the same item — if two rows
-    // both defaulted to the same suggested line, the correct fix is putting each row on its
-    // own real line, not silently over-stuffing one line past what it can support.
+    // unless the PO itself genuinely has two distinct lines for that item.
+    // BC's item tracking is lot-specific — joining two different lots onto one line with "|"
+    // turned out to be structurally awkward for how tracking actually validates, and caused
+    // two separate lot-mismatch failures. Fixed approach: rows sharing the same PO+Line AND
+    // the same lot safely merge (no ambiguity, it's genuinely one lot). Rows with DIFFERENT
+    // lots targeting the same line are never merged — each stays its own row, letting BC
+    // handle multiple lines against the same PO line natively. If the combined total from
+    // multiple lots would exceed that one line's real capacity, they split across the item's
+    // other real PO lines instead of being forced onto one.
     const byLine = {};
     rowsToExport.forEach(row => { (byLine[row.poNo+'|'+row.lineNo] = byLine[row.poNo+'|'+row.lineNo]||[]).push(row); });
     const finalRows = [];
@@ -919,18 +1094,26 @@ const RG = (function() {
       const group = byLine[key];
       if (group.length === 1) { finalRows.push(group[0]); return; }
       const [poNo, lineNo] = key.split('|');
-      const combinedQty = group.reduce((a,g)=>a+g.qty, 0);
-      const lots = Array.from(new Set(group.map(g => g.lot)));
 
+      // Same-lot rows on the same line: safe, unambiguous merge.
+      const byLot = {};
+      group.forEach(row => { (byLot[row.lot] = byLot[row.lot] || []).push(row); });
+      const preMerged = Object.values(byLot).map(rowsForLot => {
+        if (rowsForLot.length === 1) return rowsForLot[0];
+        const merged = { ...rowsForLot[0] };
+        merged.qty = rowsForLot.reduce((a,g)=>a+g.qty, 0);
+        return merged;
+      });
+      if (preMerged.length === 1) { finalRows.push(preMerged[0]); return; }
+
+      // Different lots remain on the same line — check whether the combined total still
+      // fits that line's real capacity. If so, keep them as separate rows, same line.
+      const combinedQty = preMerged.reduce((a,g)=>a+g.qty, 0);
       const poGroup = lastPoGroups[poNo+'|'+group[0].item];
       const thisLine = poGroup ? poGroup.lines.find(l => String(l.lineNo)===String(lineNo)) : null;
 
       if (!thisLine || combinedQty <= thisLine.outstanding) {
-        // No capacity data to check against, or it genuinely fits on this one line.
-        const combined = { ...group[0] };
-        combined.qty = combinedQty;
-        combined.lot = lots.join('|');
-        finalRows.push(combined);
+        preMerged.forEach(row => finalRows.push(row));
         return;
       }
 
@@ -941,7 +1124,7 @@ const RG = (function() {
       const availableLines = poGroup.lines.map(l => ({ lineNo: String(l.lineNo), remaining: l.outstanding })).sort((a,b)=>b.remaining-a.remaining);
       const usedCapacity = {};
       let allFit = true;
-      const sortedGroup = group.slice().sort((a,b)=>b.qty-a.qty);
+      const sortedGroup = preMerged.slice().sort((a,b)=>b.qty-a.qty);
       const reassigned = sortedGroup.map(row => {
         const fit = availableLines.find(l => (l.remaining - (usedCapacity[l.lineNo]||0)) >= row.qty);
         if (!fit) { allFit = false; return row; }
@@ -952,13 +1135,12 @@ const RG = (function() {
       if (allFit) {
         reassigned.forEach(rr => finalRows.push(rr));
       } else {
-        // Couldn't cleanly split across real lines either — combine, but force an
-        // Over-Receipt Code so it's never silently over what the line can hold.
-        const combined = { ...group[0] };
-        combined.qty = combinedQty;
-        combined.lot = lots.join('|');
-        combined.orCode = combined.orCode || 'MAX';
-        finalRows.push(combined);
+        // Couldn't cleanly split across real lines either — keep them on the same line as
+        // separate rows (never pipe-joined), and force an Over-Receipt Code so the combined
+        // total is never silently over what the line can hold.
+        preMerged.forEach((row,i) => {
+          finalRows.push({ ...row, orCode: row.orCode || 'MAX' });
+        });
       }
     });
 
@@ -1039,6 +1221,236 @@ const RG = (function() {
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Skipped_Lines_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
   }
 
+  // ── Audit Open Receipts mode ──
+  const slotStateAudit = { po: null, whr: null, inv: null };
+  function wireAuditSlot(slotId, inputId, key) {
+    const slot = document.getElementById(slotId);
+    const input = document.getElementById(inputId);
+    const statusId = { po:'statusPOAudit', whr:'statusWhrAudit', inv:'statusInvAudit' }[key];
+    async function handle(file) {
+      if (!file) return;
+      const statusEl = document.getElementById(statusId);
+      statusEl.textContent = 'Reading…';
+      try {
+        const raw = await readWorkbook(file);
+        slotStateAudit[key] = { name: file.name, raw };
+        statusEl.textContent = '✓ ' + file.name;
+        slot.classList.add('filled');
+        document.getElementById('btnAnalyzeAudit').classList.toggle('ready', !!(slotStateAudit.po && slotStateAudit.whr));
+      } catch(err) { statusEl.textContent = '✗ ' + err.message; }
+    }
+    slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag'); });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag'));
+    slot.addEventListener('drop', e => { e.preventDefault(); slot.classList.remove('drag'); handle(e.dataTransfer.files[0]); });
+    input.addEventListener('change', e => handle(e.target.files[0]));
+  }
+  wireAuditSlot('slotPOAudit','filePOAudit','po');
+  wireAuditSlot('slotWhrAudit','fileWhrAudit','whr');
+  wireAuditSlot('slotInvAudit','fileInvAudit','inv');
+
+  let auditRows = [];
+  let auditFilterStatus = 'ALL';
+  const AUDIT_LABEL = { clean:'✅ Clean', overcode:'🟡 Over-Receipt — Code Present', overnocode:'🔴 Over-Receipt — NO CODE', notonpo:'🔴 Item Not On PO', contaminated:'🟣 Contaminated — Negative Received', conflict:'🟠 Receipt Conflict — Shared Pool', invoiced_orphan:'🟤 PO Invoiced — Orphaned Receipt', untraceable:'⚫ Untraceable PO — Investigate' };
+
+  function analyzeAudit() {
+    if (!slotStateAudit.po || !slotStateAudit.whr) return;
+    document.getElementById('hero').classList.add('compact');
+    sb('loading','Running audit…');
+    const _auditStart = performance.now();
+    setTimeout(() => {
+      try {
+        const poRaw = slotStateAudit.po.raw;
+        const poHdr = poRaw[0].map(h => String(h).trim());
+        const pidx = n => poHdr.findIndex(h => h.toLowerCase() === n.toLowerCase());
+        const cDoc = pidx('Document No.'), cItem = pidx('No.'), cOut = pidx('Outstanding Quantity'), cQtyOrig = pidx('Quantity');
+        if (cDoc===-1 || cItem===-1 || cOut===-1) throw new Error('Purchase Lines file missing Document No. / No. / Outstanding Quantity.');
+        const poItemCap = {};
+        const poItemOrig = {};
+        for (let i=1;i<poRaw.length;i++){
+          const row = poRaw[i];
+          if (!row[cDoc]) continue;
+          const key = String(row[cDoc]).trim()+'|'+String(row[cItem]).trim();
+          poItemCap[key] = (poItemCap[key]||0) + (Number(row[cOut])||0);
+          if (cQtyOrig!==-1) poItemOrig[key] = (poItemOrig[key]||0) + (Number(row[cQtyOrig])||0);
+        }
+
+        const whrRaw = slotStateAudit.whr.raw;
+        const whrHdr = whrRaw[0].map(h => String(h).trim());
+        const widx = n => whrHdr.findIndex(h => h.toLowerCase() === n.toLowerCase());
+        const cNo=widx('No.'), cSrcDoc=widx('Source Document'), cSrcNo=widx('Source No.'), cItemW=widx('Item No.'), cQtyRec=widx('Qty. to Receive'), cQtyReceived=widx('Qty. Received'), cOrCode=widx('Over-Receipt Code');
+        if (cNo===-1 || cSrcNo===-1 || cItemW===-1 || cQtyRec===-1) throw new Error('Warehouse Receipt Lines file missing No. / Source No. / Item No. / Qty. to Receive.');
+
+        // Group every raw line by (WRCT, PO, Item) — the ACG export has no field showing
+        // which specific PO line a receipt line draws from, only PO+Item, so that's the
+        // real grain this check can honestly operate at.
+        const groups = {};
+        for (let i=1;i<whrRaw.length;i++){
+          const row = whrRaw[i];
+          if (!row[cSrcNo]) continue;
+          if (cSrcDoc!==-1 && String(row[cSrcDoc]).trim()!=='Purchase Order') continue;
+          const wrct = String(row[cNo]).trim();
+          const po = String(row[cSrcNo]).trim();
+          const item = String(row[cItemW]).trim();
+          const key = wrct+'|'+po+'|'+item;
+          if (!groups[key]) groups[key] = { wrct, po, item, qtyRec:0, qtyReceived:0, orCodes: new Set(), rowCount:0 };
+          groups[key].qtyRec += Number(row[cQtyRec])||0;
+          groups[key].qtyReceived += cQtyReceived!==-1 ? (Number(row[cQtyReceived])||0) : 0;
+          if (cOrCode!==-1 && row[cOrCode]) groups[key].orCodes.add(String(row[cOrCode]).trim());
+          groups[key].rowCount++;
+        }
+
+        // Optional third cross-reference: confirms a PO was actually invoiced (not just
+        // absent from open Purchase Lines) — lets "Item Not On PO" split into a settled
+        // "we know what happened" case versus a genuinely unexplained one.
+        let invoicedPOs = null;
+        if (slotStateAudit.inv) {
+          const invRaw = slotStateAudit.inv.raw;
+          const invHdr = invRaw[0].map(h => String(h).trim());
+          const iidx = n => invHdr.findIndex(h => h.toLowerCase() === n.toLowerCase());
+          const cVendor = iidx('Buy-from Vendor No.'), cOrderNo = iidx('Order No.');
+          if (cVendor!==-1 && cOrderNo!==-1) {
+            invoicedPOs = new Set();
+            for (let i=1;i<invRaw.length;i++){
+              const row = invRaw[i];
+              if (String(row[cVendor]).trim()==='V01790' && row[cOrderNo]) invoicedPOs.add(String(row[cOrderNo]).trim());
+            }
+          }
+        }
+
+        auditRows = Object.values(groups).map(g => {
+          const capKey = g.po+'|'+g.item;
+          const cap = poItemCap[capKey];
+          const orig = poItemOrig[capKey];
+          let status;
+          if (cap === undefined) {
+            if (invoicedPOs) status = invoicedPOs.has(g.po) ? 'invoiced_orphan' : 'untraceable';
+            else status = 'notonpo';
+          }
+          else if (g.qtyReceived < 0) status = 'contaminated';
+          else if (g.qtyRec <= cap) status = 'clean';
+          else status = g.orCodes.size > 0 ? 'overcode' : 'overnocode';
+          const ratio = (orig && orig>0) ? g.qtyRec/orig : null;
+          const looksDoubled = ratio!==null && Math.abs(ratio - Math.round(ratio)) < 0.02 && Math.round(ratio) >= 2;
+          return { ...g, cap: cap===undefined ? null : cap, orig: orig===undefined ? null : orig, ratio, looksDoubled, orCode: Array.from(g.orCodes).join(', '), status };
+        });
+
+        // Second pass: which PO+Item pools are being drawn on by more than one receipt at
+        // once? That's a real conflict regardless of whether each receipt looks fine on its
+        // own — whichever posts second is likely to fail against what the first one took.
+        // This overrides Clean/Over-Receipt (a shared pool is the more useful thing to see),
+        // but never overrides Item Not On PO or Contaminated — those are fundamental data
+        // problems independent of anything else happening.
+        const wrctsByItem = {};
+        auditRows.forEach(r => {
+          const key = r.po+'|'+r.item;
+          (wrctsByItem[key] = wrctsByItem[key] || new Set()).add(r.wrct);
+        });
+        auditRows.forEach(r => {
+          const key = r.po+'|'+r.item;
+          const siblings = Array.from(wrctsByItem[key]).filter(w => w !== r.wrct);
+          r.otherWrcts = siblings;
+          if (siblings.length > 0 && !['notonpo','contaminated','invoiced_orphan','untraceable'].includes(r.status)) {
+            r.status = 'conflict';
+          }
+        });
+
+        const _auditElapsed = Math.round(performance.now() - _auditStart);
+        renderAudit(_auditElapsed);
+        sb('ok','✓ Checked '+auditRows.length+' receipt-line groups across every open PO in '+_auditElapsed+'ms');
+        setTimeout(()=>document.getElementById('resultsAudit').scrollIntoView({behavior:'smooth',block:'start'}), 150);
+      } catch(err) {
+        sb('err','✗ '+err.message, true);
+        document.getElementById('hero').classList.remove('compact');
+      }
+    }, 20);
+  }
+
+  function renderAudit(elapsedMs) {
+    document.getElementById('resultsAudit').style.display = 'block';
+    document.getElementById('auditTotalNum').textContent = auditRows.length;
+    document.getElementById('auditTotalSub').textContent = 'Every currently open receipt, every PO+Item on it';
+    document.getElementById('auditTotalMs').textContent = (elapsedMs!==undefined ? elapsedMs : '—') + 'ms';
+
+    const counts = { clean:0, overcode:0, overnocode:0, notonpo:0, contaminated:0, conflict:0, invoiced_orphan:0, untraceable:0 };
+    auditRows.forEach(r => counts[r.status]++);
+    document.getElementById('auditSummaryGrid').innerHTML =
+      cardHtml('orange', counts.conflict, '🟠 Receipt Conflict') +
+      cardHtml('green', counts.clean, '✅ Clean') +
+      cardHtml('yellow', counts.overcode, '🟡 Over-Receipt, Code OK') +
+      cardHtml('red', counts.overnocode, '🔴 Over-Receipt, NO Code') +
+      cardHtml('red', counts.notonpo, '🔴 Item Not On PO') +
+      cardHtml('purple', counts.contaminated, '🟣 Contaminated') +
+      cardHtml('gray', counts.invoiced_orphan, '🟤 Invoiced — Orphaned') +
+      cardHtml('gray', counts.untraceable, '⚫ Untraceable — Investigate');
+
+    const fb = document.getElementById('auditFilterBar');
+    fb.innerHTML = '<span style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;margin-right:4px">Filter:</span>' +
+      pill('ALL','All',auditRows.length) +
+      Object.keys(AUDIT_LABEL).map(k => counts[k]>0 ? pill(k, AUDIT_LABEL[k], counts[k]) : '').join('');
+    fb.querySelectorAll('.fpill').forEach(b=>b.addEventListener('click',()=>{ auditFilterStatus=b.dataset.t; fb.querySelectorAll('.fpill').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderAuditTable(); }));
+    (fb.querySelector('.fpill[data-t="'+auditFilterStatus+'"]')||fb.querySelector('.fpill[data-t="ALL"]')).classList.add('active');
+    renderAuditTable();
+  }
+
+  let auditWrctFilterText = '';
+  function filterAuditWrct(val) { auditWrctFilterText = val.trim().toLowerCase(); renderAuditTable(); }
+
+  let auditSortState = { key: null, dir: 'desc' };
+  const AUDIT_NUMERIC_KEYS = ['qtyRec','orig','ratio','cap'];
+  function auditSortBy(key) {
+    if (auditSortState.key===key) auditSortState.dir = auditSortState.dir==='desc'?'asc':'desc';
+    else auditSortState = { key, dir:'desc' };
+    document.querySelectorAll('[id^="sa_audit_"]').forEach(el=>el.textContent='');
+    const arrow = document.getElementById('sa_audit_'+key); if (arrow) arrow.textContent = auditSortState.dir==='desc'?'▼':'▲';
+    renderAuditTable();
+  }
+  document.querySelectorAll('#resultsAudit thead th[data-key]').forEach(th => {
+    th.addEventListener('click', () => auditSortBy(th.dataset.key));
+  });
+
+  function renderAuditTable() {
+    const body = document.getElementById('auditBody');
+    const empty = document.getElementById('auditEmptyState');
+    let filtered = auditFilterStatus==='ALL' ? auditRows : auditRows.filter(r=>r.status===auditFilterStatus);
+    if (auditWrctFilterText) filtered = filtered.filter(r => r.wrct.toLowerCase().includes(auditWrctFilterText));
+    if (auditSortState.key) {
+      const key = auditSortState.key, dir = auditSortState.dir==='desc'?-1:1;
+      filtered = filtered.slice().sort((a,b) => {
+        if (AUDIT_NUMERIC_KEYS.includes(key)) {
+          const av=a[key], bv=b[key];
+          if (av===null&&bv===null) return 0; if (av===null) return 1; if (bv===null) return -1;
+          return dir*(av-bv);
+        }
+        return dir*String(a[key]||'').localeCompare(String(b[key]||''));
+      });
+    }
+    if (!filtered.length) { empty.style.display='block'; return; }
+    empty.style.display='none';
+    body.innerHTML = filtered.map(r => {
+      const badge = '<span class="badge" style="background:'+({clean:'#e2efda',overcode:'#fff2cc',overnocode:'#fce4d6',notonpo:'#fce4d6',contaminated:'#f0e6f6',conflict:'#fde4cc',invoiced_orphan:'#e8ddd0',untraceable:'#e0e0e0'}[r.status])+';color:'+({clean:'#27AE60',overcode:'#d4820a',overnocode:'#C0392B',notonpo:'#C0392B',contaminated:'#8e44ad',conflict:'#c0621e',invoiced_orphan:'#7a5c3e',untraceable:'#333333'}[r.status])+'">'+AUDIT_LABEL[r.status]+'</span>';
+      const ratioTxt = r.ratio===null ? '—' : r.ratio.toFixed(2)+'x';
+      const ratioCell = r.looksDoubled
+        ? '<strong style="color:var(--red)">'+ratioTxt+' ⚠</strong>'
+        : ratioTxt;
+      const otherWrctsCell = (r.otherWrcts && r.otherWrcts.length) ? '<strong style="color:#c0621e">'+r.otherWrcts.map(esc).join(', ')+'</strong>' : '—';
+      return '<tr><td>'+esc(r.wrct)+'</td><td>'+esc(r.po)+'</td><td>'+esc(r.item)+'</td><td>'+fmt(r.qtyRec)+'</td><td>'+(r.orig===null?'—':fmt(r.orig))+'</td><td>'+ratioCell+'</td><td>'+(r.cap===null?'—':fmt(r.cap))+'</td><td>'+(r.orCode||'—')+'</td><td>'+otherWrctsCell+'</td><td>'+badge+'</td></tr>';
+    }).join('');
+  }
+
+  function exportAudit() {
+    if (!auditRows.length) { sb('err','✗ Nothing to export.'); return; }
+    const today = new Date().toISOString().slice(0,10);
+    const wb = XLSX.utils.book_new();
+    const hdr = ['WRCT No.','PO No.','Item No.','Qty. to Receive','Original PO Qty','Ratio','Looks Doubled?','Qty Outstanding','Over-Receipt Code','Other WRCTs on this Item','Status'];
+    const rows = auditRows.map(r => [r.wrct, r.po, r.item, r.qtyRec, r.orig===null?'':r.orig, r.ratio===null?'':Math.round(r.ratio*100)/100, r.looksDoubled?'YES':'', r.cap===null?'':r.cap, r.orCode, (r.otherWrcts||[]).join(', '), AUDIT_LABEL[r.status]]);
+    const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
+    ws['!cols'] = [{wch:14},{wch:12},{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:16},{wch:16},{wch:24},{wch:28}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Audit');
+    const data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob = new Blob([data],{type:'application/octet-stream'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Receipt_Audit_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+  }
+
   function reset() {
     slotState.po = null; slotState.pack = null; slotState.whr = null; results = []; rowState = {}; activeFilter = 'ALL';
     ['PO','Pack','Whr'].forEach(s => { document.getElementById('slot'+s).classList.remove('filled'); document.getElementById('status'+s).textContent=''; });
@@ -1058,6 +1470,15 @@ const RG = (function() {
     document.getElementById('filePackOnly').value = '';
     const dueDateCO = document.getElementById('dueDateInputCreateOnly'); if (dueDateCO) dueDateCO.value = '';
     const selAllCO = document.getElementById('selectAllCreateOnlyChk'); if (selAllCO) selAllCO.checked = true;
+    // Audit mode
+    slotStateAudit.po = null; slotStateAudit.whr = null; slotStateAudit.inv = null; auditRows = []; auditFilterStatus = 'ALL'; auditWrctFilterText = '';
+    ['POAudit','WhrAudit','InvAudit'].forEach(s => { document.getElementById('slot'+s).classList.remove('filled'); document.getElementById('status'+s).textContent=''; });
+    document.getElementById('btnAnalyzeAudit').classList.remove('ready');
+    document.getElementById('resultsAudit').style.display = 'none';
+    document.getElementById('filePOAudit').value = '';
+    document.getElementById('fileWhrAudit').value = '';
+    document.getElementById('fileInvAudit').value = '';
+    const auditWrctInput = document.getElementById('auditWrctFilter'); if (auditWrctInput) auditWrctInput.value = '';
   }
 
   function sb(type,msg,showReset) {
@@ -1068,7 +1489,7 @@ const RG = (function() {
     if (showReset) document.getElementById('sbarReset').addEventListener('click', e=>{e.preventDefault(); reset();});
   }
 
-  return { analyze, exportXlsx, exportNewPo, exportSkipped, reset, toggleCheck, toggleSelectAll, toggleSelectAllCreatePo, toggleCreatePo, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode, setMode, analyzeCreateOnly, toggleCreateOnlyCheck, toggleSelectAllCreateOnly, exportCreateOnlyPo };
+  return { analyze, exportXlsx, exportAnalysis, exportNewPo, exportSkipped, reset, toggleCheck, toggleSelectAll, toggleSelectAllCreatePo, toggleCreatePo, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode, setMode, analyzeCreateOnly, toggleCreateOnlyCheck, toggleSelectAllCreateOnly, exportCreateOnlyPo, analyzeAudit, filterAuditWrct, exportAudit };
 })();
 </script>
 </body>
