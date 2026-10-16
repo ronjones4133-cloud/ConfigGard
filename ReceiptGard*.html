@@ -69,6 +69,7 @@ h1 em{font-style:normal;color:var(--gold)}
 .sbar.loading{border-color:#2980b9;background:#ebf5fb}
 .sbar.ok{border-color:var(--green-border);background:var(--green-bg)}
 .sbar.err{border-color:var(--red-border);background:var(--red-bg)}
+.sbar.wait{border-color:#E9A535;background:#fff8e6}
 .spin{width:14px;height:14px;border:2px solid var(--gray-mid);border-top-color:#2980b9;border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .total-banner{background:var(--navy);border:1px solid var(--navy-border);border-radius:12px;padding:20px 28px;margin:16px 0 12px;display:flex;align-items:center;gap:20px;box-shadow:0 4px 20px rgba(8,21,37,.3)}
@@ -221,7 +222,7 @@ footer a:hover{color:var(--gold)}
             <span class="slot-icon">🔒</span>
             <div class="slot-body">
               <div class="slot-title">ACG Warehouse Receipt Lines <span class="slot-req">required</span></div>
-              <div class="slot-sub">Every open receipt, every line — No., Source No., Item No., Line No., Qty. to Receive, Qty. Received, Over-Receipt Code</div>
+              <div class="slot-sub">Every open receipt, every line — No., Source No., <strong>Source Line No.</strong>, Item No., Qty. to Receive, Qty. Received, Over-Receipt Code</div>
               <div class="slot-sub" style="color:#e9a535;margin-top:4px">⚠ Must be the <strong>Edit in Excel</strong> download — the standard export is missing columns this needs.</div>
               <div class="slot-status" id="statusWhrAudit"></div>
             </div>
@@ -271,13 +272,17 @@ footer a:hover{color:var(--gold)}
         <thead><tr>
           <th data-key="wrct">WRCT No. <span class="sort-arrow" id="sa_audit_wrct"></span></th>
           <th data-key="po">PO No. <span class="sort-arrow" id="sa_audit_po"></span></th>
+          <th data-key="poLine">PO Line <span class="sort-arrow" id="sa_audit_poLine"></span></th>
           <th data-key="item">Item No. <span class="sort-arrow" id="sa_audit_item"></span></th>
           <th data-key="qtyRec">Qty to Receive <span class="sort-arrow" id="sa_audit_qtyRec"></span></th>
           <th data-key="orig">Original PO Qty <span class="sort-arrow" id="sa_audit_orig"></span></th>
-          <th data-key="ratio">Ratio <span class="sort-arrow" id="sa_audit_ratio"></span></th>
           <th data-key="cap">Qty Outstanding <span class="sort-arrow" id="sa_audit_cap"></span></th>
+          <th data-key="ratio" title="This receipt's Qty to Receive ÷ Qty Outstanding">Ratio <span class="sort-arrow" id="sa_audit_ratio"></span></th>
+          <th data-key="combined" title="Total Qty to Receive across every open WRCT drawing on this PO line">Combined Claim <span class="sort-arrow" id="sa_audit_combined"></span></th>
+          <th data-key="combinedRatio" title="Combined Claim ÷ Qty Outstanding. Over 1.00 = will not fit">Combined Ratio <span class="sort-arrow" id="sa_audit_combinedRatio"></span></th>
+          <th data-key="headroom" title="Qty Outstanding − Combined Claim. 0 = line fully consumed; any dock overage needs an Over-Receipt Code">Headroom <span class="sort-arrow" id="sa_audit_headroom"></span></th>
           <th data-key="orCode">Over-Receipt Code <span class="sort-arrow" id="sa_audit_orCode"></span></th>
-          <th data-key="otherWrcts">Other WRCTs on this Item <span class="sort-arrow" id="sa_audit_otherWrcts"></span></th>
+          <th data-key="otherWrcts">Other WRCTs on this PO Line <span class="sort-arrow" id="sa_audit_otherWrcts"></span></th>
           <th data-key="status">Status <span class="sort-arrow" id="sa_audit_status"></span></th>
         </tr></thead>
         <tbody id="auditBody"></tbody>
@@ -1250,7 +1255,10 @@ const RG = (function() {
 
   let auditRows = [];
   let auditFilterStatus = 'ALL';
-  const AUDIT_LABEL = { clean:'✅ Clean', overcode:'🟡 Over-Receipt — Code Present', overnocode:'🔴 Over-Receipt — NO CODE', notonpo:'🔴 Item Not On PO', contaminated:'🟣 Contaminated — Negative Received', conflict:'🟠 Receipt Conflict — Shared Pool', invoiced_orphan:'🟤 PO Invoiced — Orphaned Receipt', untraceable:'⚫ Untraceable PO — Investigate' };
+  let auditGrain = 'item', auditGrainNote = '';
+  // Quantity compare with a tolerance so float sums (e.g. 0.1+0.2) can't flip a status.
+  function qtyGt(a, b) { return (Number(a)||0) - (Number(b)||0) > 1e-6; }
+  const AUDIT_LABEL = { clean:'✅ Clean', overcode:'🟡 Over-Receipt — Code Present', overnocode:'🔴 Over-Receipt — NO CODE', notonpo:'🔴 Item Not On PO', contaminated:'🟣 Contaminated — Negative Received', pool_fits:'🟢 Shared Pool — Fits', pool_over:'🔴 Shared Pool — Over-Claimed', invoiced_orphan:'🟤 PO Invoiced — Orphaned Receipt', untraceable:'⚫ Untraceable PO — Investigate' };
 
   function analyzeAudit() {
     if (!slotStateAudit.po || !slotStateAudit.whr) return;
@@ -1262,16 +1270,23 @@ const RG = (function() {
         const poRaw = slotStateAudit.po.raw;
         const poHdr = poRaw[0].map(h => String(h).trim());
         const pidx = n => poHdr.findIndex(h => h.toLowerCase() === n.toLowerCase());
-        const cDoc = pidx('Document No.'), cItem = pidx('No.'), cOut = pidx('Outstanding Quantity'), cQtyOrig = pidx('Quantity');
+        const cDoc = pidx('Document No.'), cItem = pidx('No.'), cOut = pidx('Outstanding Quantity'), cQtyOrig = pidx('Quantity'), cPoLine = pidx('Line No.');
         if (cDoc===-1 || cItem===-1 || cOut===-1) throw new Error('Purchase Lines file missing Document No. / No. / Outstanding Quantity.');
         const poItemCap = {};
         const poItemOrig = {};
+        const poLineCap = {};  // PO|Line|Item -> outstanding (line grain)
+        const poLineOrig = {};
         for (let i=1;i<poRaw.length;i++){
           const row = poRaw[i];
           if (!row[cDoc]) continue;
           const key = String(row[cDoc]).trim()+'|'+String(row[cItem]).trim();
           poItemCap[key] = (poItemCap[key]||0) + (Number(row[cOut])||0);
           if (cQtyOrig!==-1) poItemOrig[key] = (poItemOrig[key]||0) + (Number(row[cQtyOrig])||0);
+          if (cPoLine!==-1 && row[cPoLine]!==undefined && row[cPoLine]!=='') {
+            const lk = String(row[cDoc]).trim()+'|'+String(row[cPoLine]).trim()+'|'+String(row[cItem]).trim();
+            poLineCap[lk] = (poLineCap[lk]||0) + (Number(row[cOut])||0);
+            if (cQtyOrig!==-1) poLineOrig[lk] = (poLineOrig[lk]||0) + (Number(row[cQtyOrig])||0);
+          }
         }
 
         const whrRaw = slotStateAudit.whr.raw;
@@ -1279,10 +1294,19 @@ const RG = (function() {
         const widx = n => whrHdr.findIndex(h => h.toLowerCase() === n.toLowerCase());
         const cNo=widx('No.'), cSrcDoc=widx('Source Document'), cSrcNo=widx('Source No.'), cItemW=widx('Item No.'), cQtyRec=widx('Qty. to Receive'), cQtyReceived=widx('Qty. Received'), cOrCode=widx('Over-Receipt Code');
         if (cNo===-1 || cSrcNo===-1 || cItemW===-1 || cQtyRec===-1) throw new Error('Warehouse Receipt Lines file missing No. / Source No. / Item No. / Qty. to Receive.');
+        // PO line the receipt line draws from. Deliberately NOT bare "Line No." — on a
+        // warehouse receipt that is the receipt's own line number (also 10000-stepped),
+        // so joining it to the PO's Line No. would look right and be silently wrong.
+        let cSrcLine = -1;
+        for (const a of ['Source Line No.','Source Line No','Source Line','PO Line No.','Purchase Line No.']) { cSrcLine = widx(a); if (cSrcLine!==-1) break; }
+        const lineGrain = cSrcLine!==-1 && cPoLine!==-1;
+        auditGrain = lineGrain ? 'line' : 'item';
+        auditGrainNote = lineGrain ? 'PO + Line (Source Line No. matched to Purchase Line No.)'
+          : (cSrcLine===-1 ? 'PO + Item — receipt file has no Source Line No. column; line-level conflicts NOT checked'
+                           : 'PO + Item — Purchase Lines file has no Line No. column; line-level conflicts NOT checked');
 
-        // Group every raw line by (WRCT, PO, Item) — the ACG export has no field showing
-        // which specific PO line a receipt line draws from, only PO+Item, so that's the
-        // real grain this check can honestly operate at.
+        // Group every raw line by (WRCT, PO, Line, Item) — or (WRCT, PO, Item) when the
+        // line can't be resolved.
         const groups = {};
         for (let i=1;i<whrRaw.length;i++){
           const row = whrRaw[i];
@@ -1291,8 +1315,9 @@ const RG = (function() {
           const wrct = String(row[cNo]).trim();
           const po = String(row[cSrcNo]).trim();
           const item = String(row[cItemW]).trim();
-          const key = wrct+'|'+po+'|'+item;
-          if (!groups[key]) groups[key] = { wrct, po, item, qtyRec:0, qtyReceived:0, orCodes: new Set(), rowCount:0 };
+          const poLine = lineGrain ? String(row[cSrcLine]==null?'':row[cSrcLine]).trim() : '';
+          const key = wrct+'|'+po+'|'+poLine+'|'+item;
+          if (!groups[key]) groups[key] = { wrct, po, poLine, item, qtyRec:0, qtyReceived:0, orCodes: new Set(), rowCount:0 };
           groups[key].qtyRec += Number(row[cQtyRec])||0;
           groups[key].qtyReceived += cQtyReceived!==-1 ? (Number(row[cQtyReceived])||0) : 0;
           if (cOrCode!==-1 && row[cOrCode]) groups[key].orCodes.add(String(row[cOrCode]).trim());
@@ -1318,19 +1343,23 @@ const RG = (function() {
         }
 
         auditRows = Object.values(groups).map(g => {
-          const capKey = g.po+'|'+g.item;
-          const cap = poItemCap[capKey];
-          const orig = poItemOrig[capKey];
+          const capKey = lineGrain ? g.po+'|'+g.poLine+'|'+g.item : g.po+'|'+g.item;
+          const cap = lineGrain ? poLineCap[capKey] : poItemCap[capKey];
+          const orig = lineGrain ? poLineOrig[capKey] : poItemOrig[capKey];
           let status;
           if (cap === undefined) {
             if (invoicedPOs) status = invoicedPOs.has(g.po) ? 'invoiced_orphan' : 'untraceable';
             else status = 'notonpo';
           }
           else if (g.qtyReceived < 0) status = 'contaminated';
-          else if (g.qtyRec <= cap) status = 'clean';
+          else if (!qtyGt(g.qtyRec, cap)) status = 'clean';
           else status = g.orCodes.size > 0 ? 'overcode' : 'overnocode';
-          const ratio = (orig && orig>0) ? g.qtyRec/orig : null;
-          const looksDoubled = ratio!==null && Math.abs(ratio - Math.round(ratio)) < 0.02 && Math.round(ratio) >= 2;
+          // Ratio is against what's OUTSTANDING (what BC will actually let post), not the
+          // original PO qty — the original understates risk once anything has been received.
+          const ratio = (cap!==undefined && cap>0) ? g.qtyRec/cap : null;
+          // Doubled-keying check stays against original qty — that's what a double-key looks like.
+          const origRatio = (orig && orig>0) ? g.qtyRec/orig : null;
+          const looksDoubled = origRatio!==null && Math.abs(origRatio - Math.round(origRatio)) < 0.02 && Math.round(origRatio) >= 2;
           return { ...g, cap: cap===undefined ? null : cap, orig: orig===undefined ? null : orig, ratio, looksDoubled, orCode: Array.from(g.orCodes).join(', '), status };
         });
 
@@ -1340,23 +1369,31 @@ const RG = (function() {
         // This overrides Clean/Over-Receipt (a shared pool is the more useful thing to see),
         // but never overrides Item Not On PO or Contaminated — those are fundamental data
         // problems independent of anything else happening.
-        const wrctsByItem = {};
+        // Pool = the PO line (or PO+Item fallback). Sharing a pool is only a problem if the
+        // COMBINED claim exceeds what's outstanding — binary: it fits or it doesn't.
+        const poolKey = r => lineGrain ? r.po+'|'+r.poLine+'|'+r.item : r.po+'|'+r.item;
+        const pools = {};
         auditRows.forEach(r => {
-          const key = r.po+'|'+r.item;
-          (wrctsByItem[key] = wrctsByItem[key] || new Set()).add(r.wrct);
+          const k = poolKey(r);
+          if (!pools[k]) pools[k] = { wrcts: new Set(), combined: 0 };
+          pools[k].wrcts.add(r.wrct);
+          pools[k].combined += r.qtyRec;
         });
         auditRows.forEach(r => {
-          const key = r.po+'|'+r.item;
-          const siblings = Array.from(wrctsByItem[key]).filter(w => w !== r.wrct);
+          const p = pools[poolKey(r)];
+          const siblings = Array.from(p.wrcts).filter(w => w !== r.wrct);
           r.otherWrcts = siblings;
+          r.combined = p.combined;
+          r.combinedRatio = (r.cap!==null && r.cap>0) ? p.combined/r.cap : null;
+          r.headroom = r.cap===null ? null : r.cap - p.combined;
           if (siblings.length > 0 && !['notonpo','contaminated','invoiced_orphan','untraceable'].includes(r.status)) {
-            r.status = 'conflict';
+            r.status = qtyGt(p.combined, r.cap) ? 'pool_over' : 'pool_fits';
           }
         });
 
         const _auditElapsed = Math.round(performance.now() - _auditStart);
         renderAudit(_auditElapsed);
-        sb('ok','✓ Checked '+auditRows.length+' receipt-line groups across every open PO in '+_auditElapsed+'ms');
+        sb(lineGrain?'ok':'wait', (lineGrain?'✓':'⚠')+' Checked '+auditRows.length+' receipt-line groups across every open PO in '+_auditElapsed+'ms — grain: '+auditGrainNote);
         setTimeout(()=>document.getElementById('resultsAudit').scrollIntoView({behavior:'smooth',block:'start'}), 150);
       } catch(err) {
         sb('err','✗ '+err.message, true);
@@ -1368,13 +1405,14 @@ const RG = (function() {
   function renderAudit(elapsedMs) {
     document.getElementById('resultsAudit').style.display = 'block';
     document.getElementById('auditTotalNum').textContent = auditRows.length;
-    document.getElementById('auditTotalSub').textContent = 'Every currently open receipt, every PO+Item on it';
+    document.getElementById('auditTotalSub').textContent = 'Every currently open receipt — pooled by ' + (auditGrain==='line' ? 'PO + Line' : 'PO + Item (line not checked)');
     document.getElementById('auditTotalMs').textContent = (elapsedMs!==undefined ? elapsedMs : '—') + 'ms';
 
-    const counts = { clean:0, overcode:0, overnocode:0, notonpo:0, contaminated:0, conflict:0, invoiced_orphan:0, untraceable:0 };
+    const counts = { clean:0, overcode:0, overnocode:0, notonpo:0, contaminated:0, pool_fits:0, pool_over:0, invoiced_orphan:0, untraceable:0 };
     auditRows.forEach(r => counts[r.status]++);
     document.getElementById('auditSummaryGrid').innerHTML =
-      cardHtml('orange', counts.conflict, '🟠 Receipt Conflict') +
+      cardHtml('red', counts.pool_over, '🔴 Shared Pool, Over-Claimed') +
+      cardHtml('green', counts.pool_fits, '🟢 Shared Pool, Fits') +
       cardHtml('green', counts.clean, '✅ Clean') +
       cardHtml('yellow', counts.overcode, '🟡 Over-Receipt, Code OK') +
       cardHtml('red', counts.overnocode, '🔴 Over-Receipt, NO Code') +
@@ -1396,7 +1434,7 @@ const RG = (function() {
   function filterAuditWrct(val) { auditWrctFilterText = val.trim().toLowerCase(); renderAuditTable(); }
 
   let auditSortState = { key: null, dir: 'desc' };
-  const AUDIT_NUMERIC_KEYS = ['qtyRec','orig','ratio','cap'];
+  const AUDIT_NUMERIC_KEYS = ['qtyRec','orig','ratio','cap','combined','combinedRatio','headroom'];
   function auditSortBy(key) {
     if (auditSortState.key===key) auditSortState.dir = auditSortState.dir==='desc'?'asc':'desc';
     else auditSortState = { key, dir:'desc' };
@@ -1427,13 +1465,16 @@ const RG = (function() {
     if (!filtered.length) { empty.style.display='block'; return; }
     empty.style.display='none';
     body.innerHTML = filtered.map(r => {
-      const badge = '<span class="badge" style="background:'+({clean:'#e2efda',overcode:'#fff2cc',overnocode:'#fce4d6',notonpo:'#fce4d6',contaminated:'#f0e6f6',conflict:'#fde4cc',invoiced_orphan:'#e8ddd0',untraceable:'#e0e0e0'}[r.status])+';color:'+({clean:'#27AE60',overcode:'#d4820a',overnocode:'#C0392B',notonpo:'#C0392B',contaminated:'#8e44ad',conflict:'#c0621e',invoiced_orphan:'#7a5c3e',untraceable:'#333333'}[r.status])+'">'+AUDIT_LABEL[r.status]+'</span>';
+      const badge = '<span class="badge" style="background:'+({clean:'#e2efda',overcode:'#fff2cc',overnocode:'#fce4d6',notonpo:'#fce4d6',contaminated:'#f0e6f6',pool_fits:'#e2efda',pool_over:'#fce4d6',invoiced_orphan:'#e8ddd0',untraceable:'#e0e0e0'}[r.status])+';color:'+({clean:'#27AE60',overcode:'#d4820a',overnocode:'#C0392B',notonpo:'#C0392B',contaminated:'#8e44ad',pool_fits:'#1e8449',pool_over:'#C0392B',invoiced_orphan:'#7a5c3e',untraceable:'#333333'}[r.status])+'">'+AUDIT_LABEL[r.status]+'</span>';
       const ratioTxt = r.ratio===null ? '—' : r.ratio.toFixed(2)+'x';
       const ratioCell = r.looksDoubled
         ? '<strong style="color:var(--red)">'+ratioTxt+' ⚠</strong>'
         : ratioTxt;
       const otherWrctsCell = (r.otherWrcts && r.otherWrcts.length) ? '<strong style="color:#c0621e">'+r.otherWrcts.map(esc).join(', ')+'</strong>' : '—';
-      return '<tr><td>'+esc(r.wrct)+'</td><td>'+esc(r.po)+'</td><td>'+esc(r.item)+'</td><td>'+fmt(r.qtyRec)+'</td><td>'+(r.orig===null?'—':fmt(r.orig))+'</td><td>'+ratioCell+'</td><td>'+(r.cap===null?'—':fmt(r.cap))+'</td><td>'+(r.orCode||'—')+'</td><td>'+otherWrctsCell+'</td><td>'+badge+'</td></tr>';
+      const cr = r.combinedRatio===null ? '—' : r.combinedRatio.toFixed(2)+'x';
+      const crCell = (r.cap!==null && qtyGt(r.combined, r.cap)) ? '<strong style="color:var(--red)">'+cr+'</strong>' : cr;
+      const hrCell = r.headroom===null ? '—' : (r.headroom < -1e-6 ? '<strong style="color:var(--red)">'+fmt(r.headroom)+'</strong>' : (Math.abs(r.headroom) <= 1e-6 ? '<strong style="color:#d4820a" title="Line fully consumed — any dock overage needs an Over-Receipt Code">0</strong>' : fmt(r.headroom)));
+      return '<tr><td>'+esc(r.wrct)+'</td><td>'+esc(r.po)+'</td><td>'+(r.poLine?esc(r.poLine):'—')+'</td><td>'+esc(r.item)+'</td><td>'+fmt(r.qtyRec)+'</td><td>'+(r.orig===null?'—':fmt(r.orig))+'</td><td>'+(r.cap===null?'—':fmt(r.cap))+'</td><td>'+ratioCell+'</td><td>'+fmt(r.combined)+'</td><td>'+crCell+'</td><td>'+hrCell+'</td><td>'+(r.orCode||'—')+'</td><td>'+otherWrctsCell+'</td><td>'+badge+'</td></tr>';
     }).join('');
   }
 
@@ -1441,11 +1482,20 @@ const RG = (function() {
     if (!auditRows.length) { sb('err','✗ Nothing to export.'); return; }
     const today = new Date().toISOString().slice(0,10);
     const wb = XLSX.utils.book_new();
-    const hdr = ['WRCT No.','PO No.','Item No.','Qty. to Receive','Original PO Qty','Ratio','Looks Doubled?','Qty Outstanding','Over-Receipt Code','Other WRCTs on this Item','Status'];
-    const rows = auditRows.map(r => [r.wrct, r.po, r.item, r.qtyRec, r.orig===null?'':r.orig, r.ratio===null?'':Math.round(r.ratio*100)/100, r.looksDoubled?'YES':'', r.cap===null?'':r.cap, r.orCode, (r.otherWrcts||[]).join(', '), AUDIT_LABEL[r.status]]);
+    const r2 = v => v===null||v===undefined ? '' : Math.round(v*100)/100;
+    const hdr = ['WRCT No.','PO No.','PO Line No.','Item No.','Qty. to Receive','Original PO Qty','Qty Outstanding','Ratio (vs Outstanding)','Looks Doubled?','Combined Claim','Combined Ratio','Headroom','Over-Receipt Code','Other WRCTs on this PO Line','Status'];
+    const rows = auditRows.map(r => [r.wrct, r.po, r.poLine||'', r.item, r.qtyRec, r.orig===null?'':r.orig, r.cap===null?'':r.cap, r2(r.ratio), r.looksDoubled?'YES':'', r.combined, r2(r.combinedRatio), r.headroom===null?'':r.headroom, r.orCode, (r.otherWrcts||[]).join(', '), AUDIT_LABEL[r.status]]);
     const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
-    ws['!cols'] = [{wch:14},{wch:12},{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:16},{wch:16},{wch:24},{wch:28}];
+    // Keep identifiers as text (Excel drops trailing zeros on item numbers like 616.005)
+    for (let i=0;i<rows.length;i++) [0,1,2,3].forEach(c => { const a = XLSX.utils.encode_cell({r:i+1,c}); if (ws[a]) { ws[a].t='s'; ws[a].v=String(ws[a].v); ws[a].z='@'; } });
+    ws['!cols'] = [{wch:14},{wch:12},{wch:11},{wch:18},{wch:14},{wch:15},{wch:15},{wch:12},{wch:13},{wch:15},{wch:14},{wch:11},{wch:16},{wch:26},{wch:30}];
     XLSX.utils.book_append_sheet(wb, ws, 'Audit');
+    const cnt = {}; auditRows.forEach(r => cnt[r.status] = (cnt[r.status]||0)+1);
+    const notes = [['Run Notes',''],['Run date', today],['Pool grain', auditGrainNote],['Lines checked', auditRows.length]]
+      .concat(Object.keys(AUDIT_LABEL).filter(k=>cnt[k]).map(k => [AUDIT_LABEL[k], cnt[k]]))
+      .concat([['',''],['Ratio','Qty to Receive ÷ Qty Outstanding on the PO line'],['Combined Claim','Sum of Qty to Receive across every open WRCT on the same PO line'],['Shared Pool — Fits','Combined Claim ≤ Qty Outstanding: posts in any order'],['Shared Pool — Over-Claimed','Combined Claim > Qty Outstanding: the later post fails without an Over-Receipt Code'],['Headroom','Qty Outstanding − Combined Claim. 0 = line fully consumed']]);
+    const wsN = XLSX.utils.aoa_to_sheet(notes); wsN['!cols'] = [{wch:30},{wch:80}];
+    XLSX.utils.book_append_sheet(wb, wsN, 'Run Notes');
     const data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
     const blob = new Blob([data],{type:'application/octet-stream'});
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Receipt_Audit_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
