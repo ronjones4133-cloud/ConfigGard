@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BackorderGard™ — Real Stockouts, Clearly Ranked</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+  :root{
+    --navy:#0D1F35;
+    --navy-dark:#081525;
+    --navy-mid:#132a47;
+    --gold:#E9A535;
+    --gold-soft:#f4c878;
+    --red:#C4432B;
+    --red-bg:#3a1712;
+    --orange:#D98A2B;
+    --orange-bg:#3a2a10;
+    --green:#4E8C5C;
+    --green-bg:#122a1a;
+    --paper:#F5F3EE;
+    --ink:#1c2530;
+    --line:rgba(233,165,53,0.22);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--navy-dark);
+    color:var(--paper);
+    font-family:Calibri, "Segoe UI", Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{ font-family:Cambria, Georgia, "Times New Roman", serif; }
+  .wrap{max-width:1200px;margin:0 auto;padding:28px 24px 80px;}
+
+  header.top{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--gold);
+    padding-bottom:18px;margin-bottom:26px;flex-wrap:wrap;gap:12px;
+  }
+  header.top .brand h1{ margin:0;font-size:34px;color:#fff;letter-spacing:0.3px; }
+  header.top .brand h1 span{color:var(--gold);}
+  header.top .brand p{margin:4px 0 0;color:var(--gold-soft);font-size:14px;letter-spacing:0.5px;}
+  header.top .family{text-align:right;color:rgba(245,243,238,0.55);font-size:12px;line-height:1.6;}
+
+  .panel{ background:var(--navy);border:1px solid var(--line);border-radius:6px;padding:22px;margin-bottom:22px; }
+  .panel h2{margin:0 0 4px;font-size:19px;color:#fff;}
+  .panel .sub{color:rgba(245,243,238,0.6);font-size:13px;margin:0 0 18px;}
+
+  .upload-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;max-width:900px;
+  }
+  .upload-slot{
+    border:1.5px dashed rgba(233,165,53,0.4);border-radius:6px;padding:16px 14px;
+    background:rgba(255,255,255,0.02);text-align:center;cursor:pointer;
+    transition:border-color .15s, background .15s;position:relative;
+  }
+  .upload-slot:hover{border-color:var(--gold);background:rgba(233,165,53,0.06);}
+  .upload-slot.dragover{border-color:var(--gold);background:rgba(233,165,53,0.14);border-style:solid;}
+  .upload-slot.filled{border-style:solid;border-color:var(--green);background:rgba(78,140,92,0.1);}
+  .upload-slot .tag{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--gold-soft);font-weight:bold;display:block;margin-bottom:6px;}
+  .upload-slot .fname{font-size:13px;font-weight:bold;color:#fff;margin:0 0 4px;}
+  .upload-slot .hint{font-size:11px;color:rgba(245,243,238,0.5);margin:0;}
+  .upload-slot .status{font-size:12px;margin-top:8px;color:var(--gold-soft);}
+  .upload-slot.filled .status{color:var(--green);}
+  .upload-slot input{display:none;}
+  .upload-slot .required{color:var(--red);font-weight:bold;}
+  .upload-slot .optional{color:rgba(245,243,238,0.4);font-weight:normal;}
+
+  button.primary{
+    background:var(--gold);color:var(--navy-dark);border:none;padding:13px 26px;
+    font-size:15px;font-weight:bold;border-radius:5px;cursor:pointer;letter-spacing:0.3px;
+  }
+  button.primary:hover{background:var(--gold-soft);}
+  button.primary:disabled{background:rgba(233,165,53,0.25);color:rgba(245,243,238,0.4);cursor:not-allowed;}
+  button.secondary{
+    background:transparent;color:var(--gold-soft);border:1px solid var(--line);
+    padding:9px 16px;font-size:13px;border-radius:5px;cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--gold);color:var(--gold);}
+
+  #runRow{display:flex;align-items:center;gap:16px;margin-top:20px;}
+  #runMsg{font-size:13px;color:rgba(245,243,238,0.55);}
+
+  .metrics-banner{
+    background:var(--navy-dark);border:1px solid var(--line);border-radius:6px;
+    padding:18px 24px;margin-bottom:20px;display:flex;align-items:center;gap:20px;
+    box-shadow:0 4px 20px rgba(8,21,37,0.3);
+  }
+  .metrics-num{font-size:44px;font-weight:900;color:var(--gold);line-height:1;letter-spacing:-1px;min-width:100px;font-variant-numeric:tabular-nums;font-family:Cambria,Georgia,serif;}
+  .metrics-right{flex:1;}
+  .metrics-label{color:rgba(245,243,238,0.5);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;}
+  .metrics-sub{color:rgba(245,243,238,0.75);font-size:13px;line-height:1.5;}
+  .metrics-sub strong{color:#fff;}
+  .metrics-icon{font-size:28px;margin-left:auto;opacity:0.5;}
+
+  .stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
+  .stat-card{background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:6px;padding:16px 18px;}
+  .stat-card .t{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--gold-soft);margin:0 0 6px;}
+  .stat-card .v{font-size:26px;font-weight:bold;color:#fff;margin:0;}
+  .stat-card .d{font-size:12px;color:rgba(245,243,238,0.55);margin:4px 0 0;}
+
+  .filter-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center;}
+  .filter-row input[type=text]{
+    background:var(--navy-dark);border:1px solid var(--line);color:#fff;
+    padding:8px 12px;border-radius:5px;font-size:13px;flex:1;min-width:180px;
+  }
+  select{ background:var(--navy-dark);border:1px solid var(--line);color:#fff;padding:8px 10px;border-radius:5px;font-size:13px; }
+  button.tab{ background:transparent;border:1px solid var(--line);color:rgba(245,243,238,0.7);padding:8px 14px;border-radius:20px;font-size:12.5px;cursor:pointer; }
+  button.tab.active{background:var(--gold);color:var(--navy-dark);border-color:var(--gold);font-weight:bold;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  thead th{
+    text-align:left;padding:9px 10px;background:var(--navy-dark);color:var(--gold-soft);
+    font-size:11px;text-transform:uppercase;letter-spacing:0.4px;cursor:pointer;
+    border-bottom:2px solid var(--line);position:sticky;top:0;white-space:nowrap;
+  }
+  thead th:hover{color:var(--gold);}
+  thead th[title]{cursor:help;}
+  thead th.wrap-col{white-space:normal;}
+  tbody td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.06);color:rgba(245,243,238,0.9);white-space:nowrap;}
+  tbody td.wrap-col{white-space:normal;}
+  tbody tr:hover{background:rgba(255,255,255,0.03);}
+  .pill{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:bold;letter-spacing:0.3px;}
+  .pill.widespread{background:var(--red);color:#fff;}
+  .pill.isolated{background:rgba(255,255,255,0.15);color:#fff;}
+  .table-wrap{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:6px;}
+  table{table-layout:auto;}
+  thead th.wrap-col, tbody td.wrap-col{white-space:normal;min-width:180px;max-width:320px;word-wrap:break-word;}
+  .count-badge{font-size:11px;color:rgba(245,243,238,0.5);margin-left:6px;}
+  .flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+
+  .empty-state{text-align:center;padding:50px 20px;color:rgba(245,243,238,0.45);}
+  .empty-state .big{font-size:40px;margin-bottom:8px;}
+
+  footer{ text-align:center;color:rgba(245,243,238,0.35);font-size:12px;margin-top:30px;padding-top:18px;border-top:1px solid var(--line); }
+  footer strong{color:var(--gold-soft);}
+  footer a{color:var(--gold-soft);text-decoration:underline;}
+  footer a:hover{color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Backorder<span>Gard</span>™</h1>
+      <p>Real stockouts, clearly ranked.</p>
+    </div>
+    <div class="family">
+      ConfigGard™ family · Simple systems • Strong teams<br>
+      Runs entirely in your browser — no data leaves this device
+    </div>
+  </header>
+
+  <div class="panel">
+    <h2>1. Load your files</h2>
+    <p class="sub">One file gets you a clean, ranked backorder list. Two more are optional — add them anytime for dollar values and real stock-availability, even after your first run.</p>
+    <div class="upload-grid">
+      <div class="upload-slot" data-key="backorders" onclick="document.getElementById('file_backorders').click()">
+        <span class="tag">1 <span class="required">· required</span></span>
+        <p class="fname">Inventory - Sales Back Orders</p>
+        <p class="hint">BC's native report (718) — no custom export needed</p>
+        <div class="status">Click or drag a file here</div>
+        <input type="file" id="file_backorders" accept=".xlsx,.xls">
+      </div>
+      <div class="upload-slot" data-key="salesLines" onclick="document.getElementById('file_salesLines').click()">
+        <span class="tag">2 <span class="optional">· optional</span></span>
+        <p class="fname">Sales Lines</p>
+        <p class="hint">Adds Open $ per line — the report has no dollar value on its own</p>
+        <div class="status">Click or drag a file here</div>
+        <input type="file" id="file_salesLines" accept=".xlsx,.xls">
+      </div>
+      <div class="upload-slot" data-key="items" onclick="document.getElementById('file_items').click()">
+        <span class="tag">3 <span class="optional">· optional</span></span>
+        <p class="fname">Items</p>
+        <p class="hint">Adds Root Cause — real stockout vs. stock sitting available</p>
+        <div class="status">Click or drag a file here</div>
+        <input type="file" id="file_items" accept=".xlsx,.xls">
+      </div>
+    </div>
+
+    <div id="runRow">
+      <button class="primary" id="runBtn" onclick="runAnalysis()" disabled>Run BackorderGard</button>
+      <span id="runMsg">Load the Back Orders report to begin.</span>
+    </div>
+  </div>
+
+  <div id="results" style="display:none;">
+
+    <div class="metrics-banner" id="metricsBanner">
+      <div class="metrics-num" id="metricsNum">0</div>
+      <div class="metrics-right">
+        <div class="metrics-label">Backordered Lines Cleaned &amp; Ranked</div>
+        <div class="metrics-sub" id="metricsSub">Analyzing…</div>
+      </div>
+      <div class="metrics-icon">📦</div>
+    </div>
+
+    <div class="panel">
+      <div class="flex-between">
+        <h2 style="margin-bottom:0;">2. The picture</h2>
+        <button class="secondary" onclick="resetAll()">Start New Analysis</button>
+      </div>
+      <p class="sub">Every backordered line BC flagged, with the subtotal rows and caption noise stripped out.</p>
+      <div class="stat-cards">
+        <div class="stat-card">
+          <p class="t">Backordered Lines</p>
+          <p class="v" id="statLines">0</p>
+          <p class="d">Real sales lines waiting on stock</p>
+        </div>
+        <div class="stat-card">
+          <p class="t">Customers Affected</p>
+          <p class="v" id="statCustomers">0</p>
+          <p class="d">Distinct accounts with a line waiting</p>
+        </div>
+        <div class="stat-card">
+          <p class="t">Orders Affected</p>
+          <p class="v" id="statOrders">0</p>
+          <p class="d">Distinct sales orders waiting</p>
+        </div>
+        <div class="stat-card">
+          <p class="t">Items Affected</p>
+          <p class="v" id="statItems">0</p>
+          <p class="d">Distinct items with a shortage</p>
+        </div>
+        <div class="stat-card">
+          <p class="t">Multi-Order Shortages</p>
+          <p class="v" id="statWidespread">0</p>
+          <p class="d">Lines whose item is waited on by 2+ separate orders right now</p>
+        </div>
+        <div class="stat-card">
+          <p class="t">Total Outstanding Qty</p>
+          <p class="v" id="statQty">0</p>
+          <p class="d">Summed across every backordered line</p>
+        </div>
+        <div class="stat-card">
+          <p class="t">Oldest Ship Date</p>
+          <p class="v" id="statOldest">—</p>
+          <p class="d">The single longest-overdue line in this report</p>
+        </div>
+        <div class="stat-card" id="statOpenDollarsCard" style="display:none;">
+          <p class="t">Total Open $</p>
+          <p class="v" id="statOpenDollars">$0</p>
+          <p class="d">From the Sales Lines file — not in the native report</p>
+        </div>
+        <div class="stat-card" id="statStaleCard" style="display:none;border-color:var(--red);">
+          <p class="t" style="color:#ff8f74;">Possibly Already Shipped</p>
+          <p class="v" id="statStale">0</p>
+          <p class="d">Sales Lines shows a lower Outstanding Qty than this report — check before chasing these</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="flex-between">
+        <h2 style="margin-bottom:0;">3. Item Summary</h2>
+      </div>
+      <p class="sub">One row per item — total outstanding quantity and how many orders are waiting on it. BC's own per-item subtotal is cross-checked against this automatically.</p>
+      <div class="table-wrap" style="max-height:320px;">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortSummaryBy('itemNo')">Item No.</th>
+              <th class="wrap-col" onclick="sortSummaryBy('desc')">Description</th>
+              <th onclick="sortSummaryBy('totalOutstanding')">Total Outstanding Qty</th>
+              <th onclick="sortSummaryBy('orderCount')">Orders Waiting</th>
+              <th onclick="sortSummaryBy('oldestShip')" title="The oldest planned ship date among this item's backordered lines.">Oldest Ship Date</th>
+              <th id="summaryQohHeader" onclick="sortSummaryBy('qoh')" title="Quantity on Hand, from the Items file. Backordered doesn't always mean truly out of stock — this shows what's actually sitting on the shelf." style="display:none;">Inventory On Hand ⓘ</th>
+              <th id="summaryPOHeader" onclick="sortSummaryBy('openPOQty')" title="Qty. on Purch. Order, from the Items file." style="display:none;">Open PO Qty ⓘ</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="flex-between">
+        <h2 style="margin-bottom:0;">4. Line Detail</h2>
+        <button class="secondary" onclick="exportExcel()">Export Excel (Detail + Item Summary)</button>
+      </div>
+      <p class="sub">Sorted oldest-first by default. Phone number is pulled straight from BC — no separate customer lookup needed.</p>
+
+      <div class="filter-row">
+        <input type="text" id="searchBox" placeholder="Search customer, order no., item..." oninput="renderTable()">
+        <button class="tab active" data-f="ALL" onclick="setWidespreadFilter('ALL',this)">All</button>
+        <button class="tab" data-f="MULTI" onclick="setWidespreadFilter('MULTI',this)">Multi-Order Only</button>
+        <span class="count-badge" id="resultCount"></span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="nowrap" onclick="sortBy('daysOverdue')" title="Days since the planned Shipment Date passed. 'Not yet due' means the date hasn't arrived yet.">Days Overdue ⓘ</th>
+              <th class="nowrap" onclick="sortBy('itemNo')">Item No.</th>
+              <th class="wrap-col" onclick="sortBy('desc')">Description</th>
+              <th class="nowrap" onclick="sortBy('docNo')">Document No.</th>
+              <th class="wrap-col" onclick="sortBy('custName')">Customer</th>
+              <th class="nowrap" onclick="sortBy('custPhone')">Phone</th>
+              <th class="nowrap" onclick="sortBy('shipDate')">Ship Date</th>
+              <th class="nowrap" onclick="sortBy('outstanding')">Outstanding Qty</th>
+              <th class="nowrap" onclick="sortBy('pctShipped')" title="Share of the original line quantity already shipped. A line at 95% is a different kind of stuck than one at 0%.">% Shipped ⓘ</th>
+              <th class="nowrap" id="openDollarsHeader" onclick="sortBy('openAmt')" style="display:none;">Open $</th>
+              <th class="nowrap" id="rootCauseHeader" onclick="sortBy('rootCause')" style="display:none;">Root Cause</th>
+              <th class="nowrap" id="openPOQtyHeader" onclick="sortBy('openPOQty')" title="Qty. on Purch. Order, from the Items file. 0 incoming is a very different problem than a shipment due next week." style="display:none;">Open PO Qty ⓘ</th>
+              <th class="nowrap" id="locationHeader" onclick="sortBy('loc')" style="display:none;">Location</th>
+              <th class="nowrap" id="staleHeader" onclick="sortBy('stale')" title="Sales Lines' own Outstanding Quantity is lower than this report's — usually means the line already shipped or invoiced and hasn't reconciled yet. Worth checking before treating it as a real backorder." style="display:none;">Stale Check ⓘ</th>
+              <th class="nowrap" onclick="sortBy('orderCount')" title="Computed independently by BackorderGard: how many distinct orders are currently backordered on this same item. Not the same as BC's own 'Other Back Orders' flag, which doesn't correlate cleanly with this — see the export for BC's raw value.">Orders Waiting ⓘ</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="emptyState" class="empty-state">
+    <div class="big">📦</div>
+    <p>Upload the Inventory - Sales Back Orders report to start.</p>
+  </div>
+
+  <footer>
+    <strong>BackorderGard™</strong> is part of the <strong>ConfigGard™</strong> suite of Business Central alignment tools.<br><br>
+    Built by <strong><a href="https://www.linkedin.com/in/ronjones4133/" target="_blank" rel="noopener">Ron Jones</a></strong> · Supply Chain &amp; ERP Systems<br><br>
+    © 2026 ConfigGard · All rights reserved · Source code proprietary · Not affiliated with Microsoft Corporation or Integrated Warehouse Solutions<br>
+    <a href="https://ronjones4133-cloud.github.io/ConfigGard/TERMS.md" target="_blank" rel="noopener">Terms of Use</a> · First published September 2026<br><br>
+    Standalone tool. All processing happens locally in your browser; no file data is uploaded anywhere.
+  </footer>
+</div>
+
+<script>
+let RAW = { backorders:null, salesLines:null, items:null };
+let ROWS = [];
+let SUMMARY = [];
+let LAST_METRICS = null;
+let sortState = { key:'daysOverdue', dir:-1 };
+let summarySortState = { key:'totalOutstanding', dir:-1 };
+let widespreadFilter = 'ALL';
+
+const bgSlots = ['backorders','salesLines','items'];
+bgSlots.forEach(key => {
+  document.getElementById('file_'+key).addEventListener('change', (e) => handleFile(key, e.target.files[0]));
+  const slot = document.querySelector('.upload-slot[data-key="'+key+'"]');
+  slot.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); slot.classList.add('dragover'); });
+  slot.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); slot.classList.remove('dragover'); });
+  slot.addEventListener('drop', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    slot.classList.remove('dragover');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(file) handleFile(key, file);
+  });
+});
+
+function handleFile(key, file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const sheetName = wb.SheetNames.includes('Data') ? 'Data' : wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true });
+      RAW[key] = rows;
+      const slot = document.querySelector('.upload-slot[data-key="'+key+'"]');
+      slot.classList.add('filled');
+      slot.querySelector('.status').textContent = '✓ ' + file.name;
+      checkReady();
+    }catch(err){
+      alert('Could not read '+file.name+': '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function checkReady(){
+  const ready = !!RAW.backorders;
+  document.getElementById('runBtn').disabled = !ready;
+  document.getElementById('runMsg').textContent = ready
+    ? 'Ready. Optional files loaded: ' + (RAW.salesLines?1:0) + (RAW.items?1:0) + ' of 2.'
+    : 'Load the Back Orders report to begin.';
+}
+
+function colIndex(header, names){
+  const lower = header.map(h => (h||'').toString().trim().toLowerCase());
+  for(const name of names){
+    const idx = lower.indexOf(name.toLowerCase());
+    if(idx !== -1) return idx;
+  }
+  return -1;
+}
+
+// BC's Excel export writes truly-blank/unset values as the literal string "NULL" in many report
+// layouts (this one included) rather than an empty cell. Treat that string as null everywhere.
+function deNull(v){
+  return (v === 'NULL' || v === null || v === undefined) ? null : v;
+}
+
+function parseShipDate(v){
+  // BC renders this as a short-date string like "08/28/26" (MM/DD/YY) in this report layout,
+  // not a real Excel date serial — parse it explicitly rather than trusting Date() to guess
+  // the format correctly across browsers/locales.
+  if(!v) return null;
+  const s = String(v).trim();
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(!m) return null;
+  let [, mm, dd, yy] = m;
+  yy = yy.length === 2 ? (2000 + parseInt(yy,10)) : parseInt(yy,10);
+  const d = new Date(yy, parseInt(mm,10)-1, parseInt(dd,10));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function fmtDate(d){
+  if(!d) return '';
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return d.getFullYear() + '-' + mm + '-' + dd;
+}
+
+function runAnalysis(){
+  const _bgStart = performance.now();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dayMs = 86400000;
+
+  const header = RAW.backorders[0];
+  const data = RAW.backorders.slice(1);
+  const c = {
+    itemNo: colIndex(header, ['No_Item']),
+    desc: colIndex(header, ['Description_Item']),
+    docNo: colIndex(header, ['DocumentNo_SalesLine']),
+    custName: colIndex(header, ['CustName_SalesLine']),
+    custPhone: colIndex(header, ['CustPhoneNo_SalesLine']),
+    shipDate: colIndex(header, ['ShipmentDate_SalesLine']),
+    qty: colIndex(header, ['Quantity_SalesLine']),
+    outstanding: colIndex(header, ['OutstandingQty_SalesLine']),
+    otherBO: colIndex(header, ['OtherBackOrders_SalesLine']),
+    subtotal: colIndex(header, ['SubTotals_Outstanding_Qty'])
+  };
+
+  // Detail rows carry a real Document No.; BC's per-item subtotal rows have it set to "NULL"
+  // (and Item No./Description repeated) — those are structural noise, not data, and are dropped.
+  let detailRows = data.filter(r => deNull(r[c.docNo]) !== null);
+
+  // ---- Optional: Sales Lines (Open $, stale-line check, Location) ----
+  // Keyed by Document No. + Item No., prorated the same way PromiseGard does — this report's own
+  // Outstanding Qty is the same field, so Amount * (Outstanding/Quantity) gives the $ still open
+  // on this specific line, not the line's full original value. Sales Lines' own Outstanding
+  // Quantity is an independently-pulled figure from the same underlying data as the native Back
+  // Orders report — if it disagrees (lower), that's the exact signature of a line that's already
+  // shipped/invoiced but hasn't reconciled, the pattern found by hand in the 9/23 review.
+  let slMap = new Map();
+  let hasSalesLines = !!RAW.salesLines;
+  if(hasSalesLines){
+    const slHeader = RAW.salesLines[0]; const slData = RAW.salesLines.slice(1);
+    const sc = { docNo: colIndex(slHeader,['Document No.']), itemNo: colIndex(slHeader,['No.']),
+      qty: colIndex(slHeader,['Quantity']), amount: colIndex(slHeader,['Amount']),
+      outstanding: colIndex(slHeader,['Outstanding Quantity']), loc: colIndex(slHeader,['Location Code']) };
+    slData.forEach(r => {
+      const key = r[sc.docNo] + '|' + r[sc.itemNo];
+      slMap.set(key, { qty: r[sc.qty] || 1, amount: r[sc.amount] || 0, outstanding: r[sc.outstanding], loc: r[sc.loc] });
+    });
+  }
+
+  // ---- Optional: Items (Root Cause + non-inventory exclusion + Open PO Qty) ----
+  // Same structural signal used throughout the ConfigGard suite: a blank Quantity on Hand means
+  // the item was never configured as inventory-tracked (freight, surcharges, tariffs) — excluded
+  // here too, since "backordered" has no meaning for a line that was never real stock.
+  let itMap = new Map();
+  let hasItems = !!RAW.items;
+  let excludedNonInventory = 0;
+  if(hasItems){
+    const itHeader = RAW.items[0]; const itData = RAW.items.slice(1);
+    const ic = { no: colIndex(itHeader,['No.']), qoh: colIndex(itHeader,['Quantity on Hand']),
+      qtyOnPO: colIndex(itHeader,['Qty. on Purch. Order']) };
+    itData.forEach(r => {
+      itMap.set(r[ic.no], { qoh: r[ic.qoh] || 0, qohIsBlank: (r[ic.qoh] === null || r[ic.qoh] === undefined),
+        qtyOnPO: r[ic.qtyOnPO] || 0 });
+    });
+    const beforeCount = detailRows.length;
+    detailRows = detailRows.filter(r => {
+      const item = itMap.get(r[c.itemNo]);
+      return !(item && item.qohIsBlank);
+    });
+    excludedNonInventory = beforeCount - detailRows.length;
+  }
+
+  // Independently roll up outstanding qty per item, so we're not just trusting BC's own subtotal
+  // blindly — if the two disagree, that's worth surfacing, not silently accepting.
+  const itemTotals = new Map();
+  detailRows.forEach(r => {
+    const item = r[c.itemNo];
+    const qty = r[c.outstanding] || 0;
+    if(!itemTotals.has(item)) itemTotals.set(item, { desc: r[c.desc], total: 0, orders: new Set(), oldestShip: null });
+    const entry = itemTotals.get(item);
+    entry.total += qty;
+    entry.orders.add(r[c.docNo]);
+    const sd = parseShipDate(r[c.shipDate]);
+    if(sd && (!entry.oldestShip || sd < entry.oldestShip)) entry.oldestShip = sd;
+  });
+
+  ROWS = detailRows.map(r => {
+    const shipDate = parseShipDate(r[c.shipDate]);
+    let dueInDays = null;
+    if(shipDate){ dueInDays = Math.round((shipDate - today)/dayMs); }
+    const daysOverdue = (dueInDays !== null && dueInDays < 0) ? -dueInDays : null;
+    const item = r[c.itemNo];
+    const docNo = r[c.docNo];
+    const outstanding = r[c.outstanding] || 0;
+    const ordersForItem = itemTotals.get(item).orders.size;
+
+    let openAmt = null;
+    let stale = false, staleDelta = null;
+    let loc = null;
+    if(hasSalesLines){
+      const sl = slMap.get(docNo + '|' + item);
+      if(sl){
+        openAmt = sl.amount * (outstanding / sl.qty);
+        loc = sl.loc || null;
+        if(sl.outstanding !== null && sl.outstanding !== undefined && sl.outstanding < outstanding){
+          stale = true;
+          staleDelta = outstanding - sl.outstanding;
+        }
+      }
+    }
+
+    let rootCause = null, openPOQty = null;
+    if(hasItems){
+      const it = itMap.get(item);
+      rootCause = it ? (it.qoh < outstanding ? 'STOCKOUT' : 'AVAILABLE_NOT_MOVING') : 'NO ITEM MATCH';
+      openPOQty = it ? it.qtyOnPO : null;
+    }
+
+    const qtyOriginal = r[c.qty] || 0;
+    const pctShipped = qtyOriginal > 0 ? Math.round(((qtyOriginal - outstanding) / qtyOriginal) * 100) : null;
+
+    return {
+      itemNo: item, desc: r[c.desc], docNo,
+      custName: r[c.custName], custPhone: r[c.custPhone] || '—',
+      shipDate, dueInDays, daysOverdue,
+      qty: qtyOriginal, outstanding, pctShipped,
+      widespread: ordersForItem > 1, orderCount: ordersForItem,
+      bcOtherBackOrders: deNull(r[c.otherBO]),
+      openAmt, rootCause, openPOQty, loc, stale, staleDelta
+    };
+  });
+
+  SUMMARY = [...itemTotals.entries()].map(([itemNo, v]) => ({
+    itemNo, desc: v.desc, totalOutstanding: v.total, orderCount: v.orders.size, oldestShip: v.oldestShip,
+    qoh: hasItems ? (itMap.get(itemNo) ? itMap.get(itemNo).qoh : null) : null,
+    openPOQty: hasItems ? (itMap.get(itemNo) ? itMap.get(itemNo).qtyOnPO : null) : null
+  }));
+
+  // Cross-check our independent per-item rollup against BC's own subtotal rows, when present.
+  // Items intentionally excluded above (non-inventory, when the Items file is loaded) won't be in
+  // itemTotals at all — that's expected, not a mismatch, and is skipped rather than miscounted.
+  const subtotalRows = data.filter(r => deNull(r[c.docNo]) === null && r[c.subtotal] !== null && r[c.subtotal] !== 'NULL');
+  let subtotalMismatches = 0;
+  subtotalRows.forEach(r => {
+    const ourEntry = itemTotals.get(r[c.itemNo]);
+    if(!ourEntry) return;
+    const bcVal = r[c.subtotal];
+    if(bcVal !== null && Number(bcVal) !== Number(ourEntry.total)) subtotalMismatches++;
+  });
+
+  const _bgElapsed = (performance.now() - _bgStart) / 1000;
+  LAST_METRICS = {
+    rawRows: data.length, detailRows: detailRows.length, subtotalRowsFound: subtotalRows.length,
+    subtotalMismatches, elapsed: _bgElapsed, hasSalesLines, hasItems, excludedNonInventory
+  };
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('emptyState').style.display = 'none';
+  renderMetricsBanner();
+  renderStats();
+  renderSummary();
+  renderTable();
+}
+
+function renderMetricsBanner(){
+  const m = LAST_METRICS;
+  document.getElementById('metricsNum').textContent = ROWS.length.toLocaleString();
+  const timeStr = m.elapsed < 0.1 ? '<0.1s' : m.elapsed.toFixed(2) + 's';
+  let checkMsg = m.subtotalRowsFound
+    ? ('Cross-checked against BC own ' + m.subtotalRowsFound.toLocaleString() + ' per-item subtotals — ' +
+       (m.subtotalMismatches === 0 ? 'all matched.' : m.subtotalMismatches + ' mismatch(es) found.'))
+    : 'No BC subtotal rows found to cross-check against.';
+  let extra = '';
+  if(m.excludedNonInventory > 0) extra += ' ' + m.excludedNonInventory + ' non-inventory charge line(s) excluded.';
+  if(!m.hasSalesLines && !m.hasItems) extra += ' Add Sales Lines and/or Items for Open $, stale-line checks, Root Cause, and incoming PO qty.';
+  document.getElementById('metricsSub').innerHTML =
+    '<strong>' + m.rawRows.toLocaleString() + ' raw rows</strong> stripped down to <strong>' + m.detailRows.toLocaleString() + ' real backordered lines</strong> in <strong>' + timeStr + '</strong> — ' + checkMsg + extra;
+}
+
+function fmtQty(n){ return Math.round(n).toLocaleString(); }
+function fmtMoney(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+
+function renderStats(){
+  document.getElementById('statLines').textContent = ROWS.length.toLocaleString();
+  document.getElementById('statItems').textContent = SUMMARY.length.toLocaleString();
+  const distinctOrders = new Set(ROWS.map(r=>r.docNo));
+  document.getElementById('statOrders').textContent = distinctOrders.size.toLocaleString();
+  const distinctCustomers = new Set(ROWS.map(r=>r.custName));
+  document.getElementById('statCustomers').textContent = distinctCustomers.size.toLocaleString();
+  document.getElementById('statWidespread').textContent = ROWS.filter(r=>r.widespread).length.toLocaleString();
+  document.getElementById('statQty').textContent = fmtQty(ROWS.reduce((s,r)=>s+r.outstanding,0));
+  const withDates = ROWS.filter(r=>r.shipDate).sort((a,b)=>a.shipDate-b.shipDate);
+  document.getElementById('statOldest').textContent = withDates.length ? fmtDate(withDates[0].shipDate) : '—';
+
+  const openCard = document.getElementById('statOpenDollarsCard');
+  if(LAST_METRICS.hasSalesLines){
+    openCard.style.display = '';
+    document.getElementById('statOpenDollars').textContent = fmtMoney(ROWS.reduce((s,r)=>s+(r.openAmt||0),0));
+  } else {
+    openCard.style.display = 'none';
+  }
+
+  const staleCard = document.getElementById('statStaleCard');
+  if(LAST_METRICS.hasSalesLines){
+    staleCard.style.display = '';
+    document.getElementById('statStale').textContent = ROWS.filter(r=>r.stale).length.toLocaleString();
+  } else {
+    staleCard.style.display = 'none';
+  }
+
+  document.getElementById('openDollarsHeader').style.display = LAST_METRICS.hasSalesLines ? '' : 'none';
+  document.getElementById('rootCauseHeader').style.display = LAST_METRICS.hasItems ? '' : 'none';
+  document.getElementById('openPOQtyHeader').style.display = LAST_METRICS.hasItems ? '' : 'none';
+  document.getElementById('locationHeader').style.display = LAST_METRICS.hasSalesLines ? '' : 'none';
+  document.getElementById('staleHeader').style.display = LAST_METRICS.hasSalesLines ? '' : 'none';
+}
+
+function sortSummaryBy(key){
+  if(summarySortState.key === key) summarySortState.dir *= -1;
+  else { summarySortState.key = key; summarySortState.dir = 1; }
+  renderSummary();
+}
+
+function renderSummary(){
+  const showQoh = LAST_METRICS && LAST_METRICS.hasItems;
+  document.getElementById('summaryQohHeader').style.display = showQoh ? '' : 'none';
+  document.getElementById('summaryPOHeader').style.display = showQoh ? '' : 'none';
+
+  const sorted = [...SUMMARY].sort((a,b) => {
+    let av = a[summarySortState.key], bv = b[summarySortState.key];
+    if(av === null || av === undefined) av = summarySortState.dir === 1 ? Infinity : -Infinity;
+    if(bv === null || bv === undefined) bv = summarySortState.dir === 1 ? Infinity : -Infinity;
+    if(typeof av === 'string') return av.localeCompare(bv) * summarySortState.dir;
+    if(av instanceof Date) return (av - bv) * summarySortState.dir;
+    return (av - bv) * summarySortState.dir;
+  });
+  document.getElementById('summaryBody').innerHTML = sorted.slice(0,500).map(s => `
+    <tr>
+      <td>${s.itemNo}</td>
+      <td class="wrap-col">${s.desc || ''}</td>
+      <td>${fmtQty(s.totalOutstanding)}</td>
+      <td>${s.orderCount}</td>
+      <td>${fmtDate(s.oldestShip) || '—'}</td>
+      ${showQoh ? `<td>${s.qoh !== null ? fmtQty(s.qoh) : '—'}</td>` : ''}
+      ${showQoh ? `<td>${s.openPOQty !== null ? fmtQty(s.openPOQty) : '—'}</td>` : ''}
+    </tr>`).join('');
+}
+
+function setWidespreadFilter(f, btn){
+  widespreadFilter = f;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function sortBy(key){
+  if(sortState.key === key) sortState.dir *= -1;
+  else { sortState.key = key; sortState.dir = 1; }
+  renderTable();
+}
+
+function rootCauseLabel(rc){
+  return rc==='STOCKOUT' ? 'No Stock' : rc==='AVAILABLE_NOT_MOVING' ? 'Available — Not Moving' : rc==='NO ITEM MATCH' ? 'No Item Match' : '—';
+}
+
+function renderTable(){
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  let filtered = ROWS.filter(r => {
+    if(widespreadFilter === 'MULTI' && !r.widespread) return false;
+    if(search){
+      const hay = [r.custName, r.docNo, r.itemNo, r.desc].join(' ').toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    let av = a[sortState.key], bv = b[sortState.key];
+    if(av === null || av === undefined) av = sortState.dir === 1 ? Infinity : -Infinity;
+    if(bv === null || bv === undefined) bv = sortState.dir === 1 ? Infinity : -Infinity;
+    if(typeof av === 'string') return av.localeCompare(bv) * sortState.dir;
+    if(av instanceof Date) return (av - bv) * sortState.dir;
+    if(typeof av === 'boolean'){ av = av?1:0; bv = bv?1:0; }
+    return (av - bv) * sortState.dir;
+  });
+
+  document.getElementById('resultCount').textContent = filtered.length + ' of ' + ROWS.length + ' lines';
+
+  const showOpen = LAST_METRICS && LAST_METRICS.hasSalesLines;
+  const showRC = LAST_METRICS && LAST_METRICS.hasItems;
+
+  document.getElementById('tableBody').innerHTML = filtered.slice(0,500).map(r => `
+    <tr>
+      <td>${r.daysOverdue !== null ? r.daysOverdue : 'Not yet due'}</td>
+      <td>${r.itemNo}</td>
+      <td class="wrap-col">${r.desc || ''}</td>
+      <td>${r.docNo}</td>
+      <td class="wrap-col">${r.custName || ''}</td>
+      <td>${r.custPhone}</td>
+      <td>${fmtDate(r.shipDate) || '—'}</td>
+      <td>${fmtQty(r.outstanding)}</td>
+      <td>${r.pctShipped !== null ? r.pctShipped + '%' : '—'}</td>
+      ${showOpen ? `<td>${r.openAmt !== null ? fmtMoney(r.openAmt) : '—'}</td>` : ''}
+      ${showRC ? `<td>${rootCauseLabel(r.rootCause)}</td>` : ''}
+      ${showRC ? `<td>${r.openPOQty !== null ? fmtQty(r.openPOQty) : '—'}</td>` : ''}
+      ${showOpen ? `<td>${r.loc || '—'}</td>` : ''}
+      ${showOpen ? `<td>${r.stale ? '⚠ Check (Δ ' + fmtQty(r.staleDelta) + ')' : '—'}</td>` : ''}
+      <td>${r.orderCount}${r.widespread ? ' 🔁' : ''}</td>
+    </tr>`).join('');
+}
+
+async function exportExcel(){
+  // Sorted oldest-first, same as the on-screen default — Days Overdue is driven by Ship Date,
+  // which is normally shared across a sales order's lines, so this naturally keeps an order's
+  // lines together without forcing a different sort just for the banding to work.
+  const sortedRows = [...ROWS].sort((a,b) => (b.daysOverdue||0) - (a.daysOverdue||0));
+  const showOpen = LAST_METRICS && LAST_METRICS.hasSalesLines;
+  const showRC = LAST_METRICS && LAST_METRICS.hasItems;
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'BackorderGard';
+  wb.created = new Date();
+
+  // ---- Line Detail ----
+  const ws1 = wb.addWorksheet('Line Detail');
+  const detailCols = [
+    { header:'Days Overdue', key:'daysOverdue', width:13 },
+    { header:'Item No.', key:'itemNo', width:16 },
+    { header:'Description', key:'desc', width:34 },
+    { header:'Document No.', key:'docNo', width:15 },
+    { header:'Customer', key:'custName', width:26 },
+    { header:'Phone', key:'custPhone', width:16 },
+    { header:'Ship Date', key:'shipDate', width:12 }
+  ];
+  if(showOpen) detailCols.push({ header:'Open $', key:'openAmt', width:12 });
+  if(showRC) detailCols.push({ header:'Root Cause', key:'rootCause', width:20 });
+  detailCols.push({ header:'Outstanding Qty', key:'outstanding', width:14 });
+  detailCols.push({ header:'% Shipped', key:'pctShipped', width:12 });
+  if(showRC) detailCols.push({ header:'Open PO Qty', key:'openPOQty', width:13 });
+  if(showOpen) detailCols.push({ header:'Location', key:'loc', width:12 });
+  if(showOpen) detailCols.push({ header:'Stale Check', key:'staleCheck', width:22 });
+  detailCols.push({ header:'Orders Waiting (Multi-Order if 2+)', key:'orderCount', width:16 });
+  detailCols.push({ header:'BC "Other Back Orders" flag (raw, unverified meaning)', key:'bcFlag', width:20 });
+  ws1.columns = detailCols;
+  ws1.getRow(1).font = { bold:true };
+  ws1.getRow(1).alignment = { vertical:'middle' };
+  ws1.views = [{ state:'frozen', ySplit:1 }];
+
+  sortedRows.forEach(r => {
+    ws1.addRow({
+      daysOverdue: r.daysOverdue !== null ? r.daysOverdue : 'Not yet due',
+      itemNo: r.itemNo, desc: r.desc, docNo: r.docNo, custName: r.custName, custPhone: r.custPhone,
+      shipDate: fmtDate(r.shipDate),
+      openAmt: showOpen ? (r.openAmt !== null ? Math.round(r.openAmt) : '') : undefined,
+      rootCause: showRC ? rootCauseLabel(r.rootCause) : undefined,
+      outstanding: r.outstanding,
+      pctShipped: r.pctShipped !== null ? r.pctShipped / 100 : '',
+      openPOQty: showRC ? (r.openPOQty !== null ? r.openPOQty : '') : undefined,
+      loc: showOpen ? (r.loc || '') : undefined,
+      staleCheck: showOpen ? (r.stale ? 'Check — possibly shipped (Δ ' + r.staleDelta + ')' : '') : undefined,
+      orderCount: r.orderCount,
+      bcFlag: r.bcOtherBackOrders || ''
+    });
+  });
+  // % Shipped stored as a fraction (0-1) above so Excel's own percent format reads correctly.
+  const pctShippedColIdx = detailCols.findIndex(dc => dc.key === 'pctShipped') + 1;
+  ws1.getColumn(pctShippedColIdx).numFmt = '0%';
+
+  // Static alternating fill by Document No. — colors are baked in at export time, based on the
+  // row order above. Re-sorting the file afterward (e.g. by Item No. in Excel) won't move the
+  // colors with the rows, same as any static formatting.
+  const LIGHT_BLUE = 'FFDCEEF9';
+  let lastDocNo = null, useBlue = false;
+  sortedRows.forEach((r, i) => {
+    if(r.docNo !== lastDocNo){ useBlue = !useBlue; lastDocNo = r.docNo; }
+    if(useBlue){
+      const row = ws1.getRow(i + 2);
+      row.eachCell({ includeEmpty:true }, cell => {
+        cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: LIGHT_BLUE } };
+      });
+    }
+  });
+
+  // ---- Item Summary ----
+  const ws2 = wb.addWorksheet('Item Summary');
+  const summaryCols = [
+    { header:'Item No.', key:'itemNo', width:16 },
+    { header:'Description', key:'desc', width:34 },
+    { header:'Total Outstanding Qty', key:'totalOutstanding', width:16 },
+    { header:'Orders Waiting', key:'orderCount', width:14 },
+    { header:'Oldest Ship Date', key:'oldestShip', width:14 },
+    { header:'Inventory On Hand', key:'qoh', width:16 },
+    { header:'Open PO Qty', key:'openPOQty', width:13 }
+  ];
+  ws2.columns = summaryCols;
+  ws2.getRow(1).font = { bold:true };
+  ws2.views = [{ state:'frozen', ySplit:1 }];
+  [...SUMMARY].sort((a,b) => b.totalOutstanding - a.totalOutstanding).forEach(s => {
+    ws2.addRow({
+      itemNo: s.itemNo, desc: s.desc, totalOutstanding: s.totalOutstanding,
+      orderCount: s.orderCount, oldestShip: fmtDate(s.oldestShip),
+      qoh: s.qoh !== null ? s.qoh : '',
+      openPOQty: s.openPOQty !== null ? s.openPOQty : ''
+    });
+  });
+
+  const dateStr = new Date().toISOString().slice(0,10);
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `BackorderGard_${dateStr}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function resetAll(){
+  RAW = { backorders:null, salesLines:null, items:null };
+  ROWS = []; SUMMARY = []; LAST_METRICS = null;
+  sortState = { key:'daysOverdue', dir:-1 };
+  widespreadFilter = 'ALL';
+  bgSlots.forEach(key => {
+    const slot = document.querySelector('.upload-slot[data-key="'+key+'"]');
+    slot.classList.remove('filled');
+    slot.querySelector('.status').textContent = 'Click or drag a file here';
+    document.getElementById('file_'+key).value = '';
+  });
+  document.getElementById('searchBox').value = '';
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.tab[data-f="ALL"]').classList.add('active');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'block';
+  checkReady();
+}
+</script>
+</body>
+</html>
