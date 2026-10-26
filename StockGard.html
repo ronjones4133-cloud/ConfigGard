@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,9 +27,9 @@ nav{background:var(--navy-deep);padding:0 32px;height:52px;display:flex;align-it
 .nav-suite{color:rgba(255,255,255,.3);font-size:11px;margin-left:2px}
 .nav-tag{color:rgba(255,255,255,.3);font-size:11px}
 
-#hero{background:linear-gradient(140deg,var(--navy-deep) 0%,#0f2440 45%,#112035 100%);padding:52px 32px 48px;position:relative;overflow:hidden;height:calc(100vh - 52px);display:flex;flex-direction:column;justify-content:center;transition:padding .3s,height .3s}
+#hero{background:linear-gradient(140deg,var(--navy-deep) 0%,#0f2440 45%,#112035 100%);padding:44px 32px 40px;position:relative;overflow:hidden;min-height:calc(100vh - 52px);display:flex;flex-direction:column;justify-content:center;transition:padding .3s}
 #hero::after{content:'';position:absolute;right:-60px;top:-60px;width:400px;height:400px;background:radial-gradient(circle,rgba(233,165,53,.06) 0%,transparent 70%);pointer-events:none}
-#hero.compact{height:auto;min-height:unset;padding:16px 32px}
+#hero.compact{min-height:unset;padding:16px 32px}
 #hero.compact .hero-left{display:none}
 #hero.compact .hero-right{opacity:.4;pointer-events:none}
 .hero-grid{max-width:1140px;margin:0 auto;display:grid;grid-template-columns:1fr 480px;gap:56px;align-items:stretch;position:relative;z-index:1;width:100%}
@@ -42,18 +40,29 @@ h1 em{font-style:normal;color:var(--gold)}
 .hero-desc{color:rgba(255,255,255,.6);font-size:14px;line-height:1.75;margin-bottom:28px;max-width:440px}
 .hero-feats{display:flex;flex-direction:column;gap:8px}
 .feat{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.55);font-size:12px}
-.feat::before{content:'';width:4px;height:4px;background:var(--gold);border-radius:50%}
+.feat::before{content:'';width:4px;height:4px;background:var(--gold);border-radius:50%;flex-shrink:0}
 
-.drop-card{background:rgba(255,255,255,.035);border:1.5px dashed rgba(255,255,255,.18);border-radius:16px;padding:36px 28px;cursor:pointer;transition:all .2s;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center}
+.drop-card{background:rgba(255,255,255,.035);border:1.5px dashed rgba(255,255,255,.18);border-radius:16px;padding:26px 26px;cursor:pointer;transition:all .2s;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center}
 .drop-card:hover,.drop-card.drag{background:rgba(233,165,53,.05);border-color:rgba(233,165,53,.5)}
-.drop-icon{font-size:38px;margin-bottom:14px;display:block}
+.drop-card.locked{cursor:default}
+.drop-card.locked:hover{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.18)}
+.drop-card.locked .drop-files{opacity:.35}
+.param-box{background:rgba(233,165,53,.06);border:1px solid rgba(233,165,53,.3);border-radius:10px;padding:12px 14px;margin-bottom:16px;text-align:left;cursor:default}
+.param-title{color:var(--gold);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.param-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.param-row label{display:block;color:rgba(255,255,255,.75);font-size:11px;font-weight:600;margin-bottom:4px}
+.param-row input{width:100%;padding:7px 10px;border-radius:6px;border:1.5px solid rgba(255,255,255,.25);background:rgba(8,21,37,.6);color:#fff;font-size:14px;font-weight:700;font-family:var(--font)}
+.param-row input:focus{outline:none;border-color:var(--gold)}
+.param-row input.bad{border-color:#e8a090}
+.param-hint{color:rgba(255,255,255,.4);font-size:10.5px;margin-top:8px;line-height:1.5}
+.drop-icon{font-size:32px;margin-bottom:10px;display:block}
 .drop-title{color:#fff;font-size:15px;font-weight:700;margin-bottom:6px}
-.drop-sub{color:rgba(255,255,255,.4);font-size:12px;line-height:1.6;margin-bottom:20px}
-.col-list{display:grid;grid-template-columns:1fr;gap:8px;text-align:left}
-.ctag{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px}
+.drop-sub{color:rgba(255,255,255,.4);font-size:12px;line-height:1.6;margin-bottom:14px}
+.col-list{display:grid;grid-template-columns:1fr;gap:7px;text-align:left}
+.ctag{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px 12px}
 .ctag .cname{color:#fff;font-size:12px;font-weight:700;display:block}
 .ctag .cdesc{color:rgba(255,255,255,.4);font-size:10px;margin-top:2px}
-#fileInput{display:none}
+#fileInput,#fileInput2{display:none}
 
 #main{padding:0 32px;max-width:1200px;margin:0 auto;width:100%;background:#fff}
 .sbar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin:16px 0 0;display:none;align-items:center;gap:10px;font-size:12px}
@@ -75,49 +84,55 @@ h1 em{font-style:normal;color:var(--gold)}
 @keyframes pulse-gold{0%,100%{box-shadow:0 4px 20px rgba(8,21,37,.3)}50%{box-shadow:0 4px 30px rgba(233,165,53,.18)}}
 .total-banner.animate{animation:pulse-gold 2s ease-in-out 3}
 
-.lt-card{background:var(--gray);border:1px solid var(--gray-mid);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.lt-card label{font-size:12px;font-weight:700;color:#344563}
-.lt-card input[type=range]{width:220px;height:6px;-webkit-appearance:none;appearance:none;background:#d0dbe8;border-radius:3px;outline:none;cursor:pointer}
-.lt-card input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--navy);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
-.lt-val{font-size:14px;font-weight:800;color:var(--navy);min-width:80px}
-.lt-note{font-size:11px;color:#888;flex:1 1 100%}
+.lt-card{background:var(--gray);border:1px solid var(--gray-mid);border-radius:10px;padding:14px 18px;margin-bottom:16px}
+.ctl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:10px 28px}
+.ctl{display:flex;align-items:center;gap:10px}
+.ctl label{font-size:12px;font-weight:700;color:#344563;min-width:128px}
+.ctl label small{display:block;font-weight:400;color:#8fa3b8;font-size:10px}
+.ctl input[type=range]{flex:1;min-width:100px;height:6px;-webkit-appearance:none;appearance:none;background:#d0dbe8;border-radius:3px;outline:none;cursor:pointer}
+.ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--navy);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
+.lt-val{font-size:13px;font-weight:800;color:var(--navy);min-width:62px;text-align:right}
+.ctl-derived{margin-top:12px;padding-top:10px;border-top:1px solid var(--gray-mid);font-size:12px;color:#344563}
+.ctl-derived strong{color:var(--navy)}
+.lt-note{font-size:11px;color:#888;margin-top:6px;line-height:1.55}
 
-.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.card{background:var(--gray);border-radius:10px;padding:16px 18px;border:1px solid var(--gray-mid);box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px}
+.card{background:var(--gray);border-radius:10px;padding:14px 16px;border:1px solid var(--gray-mid);box-shadow:0 1px 3px rgba(0,0,0,.05);cursor:pointer;transition:transform .12s, box-shadow .12s}
+.card:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.08)}
+.card.sel{outline:2px solid var(--navy);outline-offset:1px}
 .card .num{font-size:26px;font-weight:800;line-height:1}
-.card .lbl{font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
-.card .pct{font-size:11px;color:#aaa;margin-top:2px}
+.card .lbl{font-size:10.5px;color:#666;margin-top:5px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.card .pct{font-size:10.5px;color:#999;margin-top:3px;line-height:1.4}
 .card.red{border-color:var(--red-border);background:var(--red-bg)}.card.red .num{color:var(--red)}
 .card.orange{border-color:var(--orange-border);background:var(--orange-bg)}.card.orange .num{color:var(--orange)}
 .card.green{border-color:var(--green-border);background:var(--green-bg)}.card.green .num{color:var(--green)}
 .card.blue{border-color:var(--blue-border);background:var(--blue-bg)}.card.blue .num{color:var(--blue)}
 .card.gray{border-color:#d0d0d0;background:#f8f8f8}.card.gray .num{color:#666}
+.card.static{cursor:default}.card.static:hover{transform:none;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 
-.gap-banner{background:#fff2cc;border:1px solid #f0c870;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#7a5c00;display:none;align-items:center;gap:8px}
-.gap-banner.on{display:flex}
+.callout{background:#fff;border:1px solid var(--red-border);border-left:5px solid var(--red);border-radius:8px;padding:11px 16px;margin-bottom:12px;font-size:12.5px;color:#5a1d14;display:none;align-items:center;gap:12px;flex-wrap:wrap}
+.callout.on{display:flex}
+.callout strong{color:var(--red)}
+.callout .btn{padding:5px 12px;font-size:11px}
+
+.gap-banner{background:#fff2cc;border:1px solid #f0c870;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#7a5c00;display:none;line-height:1.7}
+.gap-banner.on{display:block}
 
 .action-bar{background:#f9f9fb;border:1px solid var(--gray-mid);border-radius:8px;padding:11px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-.btn{padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.btn{padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s;font-family:var(--font)}
 .btn-primary{background:var(--navy);color:#fff}.btn-primary:hover{background:var(--navy-mid)}
-.btn-primary:disabled{background:#aaa;cursor:not-allowed}
 .btn-gold{background:var(--gold);color:var(--navy-deep);font-weight:800}.btn-gold:hover{background:var(--gold-dim);color:#fff}
 .btn-outline{background:#fff;color:var(--navy);border:1.5px solid var(--gray-mid)}.btn-outline:hover{border-color:var(--navy);background:var(--gray)}
 .fnote{color:#aaa;font-size:11px}
 
-.filter-bar{display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-.fpill{padding:5px 14px;border-radius:20px;border:1px solid var(--gray-mid);background:#fff;cursor:pointer;font-size:12px;font-weight:700;color:#888;transition:all .15s}
+.filter-bar{display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.filter-bar.sub{margin-bottom:12px;padding-left:12px;border-left:3px solid var(--gray-mid)}
+.flabel{font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-right:4px;min-width:52px}
+.fpill{padding:5px 14px;border-radius:20px;border:1px solid var(--gray-mid);background:#fff;cursor:pointer;font-size:12px;font-weight:700;color:#888;transition:all .15s;font-family:var(--font)}
 .fpill:hover{border-color:#aaa}
-.fpill.active[data-t="ALL"]{background:var(--navy);color:#fff;border-color:var(--navy)}
-.fpill.active[data-t="CRITICAL"]{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
-.fpill.active[data-t="WATCH"]{background:var(--orange-bg);color:var(--orange);border-color:var(--orange-border)}
-.fpill.active[data-t="STABLE"]{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
-.fpill.active[data-t="OVERSTOCKED"]{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)}
-.fpill.active[data-t="DEAD"]{background:#eee;color:#555;border-color:#ccc}
-.fpill.active[data-t="STALE"]{background:#efe4d8;color:#8a5a2c;border-color:#d3ae8a}
-.fpill.active[data-t="NODATA"]{background:#f0e6f6;color:#8e44ad;border-color:#c9a8db}
-.fpill.active[data-t="GAPEXPOSURE"]{background:#fbe0db;color:#a3341e;border-color:#e8a090}
-.fpill.active[data-t="DORMANT"]{background:#f4f4f4;color:#888;border-color:#ddd}
+.fpill.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 .filter-count{font-size:10px;background:rgba(0,0,0,.08);border-radius:10px;padding:1px 6px;margin-left:4px}
+.fpill.active .filter-count{background:rgba(255,255,255,.2)}
 
 .table-wrap{border:1px solid var(--gray-mid);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow-x:auto}
 .table-wrap::-webkit-scrollbar, .scroll-top-outer::-webkit-scrollbar{height:11px}
@@ -126,25 +141,30 @@ h1 em{font-style:normal;color:var(--gold)}
 .scroll-top-outer{overflow-x:auto;overflow-y:hidden;height:14px;margin-bottom:2px}
 .scroll-top-inner{height:1px}
 .cap-note{background:#fff2cc;border:1px solid #f0c870;border-radius:6px;padding:8px 14px;font-size:11.5px;color:#7a5c00;margin-bottom:8px}
-table.itbl th[data-key]{cursor:pointer;user-select:none}
-table.itbl th[data-key]:hover{background:#e4e8ee}
-.sort-arrow{font-size:9px;color:var(--gold-dim);margin-left:2px}
 table.itbl{width:100%;border-collapse:collapse;font-size:12px}
-table.itbl th{background:#f0f2f5;color:#666;font-weight:700;padding:9px 10px;text-align:left;border-bottom:2px solid var(--gray-mid);white-space:nowrap;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px}
+table.itbl th{background:#f0f2f5;color:#666;font-weight:700;padding:9px 10px;text-align:left;border-bottom:2px solid var(--gray-mid);white-space:nowrap;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;user-select:none}
+table.itbl th:hover{background:#e4e8ee}
+.sort-arrow{font-size:9px;color:var(--gold-dim);margin-left:2px}
 table.itbl td{padding:7px 10px;border-bottom:1px solid #f2f3f5;vertical-align:middle;white-space:nowrap}
+table.itbl td.num{text-align:right;font-variant-numeric:tabular-nums}
 table.itbl tr:last-child td{border-bottom:none}
 table.itbl tr:hover td{background:#fafbfc}
+table.itbl tr.hl td{background:#fff8e8}
+table.itbl tr.hl td:first-child{box-shadow:inset 4px 0 0 var(--gold)}
+.neg{color:var(--red);font-weight:700}
 
-.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
-.badge.CRITICAL{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
-.badge.WATCH{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
-.badge.STABLE{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
-.badge.OVERSTOCKED{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
-.badge.DEAD{background:#eee;color:#555;border:1px solid #ccc}
-.badge.STALE{background:#efe4d8;color:#8a5a2c;border:1px solid #d3ae8a}
-.badge.NODATA{background:#f0e6f6;color:#8e44ad;border:1px solid #c9a8db}
-.badge.GAPEXPOSURE{background:#fbe0db;color:#a3341e;border:1px solid #e8a090}
-.badge.DORMANT{background:#f4f4f4;color:#888;border:1px dashed #ccc}
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;cursor:help}
+.b-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.b-darkred{background:#7b1d12;color:#fff;border:1px solid #7b1d12}
+.b-orange{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.b-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.b-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.b-brown{background:#efe4d8;color:#8a5a2c;border:1px solid #d3ae8a}
+.b-gray{background:#eee;color:#555;border:1px solid #ccc}
+.b-purple{background:#f0e6f6;color:#8e44ad;border:1px solid #c9a8db}
+.b-light{background:#f4f4f4;color:#888;border:1px dashed #ccc}
+.vel{display:inline-block;width:20px;text-align:center;border-radius:4px;font-size:10px;font-weight:800}
+.vel.A{background:var(--navy);color:var(--gold)}.vel.B{background:#d0dbe8;color:var(--navy)}.vel.C{color:#aaa}
 .empty-state{padding:48px;text-align:center;color:#bbb;font-size:13px}
 
 footer{background:var(--navy-deep);padding:24px 32px;border-top:1px solid var(--navy-border);text-align:center;margin-top:48px}
@@ -152,6 +172,7 @@ footer p{color:rgba(255,255,255,.28);font-size:11px;line-height:1.9}
 footer a{color:rgba(255,255,255,.5);text-decoration:none;transition:color .15s}
 footer a:hover{color:var(--gold)}
 .footer-copy{margin-top:6px;color:rgba(255,255,255,.18);font-size:10px;letter-spacing:.3px}
+@media (max-width:980px){.hero-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -170,22 +191,37 @@ footer a:hover{color:var(--gold)}
     <div class="hero-left">
       <div class="hero-eyebrow"><span>Inventory Health Tool</span></div>
       <h1>Buyers reorder<br>on gut feel because<br><em>nobody scored the SKUs.</em></h1>
-      <p class="hero-desc">StockGard scores every active item by Days of Coverage against your lead time and safety buffer, then hands your buyer a prioritized action queue — Red first — with a leadership scorecard on top.</p>
+      <p class="hero-desc">StockGard scores every item against your lead time and safety stock, separates true stockouts from low stock, and hands your buyer a queue sorted into five buckets — Act Now first.</p>
       <div class="hero-feats">
-        <div class="feat">Five-tier scoring: Critical / Watch / Stable / Overstocked / Dead</div>
-        <div class="feat">Adjustable Lead Time, Target DoC, and demand % adjustment — tune the model live</div>
-        <div class="feat">Export to Excel — Action Summary + Run Notes tabs</div>
+        <div class="feat">Projected run-out dates from open sales and purchase lines — see what runs out before it does</div>
+        <div class="feat">Oversold, backorders, and true stockouts (nothing on hand) separated and prioritized</div>
+        <div class="feat">Five buckets: Act Now / Reorder / Healthy / Excess &amp; Obsolete / Housekeeping</div>
+        <div class="feat">Scored on inventory position (On Hand + Open PO − Open SO) — committed demand counts</div>
+        <div class="feat">Export to Excel — one tab per bucket + All Items + Run Notes</div>
         <div class="feat">Runs entirely in your browser — no data leaves your machine</div>
       </div>
     </div>
     <div class="hero-right">
-      <div class="drop-card" id="dropZone" onclick="document.getElementById('fileInput').click()">
-        <span class="drop-icon">📊</span>
-        <div class="drop-title">Drop your Items + ADU exports here</div>
-        <div class="drop-sub">Either one combined .xlsx (Items + ADU as two tabs) or two separate files (Items .xlsx + ADU .xlsx/.csv). Order doesn't matter — detected by column headers.</div>
-        <div class="col-list">
-          <div class="ctag"><span class="cname">Items <span style="color:rgba(233,165,53,.7);font-weight:400">(Items module view)</span></span><span class="cdesc">No., Description, Category, Quantity on Hand, Qty. on Purch. Order, Qty. on Sales Order</span></div>
-          <div class="ctag"><span class="cname">ADU <span style="color:rgba(233,165,53,.7);font-weight:400">(PBIX export, quarterly)</span></span><span class="cdesc">ItemNo, Planning ADU, Effective Sale Price / Unit, Last Sale Date</span></div>
+      <div class="drop-card locked" id="dropZone">
+        <div class="param-box" id="paramBox">
+          <div class="param-title">Step 1 — Planning targets (required)</div>
+          <div class="param-row">
+            <div><label for="inLT">Lead Time (calendar days)</label><input type="number" id="inLT" min="1" max="365" step="1" placeholder="e.g. 90"></div>
+            <div><label for="inSS">Safety Stock (calendar days)</label><input type="number" id="inSS" min="0" max="180" step="1" placeholder="e.g. 30"></div>
+          </div>
+          <div class="param-hint">Global targets applied to every item. You can adjust them after the analysis runs.</div>
+        </div>
+        <div class="drop-files" id="dropFiles">
+          <span class="drop-icon">📊</span>
+          <div class="drop-title" id="dropTitle">Step 2 — Drop your exports here</div>
+          <div class="drop-sub">Drop files together or one at a time — detected by column headers. Scoring starts once Items + ADU are both in.</div>
+          <div class="col-list">
+            <div class="ctag"><span class="cname">Items <span style="color:rgba(233,165,53,.7);font-weight:400">(Items module view)</span></span><span class="cdesc">No., Description, Category, Quantity on Hand, Qty. on Purch. Order, Qty. on Sales Order</span></div>
+            <div class="ctag"><span class="cname">ADU <span style="color:rgba(233,165,53,.7);font-weight:400">(PBIX export)</span></span><span class="cdesc">ItemNo, Planning ADU, Effective Sale Price / Unit, Last Sale Date, Source Check</span></div>
+            <div class="ctag"><span class="cname">Zero Shipped New Items <span style="color:rgba(233,165,53,.7);font-weight:400">(optional)</span></span><span class="cdesc">Item, Customer, Customer First Activity, Open SO Qty</span></div>
+            <div class="ctag"><span class="cname">Sales Lines <span style="color:rgba(233,165,53,.7);font-weight:400">(optional — dates stock-outs)</span></span><span class="cdesc">Document No., No., Outstanding Quantity, Shipment Date (+ Document Type if available)</span></div>
+            <div class="ctag"><span class="cname">Purchase Lines <span style="color:rgba(233,165,53,.7);font-weight:400">(optional — dates receipts)</span></span><span class="cdesc">Document No., No., Outstanding Quantity, Expected Receipt Date (+ Document Type if available)</span></div>
+          </div>
         </div>
       </div>
       <input type="file" id="fileInput" accept=".xlsx,.csv" multiple>
@@ -200,62 +236,50 @@ footer a:hover{color:var(--gold)}
     <div class="total-banner" id="totalBanner">
       <div class="total-num" id="totalNum">0</div>
       <div class="total-right">
-        <div class="total-label">Active Items Scanned</div>
+        <div class="total-label">Items Scored</div>
         <div class="total-sub" id="totalSub">Analyzing…</div>
       </div>
       <div class="total-icon">📊</div>
     </div>
 
     <div class="lt-card">
-      <label for="ltSlider">Lead Time</label>
-      <input type="range" id="ltSlider" min="10" max="365" step="5" value="120">
-      <span class="lt-val" id="ltVal">120 days</span>
-      <br>
-      <label for="tdSlider">Target DoC (Safety Buffer)</label>
-      <input type="range" id="tdSlider" min="0" max="180" step="5" value="90">
-      <span class="lt-val" id="tdVal">90 days</span>
-      <br>
-      <label for="pctSlider">% Adjustment <span style="font-weight:400;color:#8fa3b8">(supply reliability / seasonality — scales ADU)</span></label>
-      <input type="range" id="pctSlider" min="-50" max="100" step="5" value="0">
-      <span class="lt-val" id="pctVal">0%</span>
-      <span class="lt-note">Reorder point = Lead Time + Target DoC. Stable ceiling = 3× Lead Time, Overstocked ceiling = 6× Lead Time — all bands now scale when Lead Time moves. Critical items with no sale in the reorder window reclassify to Stale Demand. % Adjustment scales effective ADU (not Target DoC or Lead Time) — a +15% here means "expect 15% more demand," not "widen my safety margin."</span>
+      <div class="ctl-grid">
+        <div class="ctl"><label for="ltSlider">Lead Time<small>calendar days</small></label><input type="range" id="ltSlider" min="1" max="365" step="1" value="90"><span class="lt-val" id="ltVal">90 d</span></div>
+        <div class="ctl"><label for="ssSlider">Safety Stock<small>calendar days</small></label><input type="range" id="ssSlider" min="0" max="180" step="1" value="30"><span class="lt-val" id="ssVal">30 d</span></div>
+        <div class="ctl"><label for="cySlider">Order Cycle<small>days of cover per order</small></label><input type="range" id="cySlider" min="0" max="365" step="5" value="60"><span class="lt-val" id="cyVal">60 d</span></div>
+        <div class="ctl"><label for="imSlider">Runs Out window<small>projected days left ≤</small></label><input type="range" id="imSlider" min="0" max="60" step="1" value="14"><span class="lt-val" id="imVal">14 d</span></div>
+        <div class="ctl"><label for="acSlider">Stockout – Active<small>last sale ≤ (days)</small></label><input type="range" id="acSlider" min="7" max="365" step="1" value="90"><span class="lt-val" id="acVal">90 d</span></div>
+        <div class="ctl"><label for="faSlider">Stockout – Fading<small>last sale ≤ (days)</small></label><input type="range" id="faSlider" min="8" max="730" step="1" value="180"><span class="lt-val" id="faVal">180 d</span></div>
+        <div class="ctl"><label for="pctSlider">% Adjustment<small>scales ADU (demand)</small></label><input type="range" id="pctSlider" min="-50" max="100" step="5" value="0"><span class="lt-val" id="pctVal">0%</span></div>
+      </div>
+      <div class="ctl-derived" id="ctlDerived"></div>
+      <div class="lt-note">All day values are calendar days. Reorder point = Lead Time + Safety Stock. Max = Reorder point + Order Cycle. Tiers use inventory position (On Hand + Open PO − Open SO) in days of ADU. Stockout labels apply only when On Hand ≤ 0; items with stock on the floor get a projected run-out date (needs Sales / Purchase Lines for dated orders). % Adjustment scales ADU only — +15% means "expect 15% more demand."</div>
     </div>
 
     <div class="gap-banner" id="gapBanner"></div>
 
     <div class="summary-grid" id="summaryGrid"></div>
+    <div class="summary-grid" id="summaryGrid2" style="grid-template-columns:1fr"></div>
+
+    <div class="callout" id="lapsedCallout"></div>
 
     <div class="action-bar">
-      <button class="btn btn-gold" id="btnExport" onclick="SGX.exportXlsx()">📥 Export to Excel</button>
-      <button class="btn btn-outline" onclick="SGX.reset()">↩ Load New File</button>
+      <button class="btn btn-gold" onclick="SGX.exportXlsx()">📥 Export to Excel</button>
+      <button class="btn btn-outline" onclick="document.getElementById('fileInput2').click()">＋ Add / replace optional files</button>
+      <button class="btn btn-outline" onclick="SGX.reset()">↩ Start Over</button>
       <span class="fnote" id="fnote"></span>
+      <input type="file" id="fileInput2" accept=".xlsx,.csv" multiple>
     </div>
 
-    <div class="filter-bar" id="filterBar"></div>
+    <div class="filter-bar" id="bucketBar"></div>
+    <div class="filter-bar sub" id="labelBar"></div>
 
     <div class="cap-note" id="capNote" style="display:none"></div>
 
     <div class="scroll-top-outer" id="scrollTopOuter"><div class="scroll-top-inner" id="scrollTopInner"></div></div>
     <div class="table-wrap" id="tableWrap">
       <table class="itbl" id="resultTable">
-        <thead><tr>
-          <th data-key="tier">Tier <span class="sort-arrow" id="sa_tier"></span></th>
-          <th data-key="itemNo">Item No. <span class="sort-arrow" id="sa_itemNo"></span></th>
-          <th data-key="desc">Description <span class="sort-arrow" id="sa_desc"></span></th>
-          <th data-key="cat">Category <span class="sort-arrow" id="sa_cat"></span></th>
-          <th data-key="onHandDoC">On-Hand DoC <span class="sort-arrow" id="sa_onHandDoC"></span></th>
-          <th data-key="poDoC">Open PO DoC <span class="sort-arrow" id="sa_poDoC"></span></th>
-          <th data-key="netDoC">Net DoC <span class="sort-arrow" id="sa_netDoC"></span></th>
-          <th data-key="netFlowDoC">Net Flow DoC <span class="sort-arrow" id="sa_netFlowDoC"></span></th>
-          <th data-key="adu">ADU <span class="sort-arrow" id="sa_adu"></span></th>
-          <th data-key="onHand">On-Hand Qty <span class="sort-arrow" id="sa_onHand"></span></th>
-          <th data-key="poQty">Open PO Qty <span class="sort-arrow" id="sa_poQty"></span></th>
-          <th data-key="asp">ASP <span class="sort-arrow" id="sa_asp"></span></th>
-          <th data-key="revExposure">Revenue Exposure <span class="sort-arrow" id="sa_revExposure"></span></th>
-          <th data-key="lastSale">Last Sale <span class="sort-arrow" id="sa_lastSale"></span></th>
-          <th data-key="stockoutDate">Stockout Date <span class="sort-arrow" id="sa_stockoutDate"></span></th>
-          <th data-key="pipelineLight">Pipeline <span class="sort-arrow" id="sa_pipelineLight"></span></th>
-        </tr></thead>
+        <thead><tr id="headRow"></tr></thead>
         <tbody id="resultBody"></tbody>
       </table>
       <div class="empty-state" id="emptyState" style="display:none">No items match the current filter.</div>
@@ -271,230 +295,91 @@ footer a:hover{color:var(--gold)}
   <div class="footer-copy" style="margin-top:4px"><a href="TERMS.md" target="_blank" style="color:rgba(255,255,255,.4)">Terms of Use</a> · First published 2026</div>
 </footer>
 
-<script>
-const SGX = (function() {
+<script id="sg-engine">
+/* ===== StockGard scoring engine — pure functions, no DOM. ===== */
+const SGEngine = (function() {
 
-  // Stable/Overstocked/Dead boundaries now scale with Lead Time (3xLT / 6xLT),
-  // computed live in rescore() — not fixed constants. See rescore() below.
+  const LABELS = {
+    OVERSOLD:  { name:'Oversold',                 bucket:'ACT',     cls:'b-darkred', desc:'Open SO exceeds On Hand + Open PO. Committed demand is larger than everything in stock and on order; more units must be ordered.' },
+    BACKORDER: { name:'Backorder – Expedite PO',  bucket:'ACT',     cls:'b-red',     desc:'Open SOs exceed On Hand. Any on-hand stock is fully committed to those SOs; the open PO covers the remaining SO qty (Backorder Qty). Expedite the PO.' },
+    SO_ACTIVE: { name:'Stockout – Active',        bucket:'ACT',     cls:'b-red',     desc:'Nothing on hand (On Hand ≤ 0). Sold within the Active window.' },
+    SO_FADING: { name:'Stockout – Fading',        bucket:'ACT',     cls:'b-orange',  desc:'Nothing on hand (On Hand ≤ 0). Last sale between the Active and Fading windows.' },
+    SO_LAPSED: { name:'Stockout – Lapsed',        bucket:'ACT',     cls:'b-brown',   desc:'Nothing on hand (On Hand ≤ 0). No sale beyond the Fading window. Restock-or-retire decision.' },
+    RUNS_OUT:  { name:'Runs Out Soon',            bucket:'ACT',     cls:'b-orange',  desc:'Stock is on the floor today but is projected to run out within the Runs Out window. Projection: on hand + dated PO receipts − the greater of (open SO lines by ship date) or (ADU × days). Late SO lines count as due today; past-due POs are left out.' },
+    CRITICAL:  { name:'Critical',                 bucket:'REORDER', cls:'b-red',     desc:'Inventory position covers less than the Lead Time. A new order placed today arrives after coverage runs out.' },
+    REORDER:   { name:'Reorder',                  bucket:'REORDER', cls:'b-orange',  desc:'Inventory position is between Lead Time and the Reorder Point (LT + SS). Time to order.' },
+    STABLE:    { name:'Stable',                   bucket:'HEALTHY', cls:'b-green',   desc:'Inventory position is above the Reorder Point and at or below Max.' },
+    OVERSTOCK: { name:'Overstock',                bucket:'EXCESS',  cls:'b-blue',    desc:'Inventory position is above Max (LT + SS + Order Cycle). Check DoC for severity.' },
+    DEAD:      { name:'Dead Inventory',           bucket:'EXCESS',  cls:'b-gray',    desc:'Sold before, no sale in the last 365 days (ADU = 0), still holding stock, PO, or SO.' },
+    OBSOLETE:  { name:'Obsolete',                 bucket:'EXCESS',  cls:'b-purple',  desc:'No sales on record in the ADU source, still holding stock, PO, or SO.' },
+    NEW:       { name:'New – Awaiting First Ship',bucket:'HOUSE',   cls:'b-light',   desc:'No demand signal yet; listed in the Zero Shipped New Items file.' },
+    INACTIVE:  { name:'Inactive – Cleanup',       bucket:'HOUSE',   cls:'b-light',   desc:'No demand signal and nothing on hand, on order, or on SO. Item master cleanup candidate.' }
+  };
+  const LABEL_ORDER = ['OVERSOLD','BACKORDER','SO_ACTIVE','SO_FADING','SO_LAPSED','RUNS_OUT','CRITICAL','REORDER','STABLE','OVERSTOCK','DEAD','OBSOLETE','NEW','INACTIVE'];
+  const BUCKETS = [
+    { key:'ACT',     name:'Act Now',           color:'red' },
+    { key:'REORDER', name:'Reorder',           color:'orange' },
+    { key:'HEALTHY', name:'Healthy',           color:'green' },
+    { key:'EXCESS',  name:'Excess & Obsolete', color:'blue' },
+    { key:'HOUSE',   name:'Housekeeping',      color:'gray' }
+  ];
+  const EXCLUDE_RE = /^(factory\s+)?samples?$/i; // non-stock placeholder items
 
-  let leadTime = 120;
-  let targetDoC = 90;
-  let pctAdj = 0;
-  let items = [];        // scored rows
-  let notFoundCount = 0;  // items in master not found in ADU export at all (diagnostic only)
-  let activeFilter = 'ALL';
-  let sortState = { key: null, dir: 'desc' };
-
-  const dz = document.getElementById('dropZone');
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); loadFiles(e.dataTransfer.files); });
-  document.getElementById('fileInput').addEventListener('change', e => { if (e.target.files.length) loadFiles(e.target.files); });
-  let rescoreDebounce = null;
-  function debouncedRescore() {
-    clearTimeout(rescoreDebounce);
-    rescoreDebounce = setTimeout(rescore, 150);
-  }
-
-  document.getElementById('ltSlider').addEventListener('input', e => {
-    leadTime = +e.target.value;
-    document.getElementById('ltVal').textContent = leadTime + ' days';
-    debouncedRescore();
-  });
-  document.getElementById('tdSlider').addEventListener('input', e => {
-    targetDoC = +e.target.value;
-    document.getElementById('tdVal').textContent = targetDoC + ' days';
-    debouncedRescore();
-  });
-  document.getElementById('pctSlider').addEventListener('input', e => {
-    pctAdj = +e.target.value;
-    document.getElementById('pctVal').textContent = (pctAdj>0?'+':'') + pctAdj + '%';
-    debouncedRescore();
-  });
-
-  document.querySelectorAll('#resultTable th[data-key]').forEach(th => {
-    th.addEventListener('click', () => sortBy(th.dataset.key));
-  });
-
-  // Bidirectional sync between the top scroll strip and the actual table scroll —
-  // solves the "scrollbar is at the bottom of a very long table" problem.
-  const scrollTopOuter = document.getElementById('scrollTopOuter');
-  let syncing = false;
-  function syncScrollWidth() {
-    const table = document.getElementById('resultTable');
-    document.getElementById('scrollTopInner').style.width = table.scrollWidth + 'px';
-  }
-  document.getElementById('tableWrap').addEventListener('scroll', function() {
-    if (syncing) return; syncing = true;
-    scrollTopOuter.scrollLeft = this.scrollLeft;
-    syncing = false;
-  });
-  scrollTopOuter.addEventListener('scroll', function() {
-    if (syncing) return; syncing = true;
-    document.getElementById('tableWrap').scrollLeft = this.scrollLeft;
-    syncing = false;
-  });
-
+  function norm(k) { return String(k).replace(/^﻿/, '').trim().toLowerCase(); }
   function col(row, names) {
     const keys = Object.keys(row);
     for (const n of names) {
-      const match = keys.find(k => k.trim().toLowerCase() === n.toLowerCase());
-      if (match !== undefined && row[match] !== undefined && row[match] !== '') return row[match];
+      const match = keys.find(k => norm(k) === n.toLowerCase());
+      if (match !== undefined && row[match] !== undefined && row[match] !== null && row[match] !== '') return row[match];
     }
     return '';
   }
-  function numOf(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
-  function toDate(v) {
-    if (!v && v !== 0) return null;
-    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
-    const n = parseFloat(v);
-    if (!isNaN(n) && n > 20000 && n < 60000) {
-      const d = new Date(Math.round((n - 25569) * 86400 * 1000));
-      return isNaN(d.getTime()) ? null : d;
-    }
-    const d2 = new Date(v);
-    return isNaN(d2.getTime()) ? null : d2;
-  }
-  function esc(s) { if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function fmt(n) {
-    if (n === null || n === undefined) return '—';
-    if (Math.abs(n) >= 1000000) return (n/1000000).toFixed(2).replace(/\.?0+$/,'') + 'M';
-    if (Math.abs(n) >= 1000) return (n/1000).toFixed(1).replace(/\.?0+$/,'') + 'K';
-    return Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString() : (Math.round(n*100)/100).toLocaleString();
-  }
-  function fmtMoney(n) { return '$' + (n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
-
-  let loadTicker = null;
-  function startTicker(label) {
-    const start = Date.now();
-    clearInterval(loadTicker);
-    loadTicker = setInterval(() => {
-      sb('loading', label + ' (' + ((Date.now()-start)/1000).toFixed(1) + 's)…');
-    }, 100);
-  }
-  function stopTicker() { clearInterval(loadTicker); loadTicker = null; }
-
-  function readFileAsSheetRows(file) {
-    // Returns a Promise resolving to an array of {name, rows} for every sheet in the file.
-    // Handles .xlsx (binary) and .csv (text) transparently via SheetJS.
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      const isCsv = /\.csv$/i.test(file.name);
-      reader.onload = e => {
-        try {
-          const wb = isCsv
-            ? XLSX.read(e.target.result, { type: 'string' })
-            : XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-          resolve(wb.SheetNames.map(name => ({
-            name,
-            rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { raw: true, defval: '' })
-          })));
-        } catch(err) { reject(err); }
-      };
-      reader.onerror = () => reject(new Error('Could not read ' + file.name));
-      if (isCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
-    });
-  }
-
-  function looksLikeAdu(rows) {
+  function hasCol(rows, names) {
     if (!rows.length) return false;
-    return Object.keys(rows[0]).some(k => {
-      const kl = k.trim().toLowerCase();
-      return kl === 'planning adu' || kl === 'adu' || kl === 'itemkey_clean';
-    });
+    const ks = Object.keys(rows[0]).map(norm);
+    return names.some(n => ks.includes(n.toLowerCase()));
+  }
+  function numOf(v) {
+    if (typeof v === 'number') return isNaN(v) ? 0 : v;
+    const n = parseFloat(String(v).replace(/[$,]/g, ''));
+    return isNaN(n) ? 0 : n;
+  }
+  function toDate(v) {
+    if (v === null || v === undefined || v === '') return null;
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    if (typeof v === 'number') {
+      // Excel serial → local calendar date (built from UTC parts so DST never shifts it a day)
+      if (v > 20000 && v < 80000) { const u = new Date(Math.round((v - 25569) * 86400000)); return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate()); }
+      return null;
+    }
+    const s = String(v).trim();
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m2) return new Date(+m2[3], +m2[1] - 1, +m2[2]);
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
   }
 
-  let pendingFiles = {}; // { items: {name, rows}, adu: {name, rows} } — accumulates across separate drop/select actions
-
-  function loadFiles(fileList) {
-    const files = Array.from(fileList).filter(f => /\.(xlsx|csv)$/i.test(f.name));
-    if (!files.length) { sb('err', '✗ No .xlsx or .csv files found in the drop.', true); return; }
-    window._sgxStart = Date.now();
-    startTicker('Reading ' + files.map(f=>f.name).join(' + '));
-
-    Promise.all(files.map(readFileAsSheetRows)).then(fileSheetSets => {
-      startTicker('Parsing workbook(s)');
-      setTimeout(() => {
-        try {
-          let itemRows = null, aduRows = null;
-
-          if (files.length >= 2) {
-            // Two (or more) files dropped/selected together — use each file's first sheet.
-            const firstSheets = fileSheetSets.map(s => s[0]);
-            const aduIdx = firstSheets.findIndex(s => looksLikeAdu(s.rows));
-            const itemsIdx = firstSheets.findIndex((s,i) => i !== aduIdx);
-            if (aduIdx === -1 || itemsIdx === -1) throw new Error('Could not tell which file is Items and which is ADU from the column headers. Check that one file has a Planning ADU / ADU / ItemKey_Clean column.');
-            pendingFiles = {}; // fresh pair overrides anything held from earlier single-file drops
-            aduRows = firstSheets[aduIdx].rows;
-            itemRows = firstSheets[itemsIdx].rows;
-          } else {
-            const sheets = fileSheetSets[0];
-            if (sheets.length >= 2) {
-              // Legacy combined mode: one workbook, two tabs — complete on its own.
-              const [s0, s1] = sheets;
-              pendingFiles = {};
-              if (looksLikeAdu(s0.rows) && !looksLikeAdu(s1.rows)) { aduRows = s0.rows; itemRows = s1.rows; }
-              else { itemRows = s0.rows; aduRows = s1.rows; }
-            } else {
-              // Single file, single sheet — this is one half of a pair. Hold it and wait
-              // for its partner instead of judging this drop as a complete, failed attempt.
-              const role = looksLikeAdu(sheets[0].rows) ? 'adu' : 'items';
-              pendingFiles[role] = { name: files[0].name, rows: sheets[0].rows };
-              if (pendingFiles.items && pendingFiles.adu) {
-                itemRows = pendingFiles.items.rows;
-                aduRows = pendingFiles.adu.rows;
-                pendingFiles = {};
-              } else {
-                stopTicker();
-                document.getElementById('fileInput').value = '';
-                const gotLabel = role === 'adu' ? 'ADU' : 'Items';
-                const needLabel = role === 'adu' ? 'Items' : 'ADU';
-                sb('wait', '✓ Got the ' + gotLabel + ' file (' + files[0].name + ') — now drop the ' + needLabel + ' file to continue.', true);
-                return;
-              }
-            }
-          }
-
-          startTicker('Scoring ' + itemRows.length.toLocaleString() + ' items');
-          document.getElementById('hero').classList.add('compact'); // only now — a complete pair is confirmed
-          setTimeout(() => {
-            stopTicker();
-            document.getElementById('fileInput').value = '';
-            process(itemRows, aduRows);
-          }, 20);
-        } catch(err) {
-          stopTicker();
-          document.getElementById('fileInput').value = '';
-          pendingFiles = {};
-          sb('err', '✗ ' + err.message, true);
-          document.getElementById('hero').classList.remove('compact');
-        }
-      }, 30);
-    }).catch(err => {
-      stopTicker();
-      document.getElementById('fileInput').value = '';
-      pendingFiles = {};
-      sb('err', '✗ ' + err.message, true);
-      document.getElementById('hero').classList.remove('compact');
-    });
+  // Role detection by headers
+  function detectRole(rows) {
+    if (!rows || !rows.length) return null;
+    if (hasCol(rows, ['customer first activity'])) return 'newitems';
+    if (hasCol(rows, ['shipment date']) && hasCol(rows, ['outstanding quantity','outstanding qty. (base)'])) return 'sales';
+    if (hasCol(rows, ['expected receipt date']) && hasCol(rows, ['outstanding quantity','outstanding qty. (base)'])) return 'purch';
+    if (hasCol(rows, ['planning adu', 'itemkey_clean', 'adu'])) return 'adu';
+    if (hasCol(rows, ['no.', 'quantity on hand', 'item no.'])) return 'items';
+    return null;
   }
 
-  let masterMap = {}, aduMap = {}, hasAsp = false, hasLastSale = false;
-  let dqBlankKeys = 0, dqDupKeys = 0;
-
-  function process(itemRows, aduRows) {
-    masterMap = {}; aduMap = {};
-    dqBlankKeys = 0; dqDupKeys = 0;
-
-    // Detect whether an Effective Sale Price / Unit column exists in the ADU tab.
-    // Missing entirely => Revenue Exposure shows "—", not a fabricated $0.
-    hasAsp = aduRows.length > 0 && Object.keys(aduRows[0]).some(k => k.trim().toLowerCase() === 'effective sale price / unit' || k.trim().toLowerCase() === 'asp');
-    hasLastSale = aduRows.length > 0 && Object.keys(aduRows[0]).some(k => k.trim().toLowerCase() === 'last sale date' || k.trim().toLowerCase() === 'last sold date');
-
-    itemRows.forEach(r => {
+  function parseItems(rows) {
+    const map = {}; let excluded = 0, dup = 0;
+    rows.forEach(r => {
       const itemNo = String(col(r, ['No.','Item No.','Item No','ItemNo'])).trim();
       if (!itemNo) return;
-      masterMap[itemNo] = {
+      if (EXCLUDE_RE.test(itemNo)) { excluded++; return; }
+      if (map[itemNo]) { dup++; return; }
+      map[itemNo] = {
         itemNo,
         desc: String(col(r, ['Description'])).trim(),
         uom: String(col(r, ['Base Unit of Measure','UOM'])).trim(),
@@ -504,394 +389,734 @@ const SGX = (function() {
         soQty: numOf(col(r, ['Qty. on Sales Order','Sales Order Qty','Qty on Sales Order']))
       };
     });
+    return { map, excluded, dup };
+  }
 
-    aduRows.forEach(r => {
+  function parseAdu(rows) {
+    const map = {};
+    const out = { map, blankKeys:0, blankKeysWithSales:0, dupKeys:0,
+      hasAsp: hasCol(rows, ['effective sale price / unit','asp']),
+      hasLastSale: hasCol(rows, ['last sale date','last sold date']),
+      hasSource: hasCol(rows, ['source check']),
+      hasMethod: hasCol(rows, ['planning adu method']) };
+    rows.forEach(r => {
       const itemNo = String(col(r, ['ItemKey_Clean','ItemNo','Item','Item No.','Item No'])).trim();
-      if (!itemNo) { dqBlankKeys++; return; }
-      if (Object.prototype.hasOwnProperty.call(aduMap, itemNo)) { dqDupKeys++; return; } // first occurrence wins
-
-      // Distinguish "blank field" (no signal at all) from "explicit 0" (calculated, confirmed zero)
-      // — numOf() alone would coerce both to 0 and silently erase the distinction.
+      if (!itemNo) {
+        out.blankKeys++;
+        if (numOf(col(r, ['Qty L365'])) > 0 || numOf(col(r, ['Planning ADU','ADU'])) > 0) out.blankKeysWithSales++;
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(map, itemNo)) { out.dupKeys++; return; }
       const rawAdu = col(r, ['Planning ADU','ADU']);
-      const rawAduStr = (rawAdu === null || rawAdu === undefined) ? '' : String(rawAdu).trim();
+      const rawStr = (rawAdu === null || rawAdu === undefined) ? '' : String(rawAdu).trim();
       let aduStatus, aduVal;
-      if (rawAduStr === '') { aduStatus = 'MISSING'; aduVal = 0; }
-      else { aduVal = numOf(rawAdu); aduStatus = aduVal === 0 ? 'ZERO' : 'PRESENT'; }
-
-      aduMap[itemNo] = {
+      if (rawStr === '') { aduStatus = 'MISSING'; aduVal = 0; }
+      else { aduVal = numOf(rawAdu); aduStatus = aduVal > 0 ? 'PRESENT' : 'ZERO'; }
+      map[itemNo] = {
         aduStatus, adu: aduVal,
-        asp: hasAsp ? numOf(col(r, ['Effective Sale Price / Unit','ASP'])) : null,
-        lastSale: toDate(col(r, ['Last Sale Date','Last Sold Date'])) 
+        asp: out.hasAsp ? (col(r, ['Effective Sale Price / Unit','ASP']) === '' ? null : numOf(col(r, ['Effective Sale Price / Unit','ASP']))) : null,
+        lastSale: toDate(col(r, ['Last Sale Date','Last Sold Date'])),
+        source: String(col(r, ['Source Check'])).trim(),
+        method: String(col(r, ['Planning ADU Method'])).trim()
       };
     });
+    return out;
+  }
 
-    if (!Object.keys(masterMap).length) {
-      sb('err', '✗ No valid Item Master rows found. Check Tab 1 column headers.', true);
-      document.getElementById('hero').classList.remove('compact');
-      return;
+  function parseNew(rows) {
+    const set = new Set(); let samples = 0;
+    rows.forEach(r => {
+      const it = String(col(r, ['Item','ItemNo','Item No.','No.'])).trim();
+      if (!it) return;
+      if (EXCLUDE_RE.test(it)) { samples++; return; }
+      set.add(it);
+    });
+    return { set, rows: rows.length, unique: set.size, samples };
+  }
+
+  // Open Sales / Purchase Lines. Keeps open order lines only.
+  // Filter: 'Document Type' = Order when that column exists; otherwise a fallback on Document No.
+  //   Sales: S-ORD… documents only (drops blanket orders, return orders, credit memos) when any S-ORD exist.
+  //   Purchase: documents whose number has the most common length (drops blanket orders like 1001).
+  function parseLines(rows, kind) {
+    const dateCols = kind === 'sales' ? ['Shipment Date'] : ['Expected Receipt Date'];
+    const hasType = hasCol(rows, ['document type']);
+    const qtyOf = r => numOf(col(r, ['Outstanding Qty. (Base)','Outstanding Quantity']));
+    const docOf = r => String(col(r, ['Document No.'])).trim();
+    const open = rows.filter(r => qtyOf(r) > 0 && String(col(r, ['No.'])).trim());
+    let keep, rule;
+    if (hasType) { keep = r => /^order$/i.test(String(col(r, ['Document Type'])).trim()); rule = 'Document Type = Order'; }
+    else if (kind === 'sales' && open.some(r => /^S-ORD/i.test(docOf(r)))) { keep = r => /^S-ORD/i.test(docOf(r)); rule = 'Document No. starts with S-ORD (no Document Type column)'; }
+    else if (kind === 'purch' && open.length) {
+      const lens = {}; open.forEach(r => { const L = docOf(r).length; lens[L] = (lens[L] || 0) + 1; });
+      const modal = +Object.keys(lens).sort((a,b) => lens[b] - lens[a])[0];
+      keep = r => docOf(r).length === modal; rule = 'Document No. length = ' + modal + ' (no Document Type column)';
+    } else { keep = () => true; rule = 'all open lines (no Document Type column)'; }
+    const map = {}; const out = { map, rule, kept:0, excluded:0, excludedQty:0, excludedDocs:new Set(), noDate:0, rows: rows.length };
+    open.forEach(r => {
+      if (!keep(r)) { out.excluded++; out.excludedQty += qtyOf(r); out.excludedDocs.add(docOf(r)); return; }
+      const item = String(col(r, ['No.'])).trim();
+      const date = toDate(col(r, dateCols));
+      if (!date) out.noDate++;
+      (map[item] = map[item] || []).push({ date, qty: qtyOf(r), doc: docOf(r), cust: String(col(r, ['Sell-to Customer Name','Buy-from Vendor Name','Sell-to Customer No.'])).trim() });
+      out.kept++;
+    });
+    out.excludedDocs = out.excludedDocs.size;
+    return out;
+  }
+
+  // Day-by-day projection out to `horizon` days. Returns first day the balance reaches 0 (or null).
+  // demand(d) = max(cumulative SO due by d, ADU × d) — forecast consumption; supply(d) = dated PO receipts by d.
+  // Also reports what drove the run-out: the SO line that pushed the balance to zero, or ADU burn.
+  function project(onHand, adu, soEv, poEv, horizon) {
+    const start = Math.max(onHand, 0);
+    let si = 0, pi = 0, cumSO = 0, cumPO = 0;
+    for (let d = 0; d <= horizon; d++) {
+      while (pi < poEv.length && poEv[pi].day <= d) cumPO += poEv[pi++].qty;
+      let crossing = null;
+      while (si < soEv.length && soEv[si].day <= d) {
+        const ev = soEv[si++]; cumSO += ev.qty;
+        if (!crossing && start + cumPO - cumSO <= 0) crossing = ev;
+      }
+      const aduDem = (adu || 0) * d;
+      const demand = Math.max(cumSO, aduDem);
+      if (demand > 0 && start + cumPO - demand <= 0) {
+        const bySO = cumSO >= aduDem;
+        if (bySO && !crossing) crossing = soEv.slice(0, si).reverse().find(e => e.qty > 0) || null;
+        return { day: d, soQtyDue: cumSO, driver: bySO ? (crossing && crossing.late ? 'Late SO lines' : 'Sales orders') : 'ADU',
+                 drivingSO: bySO && crossing ? crossing : null };
+      }
+    }
+    return null;
+  }
+
+  // params: { lt, ss, cycle, imminent, activeDays, fadingDays, pct }
+  function score(master, aduP, newP, params, now, salesP, purchP) {
+    const P = params;
+    const rop = P.lt + P.ss;
+    const max = rop + P.cycle;
+    const adjFactor = 1 + (P.pct / 100);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const newSet = newP ? newP.set : new Set();
+    const items = [];
+    const st = { notFound:0, presentNoLastSale:0, newNotInMaster:0, newWithDemand:0,
+      soUndated:0, soUndatedQty:0, soLinesOver:0, poMismatch:0, pastDuePoLines:0, pastDuePoQty:0, pastDuePoItems:0 };
+    const horizon = rop;
+    const dayOf = d => Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 86400000);
+
+    Object.values(master).forEach(m => {
+      const found = Object.prototype.hasOwnProperty.call(aduP.map, m.itemNo);
+      if (!found) st.notFound++;
+      const rec = found ? aduP.map[m.itemNo] : null;
+      const aduStatus = found ? rec.aduStatus : 'MISSING';
+      const oh = m.onHand, po = m.poQty, so = m.soQty;
+      const avail = oh - so;
+      const ip = oh + po - so;
+      const lastSale = rec ? rec.lastSale : null;
+      const dsl = lastSale ? Math.max(0, Math.round((today - lastSale) / 86400000)) : null;
+      const isNew = newSet.has(m.itemNo);
+      if (isNew && aduStatus === 'PRESENT') st.newWithDemand++;
+      const hasExposure = oh !== 0 || po > 0 || so > 0;
+      const adu = aduStatus === 'PRESENT' ? rec.adu * adjFactor : null;
+      const asp = rec ? rec.asp : null;
+
+      // ---- Build dated demand / supply events ----
+      let soEv = [], poEv = [], pastDuePo = 0, nextReceipt = null;
+      if (salesP) {
+        const ls = salesP.map[m.itemNo] || [];
+        let tot = 0;
+        ls.forEach(l => { tot += l.qty; const od = l.date ? dayOf(l.date) : -1; soEv.push({ day: Math.max(0, od), qty: l.qty, late: od < 0, date: l.date, doc: l.doc, cust: l.cust }); });
+        if (so > tot + 0.0001) { soEv.push({ day:0, qty: so - tot, late:false, date:null, doc:'(SO qty in Items view, no matching line)', cust:'' }); st.soUndated++; st.soUndatedQty += so - tot; }
+        else if (tot > so + 0.0001) st.soLinesOver++;
+      } else if (so > 0) soEv.push({ day:0, qty: so, late:false, date:null, doc:'(open SO — no Sales Lines file)', cust:'' });
+      if (purchP) {
+        const lp = purchP.map[m.itemNo] || [];
+        let tot = 0;
+        lp.forEach(l => {
+          tot += l.qty;
+          const d = l.date ? dayOf(l.date) : -1;
+          if (d < 0) { pastDuePo += l.qty; st.pastDuePoLines++; }
+          else { poEv.push({ day:d, qty:l.qty }); if (!nextReceipt || l.date < nextReceipt) nextReceipt = l.date; }
+        });
+        if (Math.abs(tot - po) > 0.0001) st.poMismatch++;
+        if (pastDuePo > 0) { st.pastDuePoItems++; st.pastDuePoQty += pastDuePo; }
+      }
+      soEv.sort((a,b) => a.day - b.day); poEv.sort((a,b) => a.day - b.day);
+      const proj = (adu || soEv.length) ? project(oh, adu, soEv, poEv, horizon) : null;
+      const projDay = proj ? proj.day : null;
+      const datedSO = soEv.filter(e => e.date);
+      const nextSODate = datedSO.length ? datedSO.reduce((a,e) => e.date < a ? e.date : a, datedSO[0].date) : null;
+
+      let label;
+      if (so > 0 && so > oh + po) {
+        label = 'OVERSOLD';
+      } else if (so > oh && po > 0) {
+        // Any item, with or without sales history: SOs exceed on hand and the open PO covers the rest.
+        label = 'BACKORDER';
+      } else if (aduStatus === 'PRESENT') {
+        if (oh <= 0) {
+          if (!aduP.hasLastSale) label = 'SO_ACTIVE';
+          else if (dsl === null) { label = 'SO_LAPSED'; st.presentNoLastSale++; }
+          else if (dsl <= P.activeDays) label = 'SO_ACTIVE';
+          else if (dsl <= P.fadingDays) label = 'SO_FADING';
+          else label = 'SO_LAPSED';
+        } else if (projDay !== null && projDay <= P.imminent) label = 'RUNS_OUT';
+        else if (ip / adu < P.lt) label = 'CRITICAL';
+        else if (ip / adu <= rop) label = 'REORDER';
+        else if (ip / adu <= max) label = 'STABLE';
+        else label = 'OVERSTOCK';
+      } else {
+        if (isNew) label = 'NEW';
+        else if (!hasExposure) label = 'INACTIVE';
+        else if (aduStatus === 'ZERO') label = 'DEAD';
+        else label = 'OBSOLETE';
+      }
+
+      const isStockoutLbl = label === 'SO_ACTIVE' || label === 'SO_FADING' || label === 'SO_LAPSED';
+      // Excess: Overstock = units above Max (split on hand vs open PO); Dead / Obsolete = all units (no demand).
+      let excessQty = 0, excessOH = 0, pushOutQty = 0;
+      if (label === 'OVERSTOCK') {
+        const maxQty = adu * max;
+        excessQty = Math.max(0, ip - maxQty);
+        pushOutQty = Math.min(excessQty, Math.max(po, 0));
+        excessOH = excessQty - pushOutQty;
+      } else if (label === 'DEAD' || label === 'OBSOLETE') {
+        excessOH = Math.max(oh, 0); pushOutQty = Math.max(po, 0); excessQty = excessOH + pushOutQty;
+      }
+      items.push({
+        ...m, label, bucket: LABELS[label].bucket, aduStatus, adu,
+        avail, ip,
+        availDoC: adu ? avail / adu : null,
+        ipDoC: adu ? ip / adu : null,
+        boQty: so > Math.max(oh, 0) ? so - Math.max(oh, 0) : 0,
+        shortQty: so > oh + po ? so - oh - po : 0,
+        lastSale, dsl,
+        lostUnits: (isStockoutLbl && adu && dsl !== null) ? adu * dsl : null,
+        source: rec ? rec.source : '', method: rec ? rec.method : '',
+        asp, revExposure: (aduP.hasAsp && asp !== null) ? asp * (Math.max(oh,0) + po) : null,
+        excessQty, excessOH, pushOutQty,
+        excessVal: (aduP.hasAsp && asp !== null && excessQty) ? asp * excessQty : null,
+        isNew, vel: null,
+        projDay: oh > 0 ? projDay : (projDay === null ? null : 0),
+        projDate: oh > 0 ? (projDay === null ? null : new Date(today.getFullYear(), today.getMonth(), today.getDate() + projDay)) : null,
+        outNow: oh <= 0,
+        nextReceipt, pastDuePo,
+        nextSODate,
+        roDriver: proj ? proj.driver : '',
+        roSOQty: proj ? proj.soQtyDue : null,
+        roSO: proj && proj.drivingSO ? (proj.drivingSO.doc + (proj.drivingSO.cust ? ' / ' + proj.drivingSO.cust : '') + ' — ' + Math.round(proj.drivingSO.qty).toLocaleString('en-US') + (proj.drivingSO.date ? ' due ' + proj.drivingSO.date.getFullYear() + '-' + String(proj.drivingSO.date.getMonth()+1).padStart(2,'0') + '-' + String(proj.drivingSO.date.getDate()).padStart(2,'0') : '')) : ''
+      });
+    });
+
+    // Velocity class (A/B/C) — cumulative share of daily revenue (ADU × ASP), items with a demand signal only.
+    // A = top 80%, B = next 15%, C = last 5%. Items with ADU but no ASP fall to C.
+    // If the ADU export has no ASP column at all, falls back to units (ADU) so classes still exist.
+    st.velBasis = aduP.hasAsp ? 'revenue' : 'units';
+    const velVal = i => aduP.hasAsp ? (i.asp ? i.adu * i.asp : 0) : i.adu;
+    const withAdu = items.filter(i => i.adu);
+    const ranked = withAdu.filter(i => velVal(i) > 0).sort((a,b) => velVal(b) - velVal(a));
+    const tot = ranked.reduce((s,i) => s + velVal(i), 0);
+    let cum = 0;
+    ranked.forEach(i => { cum += velVal(i); const sh = cum / tot; i.vel = sh <= 0.80 ? 'A' : (sh <= 0.95 ? 'B' : 'C'); });
+    withAdu.forEach(i => { if (!i.vel) i.vel = 'C'; });
+    st.velNoAsp = withAdu.length - ranked.length;
+
+    if (newP) {
+      const masterKeys = new Set(Object.keys(master));
+      newP.set.forEach(k => { if (!masterKeys.has(k)) st.newNotInMaster++; });
     }
 
-    rescore();
+    const counts = {}; LABEL_ORDER.forEach(l => counts[l] = 0);
+    const bucketCounts = {}; BUCKETS.forEach(b => bucketCounts[b.key] = 0);
+    items.forEach(i => { counts[i.label]++; bucketCounts[i.bucket]++; });
+    const lapsed = items.filter(i => i.label === 'SO_LAPSED');
+    st.lapsed = lapsed.length;
+    st.lapsedAB = lapsed.filter(i => i.vel === 'A' || i.vel === 'B').length;
+    st.excessRev = items.filter(i => i.bucket === 'EXCESS' && i.revExposure !== null).reduce((a,i) => a + i.revExposure, 0);
+    const ex = items.filter(i => i.excessQty > 0);
+    const $ = (i, q) => (i.asp !== null && i.asp !== undefined) ? i.asp * q : 0;
+    st.exTotal = ex.reduce((a,i) => a + $(i, i.excessQty), 0);
+    st.exOH = ex.reduce((a,i) => a + $(i, i.excessOH), 0);
+    st.exPush = ex.reduce((a,i) => a + $(i, i.pushOutQty), 0);
+    st.exPushItems = ex.filter(i => i.pushOutQty > 0).length;
+    st.exPushOverstock = ex.filter(i => i.label === 'OVERSTOCK').reduce((a,i) => a + $(i, i.pushOutQty), 0);
+    st.exPushDead = ex.filter(i => i.label !== 'OVERSTOCK').reduce((a,i) => a + $(i, i.pushOutQty), 0);
+    st.exByLabel = {}; ['OVERSTOCK','DEAD','OBSOLETE'].forEach(l => st.exByLabel[l] = ex.filter(i => i.label === l).reduce((a,i) => a + $(i, i.excessQty), 0));
+    st.obsoleteUnits = ex.filter(i => i.label === 'OBSOLETE').reduce((a,i) => a + i.excessQty, 0);
 
-    const elapsed = ((Date.now() - (window._sgxStart||Date.now())) / 1000).toFixed(1);
-    const FIELDS_REFERENCED = 10; // 6 Items fields (No., Description, Category, On-Hand, Open PO, Sales Order) + 4 ADU fields (ItemNo, Planning ADU, ASP, Last Sale Date)
-    const itemCount = Object.keys(masterMap).length;
-    const dataPoints = itemCount * FIELDS_REFERENCED;
-    sb('ok', '✓ Scored ' + itemCount.toLocaleString() + ' items × ' + FIELDS_REFERENCED + ' fields = ' + dataPoints.toLocaleString() + ' data points cross-referenced in ' + elapsed + 's — ' + notFoundCount + ' not found in ADU export, ' + dqBlankKeys + ' blank keys, ' + dqDupKeys + ' duplicate keys');
-    setTimeout(() => document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'}), 150);
+    st.horizon = horizon;
+    st.hasSales = !!salesP; st.hasPurch = !!purchP;
+    return { items, counts, bucketCounts, stats: st, rop, max };
+  }
+
+  return { LABELS, LABEL_ORDER, BUCKETS, detectRole, parseItems, parseAdu, parseNew, parseLines, project, score, toDate };
+})();
+if (typeof module !== 'undefined') module.exports = SGEngine;
+</script>
+
+<script id="sg-ui">
+const SGX = (function() {
+  const E = SGEngine;
+  const P = { lt:90, ss:30, cycle:60, imminent:14, activeDays:90, fadingDays:180, pct:0 };
+  let loaded = { items:null, adu:null, newitems:null, sales:null, purch:null };
+  let parsed = { master:null, adu:null, newp:null, sales:null, purch:null, itemsExcluded:0, itemsDup:0 };
+  let result = null;
+  let activeBucket = 'ALL', activeLabel = 'ALL';
+  let sortState = { key:null, dir:'desc' };
+
+  const $ = id => document.getElementById(id);
+  function esc(s) { if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function fmt(n, dp) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    const d = dp === undefined ? (Math.abs(n) < 10 && n % 1 !== 0 ? 2 : 0) : dp;
+    return n.toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits:d });
+  }
+  function fmtMoney(n) { return n === null || n === undefined ? '—' : '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function ymd(d) { if (!d) return ''; return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+  // ---------- Landing: required planning targets ----------
+  const inLT = $('inLT'), inSS = $('inSS'), dz = $('dropZone');
+  function targetsValid() {
+    const lt = parseFloat(inLT.value), ss = parseFloat(inSS.value);
+    const okLT = inLT.value !== '' && !isNaN(lt) && lt >= 1 && lt <= 365;
+    const okSS = inSS.value !== '' && !isNaN(ss) && ss >= 0 && ss <= 180;
+    return { ok: okLT && okSS, okLT, okSS, lt, ss };
+  }
+  function refreshLock() {
+    const v = targetsValid();
+    dz.classList.toggle('locked', !v.ok);
+    inLT.classList.toggle('bad', inLT.value !== '' && !v.okLT);
+    inSS.classList.toggle('bad', inSS.value !== '' && !v.okSS);
+    $('dropTitle').textContent = v.ok ? 'Step 2 — Drop your exports here (or click)' : 'Step 2 — Enter Lead Time and Safety Stock first';
+  }
+  [inLT, inSS].forEach(el => el.addEventListener('input', refreshLock));
+  $('paramBox').addEventListener('click', e => e.stopPropagation());
+  dz.addEventListener('click', () => { if (targetsValid().ok) $('fileInput').click(); else inLT.value === '' ? inLT.focus() : inSS.focus(); });
+  dz.addEventListener('dragover', e => { e.preventDefault(); if (targetsValid().ok) dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag');
+    if (!targetsValid().ok) { sb('err', '✗ Enter Lead Time and Safety Stock (calendar days) before dropping files.', false); return; }
+    loadFiles(e.dataTransfer.files);
+  });
+  $('fileInput').addEventListener('change', e => { if (e.target.files.length) loadFiles(e.target.files); });
+  $('fileInput2').addEventListener('change', e => { if (e.target.files.length) loadFiles(e.target.files); });
+
+  // ---------- Sliders ----------
+  const SLIDERS = [
+    ['ltSlider','ltVal','lt',' d'], ['ssSlider','ssVal','ss',' d'], ['cySlider','cyVal','cycle',' d'],
+    ['imSlider','imVal','imminent',' d'], ['acSlider','acVal','activeDays',' d'], ['faSlider','faVal','fadingDays',' d'], ['pctSlider','pctVal','pct','%']
+  ];
+  let rescoreT = null;
+  SLIDERS.forEach(([sid, vid, key, unit]) => {
+    $(sid).addEventListener('input', e => {
+      P[key] = +e.target.value;
+      if (key === 'activeDays' && P.fadingDays <= P.activeDays) { P.fadingDays = P.activeDays + 1; $('faSlider').value = P.fadingDays; }
+      if (key === 'fadingDays' && P.fadingDays <= P.activeDays) { P.activeDays = Math.max(7, P.fadingDays - 1); $('acSlider').value = P.activeDays; }
+      syncSliderLabels();
+      clearTimeout(rescoreT); rescoreT = setTimeout(rescore, 150);
+    });
+  });
+  function syncSliderLabels() {
+    SLIDERS.forEach(([sid, vid, key, unit]) => {
+      $(sid).value = P[key];
+      $(vid).textContent = (key === 'pct' && P.pct > 0 ? '+' : '') + P[key] + unit;
+    });
+    $('ctlDerived').innerHTML = 'Reorder point <strong>' + (P.lt + P.ss) + ' d</strong> · Max <strong>' + (P.lt + P.ss + P.cycle) + ' d</strong> · Critical below <strong>' + P.lt + ' d</strong> · Runs Out window ≤ <strong>' + P.imminent + ' d</strong> projected · Stockout Active ≤ <strong>' + P.activeDays + ' d</strong>, Fading ≤ <strong>' + P.fadingDays + ' d</strong>, Lapsed beyond';
+  }
+
+  // ---------- Sorting / scroll sync ----------
+  const scrollTopOuter = $('scrollTopOuter');
+  let syncing = false;
+  $('tableWrap').addEventListener('scroll', function() { if (syncing) return; syncing = true; scrollTopOuter.scrollLeft = this.scrollLeft; syncing = false; });
+  scrollTopOuter.addEventListener('scroll', function() { if (syncing) return; syncing = true; $('tableWrap').scrollLeft = this.scrollLeft; syncing = false; });
+
+  // ---------- Loading ----------
+  let loadTicker = null;
+  function startTicker(label) { const start = Date.now(); clearInterval(loadTicker); loadTicker = setInterval(() => sb('loading', label + ' (' + ((Date.now()-start)/1000).toFixed(1) + 's)…'), 100); }
+  function stopTicker() { clearInterval(loadTicker); loadTicker = null; }
+
+  function readFileAsSheetRows(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      const isCsv = /\.csv$/i.test(file.name);
+      reader.onload = e => {
+        try {
+          const wb = isCsv ? XLSX.read(e.target.result, { type:'string', raw:true }) : XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+          resolve(wb.SheetNames.map(name => ({ file:file.name, name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { raw:true, defval:'' }) })));
+        } catch(err) { reject(err); }
+      };
+      reader.onerror = () => reject(new Error('Could not read ' + file.name));
+      if (isCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+    });
+  }
+
+  const ROLE_KEYS = ['items','adu','newitems','sales','purch'];
+  const ROLE_NAMES = { items:'Items', adu:'ADU', newitems:'Zero Shipped', sales:'Sales Lines', purch:'Purchase Lines' };
+  function loadFiles(fileList) {
+    const files = Array.from(fileList).filter(f => /\.(xlsx|csv)$/i.test(f.name));
+    $('fileInput').value = ''; $('fileInput2').value = '';
+    if (!files.length) { sb('err', '✗ No .xlsx or .csv files found in the drop.', true); return; }
+    window._sgxStart = Date.now();
+    startTicker('Reading ' + files.map(f => f.name).join(' + '));
+    Promise.all(files.map(readFileAsSheetRows)).then(sets => {
+      stopTicker();
+      const got = [];
+      sets.flat().forEach(s => {
+        const role = E.detectRole(s.rows);
+        if (role && !got.some(g => g.role === role)) { loaded[role] = s; got.push({ role, file:s.file }); }
+      });
+      if (!got.length) { sb('err', '✗ Could not recognize any file by its column headers. Items needs No. / Quantity on Hand; ADU needs Planning ADU; Zero Shipped needs Customer First Activity; Sales Lines need Shipment Date; Purchase Lines need Expected Receipt Date.', true); return; }
+      if (!(loaded.items && loaded.adu)) {
+        const have = ROLE_KEYS.filter(r => loaded[r]).map(r => ROLE_NAMES[r]).join(' + ');
+        const need = !loaded.items ? 'Items' : 'ADU';
+        sb('wait', '✓ Got ' + have + ' — now drop the ' + need + ' file to continue.', true);
+        return;
+      }
+      const missingOpt = ['newitems','sales','purch'].filter(r => !loaded[r]);
+      if (!result && missingOpt.length) {
+        // Mandatory pair is in, some optional files aren't — wait for the user instead of auto-running.
+        const haveOpt = ['newitems','sales','purch'].filter(r => loaded[r]).map(r => ROLE_NAMES[r]);
+        sb('wait', '✓ Items + ADU' + (haveOpt.length ? ' + ' + haveOpt.join(' + ') : '') + ' loaded. Optional files not yet dropped: <strong>' + missingOpt.map(r => ROLE_NAMES[r]).join(', ') + '</strong>. Drop them now, or <button class="btn btn-primary" id="runNowBtn" style="margin-left:6px;padding:5px 14px">▶ Run now</button>', true);
+        $('runNowBtn').addEventListener('click', runAnalysis);
+        return;
+      }
+      runAnalysis();
+    }).catch(err => { stopTicker(); sb('err', '✗ ' + err.message, true); });
+  }
+
+  function runAnalysis() {
+    if (!(loaded.items && loaded.adu)) return;
+    if (!result) { // first run: take landing targets
+      const v = targetsValid();
+      if (!v.ok) { sb('err', '✗ Enter Lead Time and Safety Stock (calendar days) before running.', true); return; }
+      P.lt = Math.round(v.lt); P.ss = Math.round(v.ss);
+    }
+    startTicker('Scoring');
+    $('hero').classList.add('compact');
+    setTimeout(() => { stopTicker(); process(); }, 20);
+  }
+
+  function process() {
+    const pi = E.parseItems(loaded.items.rows);
+    if (!Object.keys(pi.map).length) { sb('err', '✗ No valid Items rows found. Check the Items column headers.', true); $('hero').classList.remove('compact'); return; }
+    parsed.master = pi.map; parsed.itemsExcluded = pi.excluded; parsed.itemsDup = pi.dup;
+    parsed.adu = E.parseAdu(loaded.adu.rows);
+    parsed.newp = loaded.newitems ? E.parseNew(loaded.newitems.rows) : null;
+    parsed.sales = loaded.sales ? E.parseLines(loaded.sales.rows, 'sales') : null;
+    parsed.purch = loaded.purch ? E.parseLines(loaded.purch.rows, 'purch') : null;
+    syncSliderLabels();
+    rescore();
+    const n = Object.keys(parsed.master).length;
+    const elapsed = ((Date.now() - (window._sgxStart || Date.now())) / 1000).toFixed(1);
+    sb('ok', '✓ Scored ' + n.toLocaleString() + ' items in ' + elapsed + 's · Items: ' + esc(loaded.items.file) + ' · ADU: ' + esc(loaded.adu.file) + ['newitems','sales','purch'].map(r => loaded[r] ? ' · ' + ROLE_NAMES[r] + ': ' + esc(loaded[r].file) : ' · no ' + ROLE_NAMES[r]).join(''), true);
+    setTimeout(() => $('results').scrollIntoView({ behavior:'smooth', block:'start' }), 150);
   }
 
   function rescore() {
-    if (!Object.keys(masterMap).length) return;
-    items = [];
-    notFoundCount = 0; // item not present in ADU export at all (diagnostic only — folds into MISSING for tiering)
-    const ropCeiling = leadTime + targetDoC;
-    const stableCeil = leadTime * 3;    // matches Ron's Mar-2026 banding deck (3xLT = Hard Stop reference point)
-    const overstockCeil = leadTime * 6; // proportional extension — Dead sits well past Hard Stop
-    const adjFactor = 1 + (pctAdj / 100);
-    const staleWindow = leadTime + targetDoC; // same window as the reorder point
-    const now = new Date();
-
-    Object.values(masterMap).forEach(m => {
-      const poQty = m.poQty || 0;
-      const soQty = m.soQty || 0;
-      const hasExposure = m.onHand > 0 || poQty > 0 || soQty > 0;
-      const found = Object.prototype.hasOwnProperty.call(aduMap, m.itemNo);
-      if (!found) notFoundCount++;
-      const rec = found ? aduMap[m.itemNo] : null;
-      // Item not found in ADU export at all is treated the same as a blank ADU field —
-      // both mean "no demand signal," symmetric with the explicit-zero case below.
-      const aduStatus = found ? rec.aduStatus : 'MISSING';
-      const asp = found ? rec.asp : null;
-      const lastSale = found ? rec.lastSale : null;
-      const revExposure = (hasAsp && asp !== null) ? asp * (m.onHand + poQty) : null;
-
-      if (aduStatus === 'MISSING' || aduStatus === 'ZERO') {
-        // Symmetric exposure check applied to both populations, per Ron's "keep the
-        // symmetry" call: dollars-visible bucket if anything is on-hand/on-order/on-SO,
-        // otherwise it's a true cleanup candidate — never silently dropped anymore.
-        const tier = !hasExposure ? 'DORMANT' : (aduStatus === 'ZERO' ? 'NODATA' : 'GAPEXPOSURE');
-        items.push({ ...m, adu:0, asp, lastSale, poQty, soQty, netDoC:null, netFlowDoC:null, onHandDoC:null, poDoC:null, revExposure, stockoutDate:null, pipelineLight:false, tier });
-        return;
-      }
-
-      // aduStatus === 'PRESENT' — normal Active Demand Signal scoring
-      const rawAdu = rec.adu;
-      const adu = rawAdu * adjFactor; // effective ADU after seasonality/reliability adjustment
-      const onHandDoC = m.onHand / adu;
-      const poDoC = poQty / adu;
-      const netDoC = (m.onHand + poQty) / adu;
-      const netFlowDoC = (m.onHand + poQty - soQty) / adu; // DDMRP-style: nets out committed-but-unshipped demand; negative = already oversold
-      let tier;
-      if (netDoC < targetDoC) tier = 'CRITICAL';
-      else if (netDoC < ropCeiling) tier = 'WATCH';
-      else if (netDoC < stableCeil) tier = 'STABLE';
-      else if (netDoC < overstockCeil) tier = 'OVERSTOCKED';
-      else tier = 'DEAD';
-
-      // Critical-tier override: on-hand is depleted, but if there's no recent sale
-      // signal, the lagging ADU average hasn't caught up to a real demand drop yet —
-      // this isn't an urgent buy, it's a stale/dying item. Same exception-bucket
-      // pattern as Ron's Mar-2026 banding deck (NO USAGE / NO HISTORY override DoC).
-      if (tier === 'CRITICAL' && hasLastSale) {
-        const daysSinceLastSale = lastSale ? (now - lastSale) / 86400000 : null;
-        if (daysSinceLastSale === null || daysSinceLastSale > staleWindow) {
-          tier = 'STALE';
-        }
-      }
-
-      // Stockout Date: on-hand only, ignoring open PO (per Ron's spec).
-      // Pipeline Light: even combining on-hand + everything already on order, coverage
-      // runs out before a brand-new order placed today could possibly arrive (Lead Time).
-      const stockoutDate = new Date(now.getTime() + onHandDoC * 86400000);
-      const pipelineLight = netDoC < leadTime;
-
-      items.push({ ...m, adu, asp, lastSale, poQty, soQty, netDoC, netFlowDoC, onHandDoC, poDoC, revExposure, stockoutDate, pipelineLight, tier });
-    });
-
+    if (!parsed.master) return;
+    result = E.score(parsed.master, parsed.adu, parsed.newp, P, new Date(), parsed.sales, parsed.purch);
     render();
   }
 
-  const TIER_ORDER = ['CRITICAL','WATCH','STABLE','OVERSTOCKED','DEAD','STALE','GAPEXPOSURE','NODATA','DORMANT'];
-  const TIER_LABEL = {
-    CRITICAL:'🔴 Critical', WATCH:'🟠 Watch', STABLE:'🟢 Stable', OVERSTOCKED:'🔵 Overstocked', DEAD:'⬜ Dead',
-    STALE:'🟤 Stale Demand', GAPEXPOSURE:'🔺 Inventory Exposure Without ADU', NODATA:'🟣 Known Zero Demand',
-    DORMANT:'⚪ Dormant / Cleanup Candidate'
+  // ---------- Render ----------
+  function render() {
+    $('results').style.display = 'block';
+    const { items, counts, bucketCounts, stats } = result;
+    const total = items.length;
+    $('totalNum').textContent = total.toLocaleString();
+    $('totalSub').innerHTML = '<strong style="color:#E9A535">' + bucketCounts.ACT.toLocaleString() + '</strong> need action now · <strong style="color:#E9A535">' + bucketCounts.REORDER.toLocaleString() + '</strong> to reorder · Lead Time <strong>' + P.lt + ' d</strong> · Safety Stock <strong>' + P.ss + ' d</strong>';
+    $('totalBanner').classList.add('animate');
+
+    // data-quality banner
+    const a = parsed.adu, msgs = [];
+    if (stats.notFound) msgs.push('⚠️ <strong>' + stats.notFound + '</strong> items in the Items export have no row in the ADU export — treated as no sales on record.');
+    if (a.blankKeys || a.dupKeys) msgs.push('🔧 ADU export: <strong>' + a.blankKeys + '</strong> blank item keys (' + a.blankKeysWithSales + ' carry sales that cannot be matched — part number is in the description), <strong>' + a.dupKeys + '</strong> duplicate keys (first used).');
+    if (parsed.itemsExcluded) msgs.push('🚫 <strong>' + parsed.itemsExcluded + '</strong> sample placeholder item(s) (SAMPLE / FACTORY SAMPLES) excluded from scoring.');
+    if (!a.hasLastSale) msgs.push('📅 No <strong>Last Sale Date</strong> column — stockouts cannot be split by recency; all show as Stockout – Active.');
+    if (stats.presentNoLastSale) msgs.push('📅 <strong>' + stats.presentNoLastSale + '</strong> stocked-out items have ADU but no Last Sale Date — placed in Stockout – Lapsed.');
+    if (!a.hasAsp) msgs.push('💲 No <strong>Effective Sale Price / Unit</strong> column — revenue exposure shows "—" and velocity falls back to units (ADU).');
+    else if (stats.velNoAsp) msgs.push('💲 <strong>' + stats.velNoAsp + '</strong> items have ADU but no sale price — velocity class set to C.');
+    if (parsed.newp) {
+      const np = parsed.newp;
+      msgs.push('🆕 Zero Shipped file: ' + np.rows + ' rows → ' + np.unique + ' unique items' + (np.samples ? ' (' + np.samples + ' sample rows ignored)' : '') + '. Only items with no demand signal become New – Awaiting First Ship; ' + stats.newWithDemand + ' already sell to other customers and are scored normally' + (stats.newNotInMaster ? '; ' + stats.newNotInMaster + ' not in the Items export' : '') + '.');
+    } else {
+      msgs.push('🆕 No Zero Shipped file loaded — new items with no sales yet are counted as Obsolete. Use “Add / replace optional files” to separate them.');
+    }
+    if (parsed.sales) {
+      const L = parsed.sales;
+      msgs.push('📦 Sales Lines: ' + L.kept.toLocaleString() + ' open order lines used (' + esc(L.rule) + '); ' + L.excluded + ' open lines on ' + L.excludedDocs + ' other documents left out (blanket / return / credit). Late lines count as due today. ' + stats.soUndated + ' items have Items-view SO qty not found in the lines (treated as due today); ' + stats.soLinesOver + ' have more in the lines than the Items view (lines used).');
+    } else msgs.push('📦 No Sales Lines file — all open SO qty is treated as due today when projecting run-out dates.');
+    if (parsed.purch) {
+      const L = parsed.purch;
+      msgs.push('🚚 Purchase Lines: ' + L.kept.toLocaleString() + ' open order lines used (' + esc(L.rule) + '); ' + L.excluded + ' lines on ' + L.excludedDocs + ' other documents left out. <strong>' + stats.pastDuePoLines + '</strong> PO lines (' + Math.round(stats.pastDuePoQty).toLocaleString() + ' units, ' + stats.pastDuePoItems + ' items) are past their Expected Receipt Date — left out of the projection; confirm dates. ' + stats.poMismatch + ' items where line totals differ from the Items view.');
+    } else msgs.push('🚚 No Purchase Lines file — run-out dates ignore incoming POs (dates may be earlier than reality).');
+    const gb = $('gapBanner');
+    if (msgs.length) { gb.classList.add('on'); gb.innerHTML = msgs.join('<br>'); } else gb.classList.remove('on');
+
+    // bucket cards
+    const sub = {
+      ACT: counts.OVERSOLD + ' oversold · ' + counts.BACKORDER + ' backorder · ' + (counts.SO_ACTIVE + counts.SO_FADING + counts.SO_LAPSED) + ' stockout · ' + counts.RUNS_OUT + ' runs out soon',
+      REORDER: counts.CRITICAL + ' critical · ' + counts.REORDER + ' reorder',
+      HEALTHY: 'IP between ROP and Max',
+      EXCESS: counts.OVERSTOCK + ' overstock · ' + counts.DEAD + ' dead · ' + counts.OBSOLETE + ' obsolete',
+      HOUSE: counts.NEW + ' new · ' + counts.INACTIVE + ' inactive'
+    };
+    $('summaryGrid').innerHTML = E.BUCKETS.map(b =>
+      '<div class="card ' + b.color + (activeBucket === b.key ? ' sel' : '') + '" data-b="' + b.key + '"><div class="num">' + bucketCounts[b.key].toLocaleString() + '</div><div class="lbl">' + b.name + '</div><div class="pct">' + sub[b.key] + '</div></div>'
+    ).join('');
+    $('summaryGrid').querySelectorAll('.card').forEach(c => c.addEventListener('click', () => { setBucket(activeBucket === c.dataset.b ? 'ALL' : c.dataset.b); }));
+    $('summaryGrid2').innerHTML = '<div class="card gray static"><div class="num" style="color:var(--red)">' + (a.hasAsp ? fmtMoney(stats.exTotal) : '—') + '</div>' +
+      '<div class="lbl">Excess above Max — ASP-based, not cost</div>' +
+      (a.hasAsp ? '<div class="pct" style="font-size:12px;color:#555;margin-top:6px">On hand <strong>' + fmtMoney(stats.exOH) + '</strong> · On order — push-out / cancel candidates <strong style="color:var(--red)">' + fmtMoney(stats.exPush) + '</strong> across <strong>' + stats.exPushItems.toLocaleString() + '</strong> items (' + fmtMoney(stats.exPushOverstock) + ' Overstock above Max, ' + fmtMoney(stats.exPushDead) + ' on Dead / Obsolete items)</div>' : '') +
+      '<div class="pct">Overstock counts only units above Max (' + result.max + ' d of ADU); Dead Inventory counts all units. Obsolete has no sale price, so its ' + Math.round(stats.obsoleteUnits).toLocaleString() + ' units add $0 here — understated. Full on-hand + PO value of the bucket: ' + (a.hasAsp ? fmtMoney(stats.excessRev) : '—') + '.</div></div>';
+
+    // lapsed callout
+    const lc = $('lapsedCallout');
+    if (stats.lapsed) {
+      lc.classList.add('on');
+      lc.innerHTML = '⚠️ <span><strong>' + stats.lapsed + ' stockouts with no sale in ' + P.fadingDays + '+ days</strong> — restock or retire. <strong>' + stats.lapsedAB + '</strong> are A/B velocity (highlighted).</span> <button class="btn btn-outline" id="lapsedBtn">Show them</button>';
+      $('lapsedBtn').addEventListener('click', () => { activeBucket = 'ACT'; activeLabel = 'SO_LAPSED'; sortState = { key:'adu', dir:'desc' }; render(); });
+    } else lc.classList.remove('on');
+
+    $('fnote').textContent = total.toLocaleString() + ' items · ROP ' + result.rop + ' d · Max ' + result.max + ' d';
+    renderFilters();
+    renderTable();
+  }
+
+  function setBucket(b) { activeBucket = b; activeLabel = 'ALL'; render(); }
+
+  function renderFilters() {
+    const { counts, bucketCounts, items } = result;
+    const bb = $('bucketBar');
+    bb.innerHTML = '<span class="flabel">Bucket</span>' + pill('b', 'ALL', 'All', items.length, activeBucket === 'ALL') +
+      E.BUCKETS.map(b => pill('b', b.key, b.name, bucketCounts[b.key], activeBucket === b.key)).join('');
+    bb.querySelectorAll('.fpill').forEach(p => p.addEventListener('click', () => setBucket(p.dataset.v)));
+    const lb = $('labelBar');
+    if (activeBucket === 'ALL') { lb.style.display = 'none'; return; }
+    lb.style.display = 'flex';
+    const labs = E.LABEL_ORDER.filter(l => E.LABELS[l].bucket === activeBucket);
+    lb.innerHTML = '<span class="flabel">Label</span>' + pill('l', 'ALL', 'All ' + E.BUCKETS.find(b => b.key === activeBucket).name, bucketCounts[activeBucket], activeLabel === 'ALL') +
+      labs.map(l => pill('l', l, E.LABELS[l].name, counts[l], activeLabel === l)).join('');
+    lb.querySelectorAll('.fpill').forEach(p => p.addEventListener('click', () => { activeLabel = p.dataset.v; renderFilters(); renderTable(); }));
+  }
+  function pill(kind, v, label, n, on) {
+    return '<button class="fpill' + (on ? ' active' : '') + '" data-v="' + v + '">' + esc(label) + ' <span class="filter-count">' + n.toLocaleString() + '</span></button>';
+  }
+
+  const COLS = [
+    { key:'label', t:'Label' }, { key:'itemNo', t:'Item No.' }, { key:'desc', t:'Description' }, { key:'cat', t:'Category' },
+    { key:'vel', t:'Vel' }, { key:'projDate', t:'Runs Out' }, { key:'projDay', t:'Days Left', n:1 }, { key:'roDriver', t:'Run-out Driver' }, { key:'roSO', t:'Driving SO' }, { key:'roSOQty', t:'SO Due by Run-out', n:1 }, { key:'nextSODate', t:'Next SO Ship' },
+    { key:'adu', t:'ADU', n:1 }, { key:'onHand', t:'On Hand', n:1 }, { key:'soQty', t:'Open SO', n:1 }, { key:'poQty', t:'Open PO', n:1 },
+    { key:'nextReceipt', t:'Next PO Receipt' }, { key:'pastDuePo', t:'Past-due PO Qty', n:1 },
+    { key:'avail', t:'Available', n:1 }, { key:'ip', t:'Inv. Position', n:1 }, { key:'availDoC', t:'Avail DoC', n:1 }, { key:'ipDoC', t:'IP DoC', n:1 },
+    { key:'boQty', t:'Backorder Qty', n:1 }, { key:'shortQty', t:'Short Qty', n:1 }, { key:'lastSale', t:'Last Sale' }, { key:'dsl', t:'Days Since Sale', n:1 }, { key:'lostUnits', t:'Est. Lost Units', n:1 },
+    { key:'source', t:'Source' }, { key:'asp', t:'ASP', n:1 }, { key:'excessQty', t:'Excess Qty', n:1 }, { key:'pushOutQty', t:'PO Push-out Qty', n:1 }, { key:'excessVal', t:'Excess $ (ASP)', n:1 }, { key:'revExposure', t:'Rev. Exposure', n:1 }
+  ];
+  const COL_TIPS = {
+    avail:'On Hand − Open SO', ip:'Inventory position = On Hand + Open PO − Open SO', availDoC:'Available ÷ ADU (calendar days)', ipDoC:'Inventory position ÷ ADU (calendar days)',
+    boQty:'Open SO not covered by On Hand (Open SO − On Hand, when positive)', shortQty:'Open SO not covered by On Hand + Open PO (Open SO − On Hand − Open PO, when positive)', lostUnits:'Stockouts only: ADU × days since last sale. Upper bound — the stockout began on or after the last sale.',
+    projDate:'Projected run-out date: on hand + dated PO receipts − the greater of (open SO lines by ship date) or (ADU × days). Out now = nothing on hand. Blank = no run-out within LT + SS days.',
+    roDriver:'What pushes the balance to zero: Sales orders (dated SO lines), Late SO lines (past ship date, counted as due today), or ADU (average daily usage burn)',
+    roSO:'The SO line whose ship qty takes the projected balance to zero (document / customer — qty, ship date)', roSOQty:'Cumulative open SO qty due on or before the run-out date', nextSODate:'Earliest Shipment Date on an open SO line (may be in the past = late)',
+    projDay:'Days until projected run-out (0 = out now or runs out today)', nextReceipt:'Earliest future Expected Receipt Date on an open PO line', pastDuePo:'Open PO qty past its Expected Receipt Date — not counted in the run-out projection',
+    excessQty:'Overstock: inventory position above Max. Dead / Obsolete: all on-hand + on-order units.', pushOutQty:'Open PO qty that lands the item above Max (or any PO on a Dead / Obsolete item) — push out or cancel candidates', excessVal:'Excess Qty × ASP (selling price, not cost)', revExposure:'(On hand + open PO) × ASP, full quantity',
+    vel:'Revenue velocity (ADU × ASP): A = items making up the top 80% of daily revenue, B = next 15%, C = last 5% (and items with no ASP)', source:'ADU source system (Source Check)'
   };
 
-  function render() {
-    document.getElementById('results').style.display = 'block';
-    const total = items.length;
-    document.getElementById('totalNum').textContent = total.toLocaleString();
-    document.getElementById('totalSub').innerHTML =
-      '<strong style="color:#E9A535">' + total.toLocaleString() + ' items</strong> scored · ' +
-      'Lead Time <strong style="color:#E9A535">' + leadTime + ' days</strong>';
-    document.getElementById('totalBanner').classList.add('animate');
-
-    const gapBanner = document.getElementById('gapBanner');
-    const gapMsgs = [];
-    if (notFoundCount > 0) {
-      gapMsgs.push('⚠️ <strong>' + notFoundCount + ' item' + (notFoundCount!==1?'s':'') + '</strong> in the Items export have no row at all in the ADU export — treated the same as a blank ADU signal (Inventory Exposure Without ADU / Dormant Cleanup Candidate, depending on on-hand/PO/SO).');
+  function sortItems(arr) {
+    const key = sortState.key;
+    if (!key) {
+      // Default: bucket order. Inside Act Now, items with stock on the floor come first, soonest run-out first;
+      // items already at zero follow. Ties: label, velocity, ADU.
+      const bIdx = k => E.BUCKETS.findIndex(x => x.key === k);
+      const vr = v => ({ A:1, B:2, C:3 })[v] || 4;
+      const pd = i => i.projDay === null || i.projDay === undefined ? 1e9 : i.projDay;
+      return arr.slice().sort((a,b) => (bIdx(a.bucket) - bIdx(b.bucket))
+        || (a.bucket === 'ACT' && b.bucket === 'ACT' ? ((a.outNow ? 1 : 0) - (b.outNow ? 1 : 0)) || (!a.outNow ? pd(a) - pd(b) : 0) : 0)
+        || (E.LABEL_ORDER.indexOf(a.label) - E.LABEL_ORDER.indexOf(b.label))
+        || (a.label === 'OVERSOLD' ? b.shortQty - a.shortQty : 0)
+        || (vr(a.vel) - vr(b.vel))
+        || ((b.adu || 0) - (a.adu || 0)));
     }
-    if (dqBlankKeys > 0 || dqDupKeys > 0) {
-      gapMsgs.push('🔧 <strong>Data quality:</strong> ' + dqBlankKeys + ' blank item key' + (dqBlankKeys!==1?'s':'') + ', ' + dqDupKeys + ' duplicate item key' + (dqDupKeys!==1?'s':'') + ' in the ADU export (first occurrence used, duplicates skipped).');
-    }
-    if (!hasAsp) {
-      gapMsgs.push('💲 No <strong>Effective Sale Price / Unit</strong> column found in the ADU export — Revenue Exposure shows "—" instead of $0 for every item.');
-    }
-    if (!hasLastSale) {
-      gapMsgs.push('📅 No <strong>Last Sale Date</strong> column found in the ADU export — Critical items cannot be checked for stale demand; the Stale Demand bucket will stay empty.');
-    }
-    if (gapMsgs.length) { gapBanner.classList.add('on'); gapBanner.innerHTML = gapMsgs.join('<br>'); }
-    else { gapBanner.classList.remove('on'); }
-
-    const activeDemandTiers = ['CRITICAL','WATCH','STABLE','OVERSTOCKED','DEAD','STALE'];
-    const scored = items.filter(i => activeDemandTiers.includes(i.tier));
-    const counts = {};
-    TIER_ORDER.forEach(t => counts[t] = items.filter(i => i.tier === t).length);
-    // Excess Revenue Exposure: Overstocked + Dead + Stale only — capital tied up in
-    // non-moving inventory. Critical is deliberately excluded (that's stockout risk,
-    // a different kind of exposure, not excess).
-    const excessAtRisk = items.filter(i => ['OVERSTOCKED','DEAD','STALE'].includes(i.tier) && i.revExposure !== null)
-      .reduce((a,i) => a + i.revExposure, 0);
-    const varDisplay = hasAsp ? fmtMoney(excessAtRisk) : '—';
-
-    document.getElementById('summaryGrid').innerHTML = [
-      cardHtml('red', counts.CRITICAL, '🔴 Critical', scored.length),
-      cardHtml('orange', counts.WATCH, '🟠 Watch', scored.length),
-      cardHtml('green', counts.STABLE, '🟢 Stable', scored.length),
-      cardHtml('blue', counts.OVERSTOCKED, '🔵 Overstocked', scored.length),
-      cardHtml('gray', counts.DEAD, '⬜ Dead', scored.length),
-      cardHtml('gray', counts.STALE, '🟤 Stale Demand', scored.length),
-      cardHtml('red', counts.GAPEXPOSURE, '🔺 Exposure w/o ADU', total),
-      cardHtml('gray', counts.NODATA, '🟣 Known Zero Demand', total),
-      cardHtml('gray', counts.DORMANT, '⚪ Dormant/Cleanup', total),
-    ].join('') +
-      '<div class="card gray" style="grid-column:1/-1"><div class="num" style="color:var(--red)">' + varDisplay + '</div><div class="lbl">Excess Revenue Exposure — ASP-based, not cost (Overstocked + Dead + Stale, on-hand + open PO)' + (hasAsp?'':' — ASP missing from export') + '</div></div>';
-
-    // filter bar
-    const fb = document.getElementById('filterBar');
-    const allCount = items.length;
-    fb.innerHTML = '<span style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-right:4px">Filter:</span>' +
-      pill('ALL','All', allCount) +
-      TIER_ORDER.map(t => counts[t] > 0 ? pill(t, TIER_LABEL[t], counts[t]) : '').join('');
-    fb.querySelectorAll('.fpill').forEach(b => b.addEventListener('click', () => {
-      activeFilter = b.dataset.t;
-      fb.querySelectorAll('.fpill').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      renderTable();
-    }));
-    const active = fb.querySelector('.fpill[data-t="'+activeFilter+'"]') || fb.querySelector('.fpill[data-t="ALL"]');
-    active.classList.add('active');
-
-    document.getElementById('fnote').textContent = total + ' items scored · ' + counts.GAPEXPOSURE + ' exposure w/o ADU · ' + counts.DORMANT + ' dormant/cleanup';
-
-    renderTable();
-  }
-
-  function cardHtml(cls, n, lbl, denom) {
-    const pct = denom > 0 ? Math.round((n/denom)*100) : 0;
-    return '<div class="card '+cls+'"><div class="num">'+n+'</div><div class="lbl">'+lbl+'</div><div class="pct">'+pct+'% of scored items</div></div>';
-  }
-  function pill(t, label, count) {
-    return '<button class="fpill" data-t="'+t+'">'+label+' <span class="filter-count">'+count+'</span></button>';
-  }
-
-  const NUMERIC_KEYS = ['onHandDoC','poDoC','netDoC','netFlowDoC','adu','onHand','poQty','asp','revExposure'];
-
-  function sortBy(key) {
-    if (sortState.key === key) {
-      sortState.dir = sortState.dir === 'desc' ? 'asc' : 'desc';
-    } else {
-      sortState = { key, dir: key === 'tier' ? 'asc' : 'desc' };
-    }
-    document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = '');
-    const arrow = document.getElementById('sa_' + key);
-    if (arrow) arrow.textContent = sortState.dir === 'desc' ? '▼' : '▲';
-    renderTable();
+    const dir = sortState.dir === 'desc' ? -1 : 1;
+    const numeric = COLS.find(c => c.key === key && c.n);
+    return arr.slice().sort((a,b) => {
+      if (key === 'label') return dir * (E.LABEL_ORDER.indexOf(a.label) - E.LABEL_ORDER.indexOf(b.label));
+      if (key === 'lastSale' || key === 'nextReceipt' || key === 'projDate' || key === 'nextSODate') { const av = key === 'projDate' && a.outNow ? new Date(0) : a[key], bv = key === 'projDate' && b.outNow ? new Date(0) : b[key]; if (!av && !bv) return 0; if (!av) return 1; if (!bv) return -1; return dir * (av - bv); }
+      if (key === 'vel') { const o = { A:1, B:2, C:3 }; const av = o[a.vel], bv = o[b.vel]; if (!av && !bv) return 0; if (!av) return 1; if (!bv) return -1; return -dir * (av - bv); }
+      if (numeric) { const av = a[key], bv = b[key]; if ((av === null || av === undefined) && (bv === null || bv === undefined)) return 0; if (av === null || av === undefined) return 1; if (bv === null || bv === undefined) return -1; return dir * (av - bv); }
+      return dir * String(a[key] || '').localeCompare(String(b[key] || ''));
+    });
   }
 
   function renderTable() {
-    const body = document.getElementById('resultBody');
-    const empty = document.getElementById('emptyState');
-    const wrap = document.getElementById('tableWrap');
-    let filtered = activeFilter === 'ALL' ? items : items.filter(i => i.tier === activeFilter);
+    $('headRow').innerHTML = COLS.map(c => '<th data-key="' + c.key + '"' + (COL_TIPS[c.key] ? ' title="' + esc(COL_TIPS[c.key]) + '"' : '') + '>' + c.t + ' <span class="sort-arrow">' + (sortState.key === c.key ? (sortState.dir === 'desc' ? '▼' : '▲') : '') + '</span></th>').join('');
+    $('headRow').querySelectorAll('th').forEach(th => th.addEventListener('click', () => {
+      const k = th.dataset.key;
+      if (sortState.key === k) sortState.dir = sortState.dir === 'desc' ? 'asc' : 'desc';
+      else sortState = { key:k, dir: (k === 'label' || k === 'itemNo' || k === 'desc' || k === 'cat') ? 'asc' : 'desc' };
+      renderTable();
+    }));
 
-    if (sortState.key) {
-      const key = sortState.key, dir = sortState.dir === 'desc' ? -1 : 1;
-      filtered = filtered.slice().sort((a,b) => {
-        if (key === 'tier') return dir * (TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier));
-        if (key === 'lastSale' || key === 'stockoutDate') {
-          const av = a[key], bv = b[key];
-          if (!av && !bv) return 0;
-          if (!av) return 1;
-          if (!bv) return -1;
-          return dir * (av.getTime() - bv.getTime());
-        }
-        if (key === 'pipelineLight') {
-          return dir * ((b.pipelineLight?1:0) - (a.pipelineLight?1:0));
-        }
-        if (NUMERIC_KEYS.includes(key)) {
-          const av = a[key], bv = b[key];
-          if (av === null && bv === null) return 0;
-          if (av === null) return 1;  // nulls always sink to bottom regardless of direction
-          if (bv === null) return -1;
-          return dir * (av - bv);
-        }
-        return dir * String(a[key]||'').localeCompare(String(b[key]||''));
-      });
-    } else {
-      // default sort: Critical, Watch, Stable, Overstocked, Dead, Stale, NoData, Gap
-      filtered = filtered.slice().sort((a,b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier));
-    }
+    let rows = result.items;
+    if (activeBucket !== 'ALL') rows = rows.filter(i => i.bucket === activeBucket);
+    if (activeLabel !== 'ALL') rows = rows.filter(i => i.label === activeLabel);
+    rows = sortItems(rows);
 
-    if (!filtered.length) { empty.style.display = 'block'; document.getElementById('resultTable').style.display = 'none'; return; }
-    empty.style.display = 'none';
+    const body = $('resultBody');
+    if (!rows.length) { $('emptyState').style.display = 'block'; $('resultTable').style.display = 'none'; $('capNote').style.display = 'none'; return; }
+    $('emptyState').style.display = 'none'; $('resultTable').style.display = '';
+    const CAP = 200, totalMatched = rows.length;
+    if (rows.length > CAP) rows = rows.slice(0, CAP);
+    const cn = $('capNote');
+    if (totalMatched > CAP) { cn.style.display = 'block'; cn.textContent = 'Showing top ' + CAP + ' of ' + totalMatched.toLocaleString() + ' matching items (current sort/filter). Full list is in the Excel export.'; }
+    else cn.style.display = 'none';
 
-    const ROW_CAP = 200;
-    const totalMatched = filtered.length;
-    if (filtered.length > ROW_CAP) filtered = filtered.slice(0, ROW_CAP);
-    const capNote = document.getElementById('capNote');
-    if (totalMatched > ROW_CAP) {
-      capNote.style.display = 'block';
-      capNote.textContent = 'Showing top ' + ROW_CAP + ' of ' + totalMatched.toLocaleString() + ' matching items (current sort/filter). Full list is in the Excel export.';
-    } else {
-      capNote.style.display = 'none';
-    }
-    document.getElementById('resultTable').style.display = '';
-
-    body.innerHTML = filtered.map(i => {
-      const badge = '<span class="badge '+i.tier+'">'+TIER_LABEL[i.tier]+'</span>';
-      return '<tr>' +
-        '<td>'+badge+'</td>' +
-        '<td><strong>'+esc(i.itemNo)+'</strong></td>' +
-        '<td title="'+esc(i.desc)+'" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">'+esc(i.desc)+'</td>' +
-        '<td>'+esc(i.cat)+'</td>' +
-        '<td>'+fmt(i.onHandDoC)+'</td>' +
-        '<td>'+fmt(i.poDoC)+'</td>' +
-        '<td><strong>'+fmt(i.netDoC)+'</strong></td>' +
-        '<td>'+(i.netFlowDoC===null?'—':'<strong style="'+(i.netFlowDoC<0?'color:var(--red)':'')+'">'+fmt(i.netFlowDoC)+'</strong>')+'</td>' +
-        '<td>'+(i.adu===null?'—':fmt(i.adu))+'</td>' +
-        '<td>'+fmt(i.onHand)+'</td>' +
-        '<td>'+fmt(i.poQty)+'</td>' +
-        '<td>'+(i.asp?fmtMoney(i.asp):'—')+'</td>' +
-        '<td>'+(i.revExposure!==null?fmtMoney(i.revExposure):'—')+'</td>' +
-        '<td>'+(i.lastSale?i.lastSale.toISOString().slice(0,10):'—')+'</td>' +
-        '<td>'+(i.stockoutDate?i.stockoutDate.toISOString().slice(0,10):'—')+'</td>' +
-        '<td>'+(i.pipelineLight?'<span class="badge CRITICAL">⚠ Light</span>':'—')+'</td>' +
+    body.innerHTML = rows.map(i => {
+      const L = E.LABELS[i.label];
+      const hl = i.label === 'SO_LAPSED' && (i.vel === 'A' || i.vel === 'B');
+      const numCell = (v, dp, neg) => '<td class="num' + (neg && v !== null && v < 0 ? ' neg' : '') + '">' + fmt(v, dp) + '</td>';
+      return '<tr' + (hl ? ' class="hl" title="A/B velocity item with no sale in ' + P.fadingDays + '+ days — restock or retire"' : '') + '>' +
+        '<td><span class="badge ' + L.cls + '" title="' + esc(L.desc) + '">' + L.name + '</span></td>' +
+        '<td><strong>' + esc(i.itemNo) + '</strong></td>' +
+        '<td title="' + esc(i.desc) + '" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">' + esc(i.desc) + '</td>' +
+        '<td>' + esc(i.cat) + '</td>' +
+        '<td>' + (i.vel ? '<span class="vel ' + i.vel + '">' + i.vel + '</span>' : '—') + '</td>' +
+        '<td>' + (i.outNow ? '<span class="neg">Out now</span>' : (i.projDate ? ymd(i.projDate) : '—')) + '</td>' +
+        numCell(i.outNow ? 0 : i.projDay, 0) +
+        '<td>' + esc(i.roDriver || '—') + '</td>' +
+        '<td title="' + esc(i.roSO) + '" style="max-width:260px;overflow:hidden;text-overflow:ellipsis">' + esc(i.roSO || '—') + '</td>' +
+        numCell(i.roSOQty || null, 0) +
+        '<td>' + (i.nextSODate ? ymd(i.nextSODate) : '—') + '</td>' +
+        numCell(i.adu, 2) + numCell(i.onHand, 0) + numCell(i.soQty, 0) + numCell(i.poQty, 0) +
+        '<td>' + (i.nextReceipt ? ymd(i.nextReceipt) : '—') + '</td>' +
+        '<td class="num">' + (i.pastDuePo ? '<span class="neg">' + fmt(i.pastDuePo, 0) + '</span>' : '—') + '</td>' +
+        numCell(i.avail, 0, true) + numCell(i.ip, 0, true) + numCell(i.availDoC, 0, true) + numCell(i.ipDoC, 0, true) +
+        '<td class="num">' + (i.boQty ? fmt(i.boQty, 0) : '—') + '</td>' +
+        '<td class="num">' + (i.shortQty ? '<span class="neg">' + fmt(i.shortQty, 0) + '</span>' : '—') + '</td>' +
+        '<td>' + (i.lastSale ? ymd(i.lastSale) : '—') + '</td>' +
+        numCell(i.dsl, 0) + numCell(i.lostUnits, 0) +
+        '<td>' + esc(i.source || '—') + '</td>' +
+        '<td class="num">' + (i.asp !== null ? fmtMoney(i.asp) : '—') + '</td>' +
+        numCell(i.excessQty || null, 0) +
+        '<td class="num">' + (i.pushOutQty ? '<span class="neg">' + fmt(i.pushOutQty, 0) + '</span>' : '—') + '</td>' +
+        '<td class="num">' + (i.excessVal !== null ? fmtMoney(i.excessVal) : '—') + '</td>' +
+        '<td class="num">' + (i.revExposure !== null ? fmtMoney(i.revExposure) : '—') + '</td>' +
         '</tr>';
     }).join('');
-    syncScrollWidth();
+    $('scrollTopInner').style.width = $('resultTable').scrollWidth + 'px';
   }
 
+  // ---------- Export ----------
+  function r2(n) { return n === null || n === undefined || isNaN(n) ? '' : Math.round(n * 100) / 100; }
   function exportXlsx() {
-    if (!items.length) return;
-    const today = new Date().toISOString().slice(0,10);
+    if (!result) return;
+    const today = ymd(new Date());
     const wb = XLSX.utils.book_new();
+    const hdr = ['Bucket','Label','Item No.','Description','Category','UOM','Velocity','Runs Out (projected)','Days Left','Run-out Driver','Driving SO','SO Due by Run-out','Next SO Ship','ADU','On Hand','Open SO','Open PO','Next PO Receipt','Past-due PO Qty','Available (OH − SO)','Inventory Position (OH + PO − SO)','Available DoC','IP DoC','Backorder Qty (SO − OH)','Short Qty (SO − OH − PO)','Last Sale Date','Days Since Sale','Est. Lost Units (upper bound)','ADU Source','Planning ADU Method','ASP','Excess Qty','PO Push-out Qty','Excess $ (ASP)','Revenue Exposure (ASP, full OH + PO)','Label Definition'];
+    const bName = k => E.BUCKETS.find(b => b.key === k).name;
+    const toRow = i => [bName(i.bucket), E.LABELS[i.label].name, i.itemNo, i.desc, i.cat, i.uom, i.vel || '', i.outNow ? 'Out now' : (i.projDate ? ymd(i.projDate) : ''), i.outNow ? 0 : (i.projDay === null ? '' : i.projDay), i.roDriver, i.roSO, i.roSOQty ? Math.round(i.roSOQty) : '', i.nextSODate ? ymd(i.nextSODate) : '', r2(i.adu), i.onHand, i.soQty, i.poQty, i.nextReceipt ? ymd(i.nextReceipt) : '', i.pastDuePo || '', i.avail, i.ip, r2(i.availDoC), r2(i.ipDoC), i.boQty || '', i.shortQty || '', i.lastSale ? ymd(i.lastSale) : '', i.dsl === null ? '' : i.dsl, i.lostUnits === null ? '' : Math.round(i.lostUnits), i.source, i.method, i.asp === null ? '' : i.asp, i.excessQty ? Math.round(i.excessQty) : '', i.pushOutQty ? Math.round(i.pushOutQty) : '', i.excessVal === null ? '' : r2(i.excessVal), i.revExposure === null ? '' : r2(i.revExposure), E.LABELS[i.label].desc];
+    const widths = [16,24,18,36,14,7,8,14,9,14,48,12,12,9,10,10,10,14,13,12,14,11,10,12,12,13,11,13,12,30,9,11,13,13,14,60].map(w => ({ wch:w }));
+    const sorted = sortItemsDefault(result.items);
+    const addTab = (name, rows) => { const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows.map(toRow)]); ws['!cols'] = widths; ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:rows.length, c:hdr.length - 1 } }) }; XLSX.utils.book_append_sheet(wb, ws, name); };
+    addTab('Act Now', sorted.filter(i => i.bucket === 'ACT'));
+    addTab('Reorder', sorted.filter(i => i.bucket === 'REORDER'));
+    addTab('Excess & Obsolete', sorted.filter(i => i.bucket === 'EXCESS'));
+    addTab('Housekeeping', sorted.filter(i => i.bucket === 'HOUSE'));
+    addTab('All Items', sorted);
 
-    const hdr = ['Tier','Item No.','Description','Category','UOM','On-Hand DoC','Open PO DoC','Net DoC','Net Flow DoC','ADU','On-Hand Qty','Open PO Qty','Sales Order Qty','ASP','Revenue Exposure','Last Sale Date','Stockout Date','Pipeline Light'];
-    const rows = items.slice().sort((a,b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier)).map(i => [
-      TIER_LABEL[i.tier], i.itemNo, i.desc, i.cat, i.uom,
-      i.onHandDoC===null?'':Math.round(i.onHandDoC*100)/100,
-      i.poDoC===null?'':Math.round(i.poDoC*100)/100,
-      i.netDoC===null?'':Math.round(i.netDoC*100)/100,
-      i.netFlowDoC===null?'':Math.round(i.netFlowDoC*100)/100,
-      i.adu===null?'':i.adu,
-      i.onHand, i.poQty, i.soQty||0,
-      i.asp===null?'':i.asp, i.revExposure===null?'':Math.round(i.revExposure*100)/100,
-      i.lastSale ? i.lastSale.toISOString().slice(0,10) : '',
-      i.stockoutDate ? i.stockoutDate.toISOString().slice(0,10) : '',
-      i.pipelineLight ? 'LIGHT' : ''
-    ]);
-    const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
-    ws['!cols'] = [{wch:24},{wch:16},{wch:34},{wch:14},{wch:8},{wch:12},{wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:16},{wch:14},{wch:14},{wch:12}];
-    XLSX.utils.book_append_sheet(wb, ws, 'Action Summary');
-
-    const counts = {};
-    TIER_ORDER.forEach(t => counts[t] = items.filter(i => i.tier === t).length);
-    const excessAtRisk = items.filter(i => ['OVERSTOCKED','DEAD','STALE'].includes(i.tier) && i.revExposure !== null).reduce((a,i)=>a+i.revExposure,0);
-    const notesData = [
+    const { counts, bucketCounts, stats } = result, a = parsed.adu;
+    const notes = [
       ['StockGard™ — Run Notes'],
-      ['Export date:', today],
-      ['Lead Time used:', leadTime + ' days'],
-      ['Target DoC (Safety Buffer):', targetDoC + ' days'],
-      ['% Adjustment (scales ADU):', (pctAdj>0?'+':'') + pctAdj + '%'],
-      ['Reorder Point (Lead Time + Target DoC):', (leadTime + targetDoC) + ' days'],
+      ['Export date', today],
+      ['Files', 'Items: ' + loaded.items.file + ' | ADU: ' + loaded.adu.file + ['newitems','sales','purch'].map(r => ' | ' + ROLE_NAMES[r] + ': ' + (loaded[r] ? loaded[r].file : 'not loaded')).join('')],
       [''],
-      ['TIER COUNTS — Active Demand Signal (Planning ADU > 0)'],
-      ['Critical (Net DoC < ' + targetDoC + ')', counts.CRITICAL],
-      ['Watch (' + targetDoC + ' ≤ Net DoC < ' + (leadTime+targetDoC) + ')', counts.WATCH],
-      ['Stable (' + (leadTime+targetDoC) + ' ≤ Net DoC < ' + (leadTime*3) + ')', counts.STABLE],
-      ['Overstocked (' + (leadTime*3) + ' ≤ Net DoC < ' + (leadTime*6) + ')', counts.OVERSTOCKED],
-      ['Dead (Net DoC ≥ ' + (leadTime*6) + ')', counts.DEAD],
-      ['Stale Demand (Critical by DoC, but no sale within reorder window)', counts.STALE],
+      ['PARAMETERS (calendar days)'],
+      ['Lead Time', P.lt], ['Safety Stock', P.ss], ['Reorder Point (LT + SS)', P.lt + P.ss], ['Order Cycle', P.cycle], ['Max (ROP + Order Cycle)', P.lt + P.ss + P.cycle],
+      ['Runs Out window: projected days left ≤', P.imminent], ['Projection horizon (LT + SS)', P.lt + P.ss], ['Stockout – Active: last sale ≤', P.activeDays], ['Stockout – Fading: last sale ≤', P.fadingDays], ['% Adjustment to ADU', P.pct],
       [''],
-      ['TIER COUNTS — No/Zero Demand Signal (symmetric exposure check)'],
-      ['Inventory Exposure Without ADU (blank ADU, has on-hand/PO/SO)', counts.GAPEXPOSURE],
-      ['Known Zero Demand (ADU = 0, has on-hand/PO/SO)', counts.NODATA],
-      ['Dormant / Cleanup Candidate (no ADU signal, zero on-hand/PO/SO)', counts.DORMANT],
-      [''],
-      ['DATA QUALITY'],
-      ['Items not found in ADU export at all (folded into blank-ADU logic above)', notFoundCount],
-      ['Blank item keys in ADU export (skipped)', dqBlankKeys],
-      ['Duplicate item keys in ADU export (first occurrence used)', dqDupKeys],
-      [''],
-      ['Excess Revenue Exposure — ASP-based, not cost (Overstocked + Dead + Stale, on-hand + open PO):', excessAtRisk],
-      [''],
-      ['Tool:', 'StockGard™ by ConfigGard™'],
-      ['Attribution:', 'Ron Jones — linkedin.com/in/ronjones4133/'],
+      ['BUCKET / LABEL COUNTS', 'Items', 'Rule']
     ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(notesData), 'Run Notes');
-
-    const data = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-    const blob = new Blob([data], {type:'application/octet-stream'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'StockGard_ActionQueue_' + today + '.xlsx';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  function reset() {
-    items = []; masterMap = {}; aduMap = {}; hasAsp = false; hasLastSale = false;
-    notFoundCount = 0; dqBlankKeys = 0; dqDupKeys = 0; activeFilter = 'ALL'; sortState = { key: null, dir: 'desc' };
-    document.getElementById('results').style.display = 'none';
-    document.getElementById('sbar').className = 'sbar';
-    document.getElementById('fileInput').value = '';
-    document.getElementById('hero').classList.remove('compact');
-    document.getElementById('ltSlider').value = 120;
-    document.getElementById('ltVal').textContent = '120 days';
-    document.getElementById('tdSlider').value = 90;
-    document.getElementById('tdVal').textContent = '90 days';
-    document.getElementById('pctSlider').value = 0;
-    document.getElementById('pctVal').textContent = '0%';
-    leadTime = 120;
-    targetDoC = 90;
-    pctAdj = 0;
-  }
-
-  function sb(type, msg, showReset) {
-    const b = document.getElementById('sbar');
-    b.className = 'sbar on' + (type ? ' '+type : '');
-    const resetLink = showReset ? ' <a href="#" id="sbarReset" style="margin-left:12px;font-weight:700;text-decoration:underline;cursor:pointer">↺ Start over</a>' : '';
-    b.innerHTML = (type==='loading' ? '<div class="spin"></div><span>'+msg+'</span>' : '<span>'+msg+'</span>') + resetLink;
-    if (showReset) {
-      document.getElementById('sbarReset').addEventListener('click', e => { e.preventDefault(); clearAll(); });
+    E.BUCKETS.forEach(b => {
+      notes.push([b.name.toUpperCase(), bucketCounts[b.key], '']);
+      E.LABEL_ORDER.filter(l => E.LABELS[l].bucket === b.key).forEach(l => notes.push(['   ' + E.LABELS[l].name, counts[l], E.LABELS[l].desc]));
+    });
+    notes.push(['TOTAL', result.items.length, '']);
+    notes.push(['']);
+    notes.push(['EVALUATION ORDER', 'Oversold (any item) → Backorder – Expedite PO (any item) → Stockout labels (on hand ≤ 0) → Runs Out Soon (on hand > 0, projected run-out within the window) → Critical → Reorder → Stable → Overstock. Items with no demand signal: New (Zero Shipped file) → Inactive (no stock/PO/SO) → Dead Inventory (ADU = 0) → Obsolete (no ADU on record).']);
+    notes.push(['RUN-OUT PROJECTION', 'Day by day out to LT + SS: on hand + PO receipts on their Expected Receipt Date − the greater of (open SO lines by Shipment Date, late lines due today) or (ADU × days). Past-due PO lines are left out. Act Now sorts items with stock on the floor by run-out date first, then items already at zero.']);
+    if (parsed.sales) { notes.push(['Sales Lines used / left out', parsed.sales.kept + ' / ' + parsed.sales.excluded + ' (' + parsed.sales.rule + ')']); notes.push(['Items with SO qty not found in lines (due today) / more in lines than Items view', stats.soUndated + ' / ' + stats.soLinesOver]); }
+    else notes.push(['Sales Lines', 'not loaded — all open SO due today']);
+    if (parsed.purch) { notes.push(['Purchase Lines used / left out', parsed.purch.kept + ' / ' + parsed.purch.excluded + ' (' + parsed.purch.rule + ')']); notes.push(['Past-due PO lines left out of projection (lines / units / items)', stats.pastDuePoLines + ' / ' + Math.round(stats.pastDuePoQty) + ' / ' + stats.pastDuePoItems]); notes.push(['Items where PO line total ≠ Items view', stats.poMismatch]); }
+    else notes.push(['Purchase Lines', 'not loaded — projection ignores incoming POs']);
+    notes.push(['']);
+    notes.push(['CALLOUT']);
+    notes.push(['Stockout – Lapsed items', stats.lapsed]);
+    notes.push(['   of which A/B velocity', stats.lapsedAB]);
+    notes.push(['']);
+    notes.push(['DATA QUALITY']);
+    notes.push(['Items not in ADU export (treated as no sales on record)', stats.notFound]);
+    notes.push(['Blank item keys in ADU export (skipped)', a.blankKeys]);
+    notes.push(['   of which carry sales (part no. in description)', a.blankKeysWithSales]);
+    notes.push(['Duplicate item keys in ADU export (first used)', a.dupKeys]);
+    notes.push(['Sample placeholder items excluded from Items', parsed.itemsExcluded]);
+    notes.push(['Stocked-out items with ADU but no Last Sale Date', stats.presentNoLastSale]);
+    if (parsed.newp) {
+      notes.push(['Zero Shipped rows / unique items', parsed.newp.rows + ' / ' + parsed.newp.unique]);
+      notes.push(['Zero Shipped items already selling to other customers (scored normally)', stats.newWithDemand]);
+      notes.push(['Zero Shipped items not in Items export', stats.newNotInMaster]);
     }
+    notes.push(['']);
+    notes.push(['EXCESS — ASP-based (selling price), not cost']);
+    notes.push(['Excess above Max (Overstock above Max + Dead Inventory full qty)', a.hasAsp ? r2(stats.exTotal) : '—']);
+    notes.push(['   of which on hand', a.hasAsp ? r2(stats.exOH) : '—']);
+    notes.push(['   of which on order — push-out / cancel candidates', a.hasAsp ? r2(stats.exPush) : '—', stats.exPushItems + ' items (Overstock above Max: ' + r2(stats.exPushOverstock) + '; Dead / Obsolete: ' + r2(stats.exPushDead) + ')']);
+    notes.push(['   Overstock / Dead Inventory / Obsolete', a.hasAsp ? r2(stats.exByLabel.OVERSTOCK) + ' / ' + r2(stats.exByLabel.DEAD) + ' / ' + r2(stats.exByLabel.OBSOLETE) : '—', 'Obsolete has no sale price: ' + Math.round(stats.obsoleteUnits) + ' units valued at $0']);
+    notes.push(['Full bucket value, on hand + open PO (for reference)', a.hasAsp ? r2(stats.excessRev) : '—']);
+    notes.push(['Velocity', stats.velBasis === 'revenue'
+      ? 'Revenue-based (ADU × ASP): A = items making up the top 80% of daily revenue, B = next 15%, C = last 5%. Items with a demand signal only; ' + stats.velNoAsp + ' items with ADU but no ASP placed in C.'
+      : 'Units-based fallback (no ASP column): A = top 80% of total ADU, B = next 15%, C = last 5%.']);
+    notes.push(['Est. Lost Units', 'Stockout labels only: ADU × days since last sale. Upper bound — the stockout began on or after the last sale.']);
+    notes.push(['']);
+    notes.push(['Tool', 'StockGard™ by ConfigGard™']);
+    notes.push(['Attribution', 'Ron Jones — linkedin.com/in/ronjones4133/']);
+    const wsN = XLSX.utils.aoa_to_sheet(notes); wsN['!cols'] = [{ wch:62 }, { wch:16 }, { wch:110 }];
+    XLSX.utils.book_append_sheet(wb, wsN, 'Run Notes');
+    wb.Props = { Title:'StockGard Action Queue', Author:'Ron Jones' };
+
+    const data = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    const blob = new Blob([data], { type:'application/octet-stream' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'StockGard_ActionQueue_' + today + '.xlsx';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+  function sortItemsDefault(arr) { const s = sortState; sortState = { key:null, dir:'desc' }; const out = sortItems(arr); sortState = s; return out; }
+
+  // ---------- Reset / status ----------
+  function reset() {
+    loaded = { items:null, adu:null, newitems:null, sales:null, purch:null };
+    parsed = { master:null, adu:null, newp:null, sales:null, purch:null, itemsExcluded:0, itemsDup:0 };
+    result = null; activeBucket = 'ALL'; activeLabel = 'ALL'; sortState = { key:null, dir:'desc' };
+    Object.assign(P, { lt:90, ss:30, cycle:60, imminent:14, activeDays:90, fadingDays:180, pct:0 });
+    clearTimeout(rescoreT); stopTicker();
+    $('results').style.display = 'none';
+    $('sbar').className = 'sbar';
+    $('fileInput').value = ''; $('fileInput2').value = '';
+    inLT.value = ''; inSS.value = ''; refreshLock();
+    $('hero').classList.remove('compact');
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+  function sb(type, msg, showReset) {
+    const b = $('sbar');
+    b.className = 'sbar on' + (type ? ' ' + type : '');
+    b.innerHTML = (type === 'loading' ? '<div class="spin"></div>' : '') + '<span>' + msg + '</span>' + (showReset ? ' <a href="#" id="sbarReset" style="margin-left:12px;font-weight:700;text-decoration:underline;cursor:pointer">↺ Start over</a>' : '');
+    if (showReset) $('sbarReset').addEventListener('click', e => { e.preventDefault(); reset(); });
   }
 
-  function clearAll() {
-    // Recovery path reachable even when a file has never successfully loaded —
-    // the old reset() lives inside #results, which never appears until success.
-    pendingFiles = {};
-    clearTimeout(rescoreDebounce);
-    stopTicker();
-    document.getElementById('fileInput').value = '';
-    document.getElementById('sbar').className = 'sbar';
-    document.getElementById('hero').classList.remove('compact');
-    document.getElementById('results').style.display = 'none';
-  }
-
+  refreshLock();
   return { exportXlsx, reset };
 })();
 </script>
