@@ -234,6 +234,22 @@ footer a:hover{color:var(--gold)}
             </div>
           </div>
           <input type="file" id="filePkgAudit" accept=".xlsx" style="display:none">
+
+          <div class="drop-slot" id="slotPLAudit" onclick="document.getElementById('filePLAudit').click()">
+            <span class="slot-icon">🚢</span>
+            <div class="slot-body">
+              <div class="slot-title">Packing List <span class="slot-req" style="color:rgba(255,255,255,.55)">optional</span></div>
+              <div class="slot-sub">Vendor packing list or receipt upload file for the container being received. Gives exact lot targets on the Fix tab and checks the receipt against it. Its PO line numbers are ignored: rows are matched to BC lines by PO + item.</div>
+              <div class="slot-status" id="statusPLAudit"></div>
+            </div>
+          </div>
+          <input type="file" id="filePLAudit" accept=".xlsx,.xls,.csv" style="display:none">
+        </div>
+        <div id="auditFocusWrap" style="display:none;margin-top:12px;font-size:13px;color:#fff">
+          <label style="font-weight:700">Focus receipt:
+            <select id="auditFocus" style="margin-left:6px;padding:6px 8px;border-radius:6px;border:1.5px solid var(--navy-border);font-size:13px;max-width:100%"></select>
+          </label>
+          <span id="auditFocusHint" style="margin-left:8px;font-size:11.5px;color:rgba(255,255,255,.6)">Optional. Narrows the Work List and the Fix tab to one receipt.</span>
         </div>
         <details class="alt-uploads" id="auditAltUploads">
         <summary>Or upload files separately (no lot check)</summary>
@@ -269,7 +285,7 @@ footer a:hover{color:var(--gold)}
           <input type="file" id="fileInvAudit" accept=".xlsx,.xls,.csv" style="display:none">
         </div>
         </details>
-        <div class="hero-note"><span class="ni">ℹ</span>Checks every line on every open receipt against its real PO line and its lot tracking — no packing list needed. Same pass/fail logic posting enforces, surfaced ahead of time.</div>
+        <div class="hero-note"><span class="ni">ℹ</span>Checks every line on every open receipt against its real PO line and its lot tracking. The packing list is optional: add it for exact lot targets on the container you are receiving. Same pass/fail logic posting enforces, surfaced ahead of time.</div>
         <button id="btnAnalyzeAudit" onclick="RG.analyzeAudit()">Run Audit →</button>
       </div>
     </div>
@@ -626,6 +642,7 @@ const RG = (function() {
       if (rawPo === '' || rawPo == null) continue;
       const poNo = String(typeof rawPo === 'number' ? Math.trunc(rawPo) : rawPo).trim();
       packLines.push({
+        rowNo: i + 1,
         poNo,
         lineNo: row[1],
         item: String(row[2]).trim(),
@@ -1331,7 +1348,7 @@ const RG = (function() {
   }
 
   // ── Audit Open Receipts mode ──
-  const slotStateAudit = { po: null, whr: null, inv: null, res: null, hdr: null, pwr: null, pwl: null, ile: null, pa: null, rah: null, ral: null, pkg: null };
+  const slotStateAudit = { po: null, whr: null, inv: null, res: null, hdr: null, pwr: null, pwl: null, ile: null, pa: null, rah: null, ral: null, pkg: null, pl: null };
   function wireAuditSlot(slotId, inputId, key) {
     const slot = document.getElementById(slotId);
     const input = document.getElementById(inputId);
@@ -1348,6 +1365,7 @@ const RG = (function() {
         statusEl.textContent = '✓ ' + file.name;
         slot.classList.add('filled');
         document.getElementById('btnAnalyzeAudit').classList.toggle('ready', !!(slotStateAudit.po && slotStateAudit.whr));
+        populateFocus();
       } catch(err) { statusEl.textContent = '✗ ' + err.message; }
     }
     slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag'); });
@@ -1385,6 +1403,7 @@ const RG = (function() {
         slot.classList.add('filled');
         ['POAudit','WhrAudit','InvAudit'].forEach(s => { document.getElementById('slot'+s).classList.remove('filled'); document.getElementById('status'+s).textContent=''; });
         document.getElementById('btnAnalyzeAudit').classList.add('ready');
+        populateFocus();
       } catch(err) { st.textContent = '✗ ' + err.message; slot.classList.remove('filled'); }
     }
     slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag'); });
@@ -1396,13 +1415,64 @@ const RG = (function() {
   wireAuditSlot('slotWhrAudit','fileWhrAudit','whr');
   wireAuditSlot('slotInvAudit','fileInvAudit','inv');
 
+  // Optional packing list for the audit, and the focus-receipt picker
+  (function wirePlSlot() {
+    const slot = document.getElementById('slotPLAudit'), input = document.getElementById('filePLAudit'); if (!slot) return;
+    async function handle(file) {
+      if (!file) return;
+      const st = document.getElementById('statusPLAudit'); st.textContent = 'Reading…';
+      try {
+        const raw = await readWorkbook(file);
+        const lines = parsePackingList(raw).filter(l => l.item && l.item !== 'undefined' && (Number(l.qtyToReceive)||0) > 0);
+        if (!lines.length) throw new Error('No packing list rows found (expected columns PO No., PO Line No., Item No., Qty., UOM, Lot No., Container No.)');
+        slotStateAudit.pl = { name: file.name, lines };
+        const conts = [...new Set(lines.map(l => l.container).filter(c => c && c !== 'undefined'))];
+        st.textContent = '✓ '+file.name+' — '+lines.length+' rows · '+Math.round(lines.reduce((a,l)=>a+(Number(l.qtyToReceive)||0),0)).toLocaleString()+' units'+(conts.length ? ' · '+conts.join(', ') : '');
+        slot.classList.add('filled');
+        autoFocusFromPl();
+      } catch(err) { slotStateAudit.pl = null; st.textContent = '✗ '+err.message; slot.classList.remove('filled'); }
+    }
+    slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag'); });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag'));
+    slot.addEventListener('drop', e => { e.preventDefault(); slot.classList.remove('drag'); handle(e.dataTransfer.files[0]); });
+    input.addEventListener('change', e => handle(e.target.files[0]));
+  })();
+  let focusCont = {};
+  function populateFocus() {
+    const sel = document.getElementById('auditFocus'), wrap = document.getElementById('auditFocusWrap'); if (!sel || !wrap) return;
+    const keep = sel.value, w = slotStateAudit.whr; if (!w) { wrap.style.display = 'none'; return; }
+    const raw = w.raw, h = raw[0].map(x => String(x).trim()), ix = n => h.indexOf(n);
+    const cNo = ix('No.'), cSrc = ix('Source Document'), cVs = ix('Vendor Shipment No.'); if (cNo === -1) return;
+    focusCont = {};
+    if (slotStateAudit.hdr) { const hr = slotStateAudit.hdr.raw, hh = hr[0].map(x => String(x).trim()), a = hh.indexOf('No.'), b = hh.indexOf('Vendor Shipment No.');
+      if (a !== -1 && b !== -1) for (let i=1;i<hr.length;i++) if (hr[i][a]) focusCont[String(hr[i][a]).trim()] = String(hr[i][b]||'').trim(); }
+    const n = {};
+    for (let i=1;i<raw.length;i++) { const no = String(raw[i][cNo]||'').trim(); if (!no) continue;
+      if (cSrc !== -1 && String(raw[i][cSrc]).trim() !== 'Purchase Order') continue;
+      n[no] = (n[no]||0) + 1; if (cVs !== -1 && raw[i][cVs] && !focusCont[no]) focusCont[no] = String(raw[i][cVs]).trim(); }
+    const nos = Object.keys(n).sort();
+    sel.innerHTML = '<option value="">All open receipts ('+nos.length+')</option>' + nos.map(no => '<option value="'+esc(no)+'">'+esc(no)+(focusCont[no] ? ' · '+esc(focusCont[no]) : '')+' · '+n[no]+' line'+(n[no]===1?'':'s')+'</option>').join('');
+    if (keep && n[keep]) sel.value = keep;
+    wrap.style.display = nos.length ? '' : 'none';
+    autoFocusFromPl();
+  }
+  function autoFocusFromPl() {
+    const sel = document.getElementById('auditFocus'); if (!sel || !slotStateAudit.pl) return;
+    const conts = new Set(slotStateAudit.pl.lines.map(l => contKey(l.container)).filter(c => c && c !== 'UNDEFINED'));
+    const hit = Object.keys(focusCont).filter(no => focusCont[no] && conts.has(contKey(focusCont[no])));
+    const hint = document.getElementById('auditFocusHint');
+    if (hit.length === 1 && [...sel.options].some(o => o.value === hit[0])) { sel.value = hit[0]; if (hint) hint.textContent = 'Picked from the packing list container ('+focusCont[hit[0]]+').'; }
+  }
+  // Item numbers compared as text, or as numbers when both sides are numeric (4210.008 typed as a number still matches)
+  function itemKey(s) { const t = String(s==null?'':s).trim().toUpperCase(); return /^-?\d+(\.\d+)?$/.test(t) ? 'N'+Number(t) : 'S'+t; }
+
   let auditRows = [];
   let auditFilterStatus = 'ALL';
   let auditGrain = 'item', auditGrainNote = '';
   let auditPerf = null;
-  let auditQtiOn = false, auditRecvOn = false, auditLotMode = false, auditStale = [], auditLotStats = {}, auditSources = [], auditPwrMode = false, auditPcr = [], auditPcrStats = null, auditPag = [], auditPagStats = null, auditWork = [], auditDupPo = [];
+  let auditQtiOn = false, auditRecvOn = false, auditLotMode = false, auditStale = [], auditLotStats = {}, auditSources = [], auditPwrMode = false, auditPcr = [], auditPcrStats = null, auditPag = [], auditPagStats = null, auditWork = [], auditDupPo = [], auditWorkAll = [], auditFix = [], auditPlMatch = [], auditPlStats = null, auditFocus = '';
   // Container numbers are matched on the 4-letter + 7-digit code, so "CSLU2291607_2" and "cslu2291607" match CSLU2291607
-  const OVERALL_LABEL = { stop:'🔴 Do Not Post', combine:'🔴 Combine Receipt Lines First', lots:'🔴 Fix Lots First', qty:'🔴 Fix Quantity First', qti:'🟠 Fix Qty. to Invoice', partial:'🟠 Partly Posted — Resolve Leftovers', zero:'⚪ Line at 0 — Delete', ready:'✅ Ready to Post' };
+  const OVERALL_LABEL = { stop:'🔴 Do Not Post', combine:'🔴 Combine Receipt Lines First', lots:'🔴 Fix Lots First', nolots:'🔴 Add Lots First', qty:'🔴 Fix Quantity First', qti:'🟠 Fix Qty. to Invoice', partial:'🟠 Partly Posted — Resolve Leftovers', zero:'⚪ Line at 0 — Delete', ready:'✅ Ready to Post' };
   function contKey(s) { const t = String(s==null?'':s).trim().toUpperCase(); const m = t.match(/[A-Z]{4}\d{7}/); return m ? m[0] : t; }
   // Quantity compare with a tolerance so float sums (e.g. 0.1+0.2) can't flip a status.
   function qtyGt(a, b) { return (Number(a)||0) - (Number(b)||0) > 1e-6; }
@@ -1595,6 +1665,7 @@ const RG = (function() {
         auditStale = [];
         auditLotStats = { checked:0, match:0, mismatch:0, none:0, prospectSkipped:0 };
         auditQtiOn = false;
+        let LOTS = {}, RECVQ = {}; const lotItems = new Set();
         auditRows.forEach(r => { r.lotTracked = null; r.lotRatio = null; r.lotCheck = ''; r.lotDupEntries = ''; r.lotCount = null; r.lotMismatch = false; });
         if (auditLotMode) {
           const rr = slotStateAudit.res.raw, rh = rr[0].map(h => String(h).trim());
@@ -1616,8 +1687,9 @@ const RG = (function() {
             if (!lots[k]) lots[k] = { tracked:0, entries:[], item: eItem!==-1 ? String(e[eItem]).trim() : '' };
             lots[k].tracked += Number(e[eQth])||0;
             if (eQti!==-1) { lots[k].qti = (lots[k].qti||0) + (Number(e[eQti])||0); if ((Number(e[eQti])||0) - (Number(e[eQth])||0) > 1e-6) lots[k].qtiOver = (lots[k].qtiOver||0) + 1; }
-            lots[k].entries.push({ no: eNo!==-1 ? String(e[eNo]).trim() : '', lot, qth: Number(e[eQth])||0, by: eBy!==-1 ? String(e[eBy]||'').trim() : '', dt: eDt!==-1 ? String(e[eDt]||'').trim() : '' });
+            lots[k].entries.push({ no: eNo!==-1 ? String(e[eNo]).trim() : '', lot, qth: Number(e[eQth])||0, qty: eQty!==-1 ? Number(e[eQty])||0 : (Number(e[eQth])||0), qti: eQti!==-1 ? Number(e[eQti])||0 : 0, by: eBy!==-1 ? String(e[eBy]||'').trim() : '', dt: eDt!==-1 ? String(e[eDt]||'').trim() : '' });
           }
+          LOTS = lots;
           const poolLotKey = {};
           Object.values(pools).forEach(p => {
             const lk = p.po+'|'+p.poLine; poolLotKey[lk] = true;
@@ -1651,11 +1723,22 @@ const RG = (function() {
             const er = slotStateAudit.ile.raw, eh = er[0].map(h=>String(h).trim()), ei = n => eh.indexOf(n);
             if ([li('Posted Source No.'),li('Item No.'),li('Source No.'),li('Source Line No.')].every(x=>x!==-1) && [ei('Document No.'),ei('Item No.'),ei('Lot No.')].every(x=>x!==-1)) {
               recvOn = true;
-              const rcptLine = {};
-              for (let i=1;i<lr.length;i++) { const r = lr[i]; const k = String(r[li('Posted Source No.')]||'').trim()+'|'+String(r[li('Item No.')]||'').trim(); if (k==='|') continue; (rcptLine[k] = rcptLine[k] || new Set()).add(String(r[li('Source No.')]||'').trim()+'|'+String(r[li('Source Line No.')]||'').trim()); }
+              const rcptLine = {}, rcptCap = {};
+              const lq = li('Qty. (Base)');
+              for (let i=1;i<lr.length;i++) { const r = lr[i]; const k = String(r[li('Posted Source No.')]||'').trim()+'|'+String(r[li('Item No.')]||'').trim(); if (k==='|') continue;
+                const plk = String(r[li('Source No.')]||'').trim()+'|'+String(r[li('Source Line No.')]||'').trim();
+                (rcptLine[k] = rcptLine[k] || new Set()).add(plk);
+                (rcptCap[k] = rcptCap[k] || []).push({ k: plk, left: lq!==-1 ? Number(r[lq])||0 : Infinity }); }
+              const eq = ei('Quantity');
               for (let i=1;i<er.length;i++) { const r = er[i]; const lot = String(r[ei('Lot No.')]||'').trim(); if (!lot) continue;
-                const pl = rcptLine[String(r[ei('Document No.')]||'').trim()+'|'+String(r[ei('Item No.')]||'').trim()]; if (!pl) continue;
-                pl.forEach(k => (recvLots[k] = recvLots[k] || new Set()).add(lot)); }
+                lotItems.add(String(r[ei('Item No.')]||'').trim());
+                const dk = String(r[ei('Document No.')]||'').trim()+'|'+String(r[ei('Item No.')]||'').trim();
+                const pl = rcptLine[dk]; if (!pl) continue;
+                pl.forEach(k => (recvLots[k] = recvLots[k] || new Set()).add(lot));
+                // Quantity received per PO line + lot (Quantity Handled on Item Tracking Lines)
+                let q = eq!==-1 ? Number(r[eq])||0 : 0; const caps = rcptCap[dk] || [];
+                if (caps.length === 1 || q < 0) { const c = caps[0]; if (c) { const o = RECVQ[c.k] = RECVQ[c.k] || {}; o[lot] = (o[lot]||0) + q; c.left -= q; } }
+                else caps.forEach(c => { if (q <= 1e-9) return; const take = Math.min(q, Math.max(0, c.left)); if (take <= 0) return; const o = RECVQ[c.k] = RECVQ[c.k] || {}; o[lot] = (o[lot]||0) + take; c.left -= take; q -= take; }); }
             }
           }
           auditRecvOn = recvOn;
@@ -1811,10 +1894,107 @@ const RG = (function() {
           auditPagStats = st;
         }
 
+        // ===== Lines with no lots on an item that is lot-tracked (it has lot history in the ledger) =====
+        auditFocus = (document.getElementById('auditFocus')||{}).value || '';
+        auditRows.forEach(r => { r.noLots = false; r.plDiff = ''; r.plQty = null; r.fix = null; r.plLotDiff = false; });
+        if (auditLotMode && lotItems.size) auditRows.forEach(r => { if (r.lotCheck === 'none' && lotItems.has(r.item) && r.combinedBase > 1e-6) r.noLots = true; });
+
+        // ===== Packing list (optional): each row matched to a BC PO line. Its own PO line numbers are ignored. =====
+        auditPlMatch = []; auditPlStats = null; const plBy = {}; const plContainers = new Set();
+        const plFor = w => !!slotStateAudit.pl && (w === auditFocus || (!!containerByWrct[w] && plContainers.has(contKey(containerByWrct[w]))));
+        if (slotStateAudit.pl && cPoLine !== -1) {
+          slotStateAudit.pl.lines.forEach(l => { const c = contKey(l.container); if (c && c !== 'UNDEFINED') plContainers.add(c); });
+          const cVend = pidx('Buy-from Vendor No.');
+          const byPoItem = {}, byItem = {}, poVendor = {};
+          for (let i=1;i<poRaw.length;i++) { const row = poRaw[i]; if (!row[cDoc]) continue;
+            const o = { po: String(row[cDoc]).trim(), line: String(row[cPoLine]).trim(), item: String(row[cItem]).trim(), out: Number(row[cOut])||0, vendor: cVend!==-1 ? String(row[cVend]||'').trim() : '' };
+            o.left = o.out; if (o.vendor && !poVendor[o.po]) poVendor[o.po] = o.vendor; if (!(o.po in poVendor)) poVendor[o.po] = '';
+            const ik = itemKey(o.item); (byPoItem[o.po+'|'+ik] = byPoItem[o.po+'|'+ik] || []).push(o); (byItem[ik] = byItem[ik] || []).push(o); }
+          // Receipt lines the packing list can land on: the focus receipt, or open receipts for the same container
+          const rcptLeft = {}, rcptOf = {};
+          auditRows.forEach(r => { if (!plFor(r.wrct)) return; const k = r.po+'|'+r.poLine; rcptLeft[k] = (rcptLeft[k]||0) + r.qtyRec; (rcptOf[k] = rcptOf[k] || new Set()).add(r.wrct); });
+          const onR = c => rcptLeft[c.po+'|'+c.line] !== undefined;
+          const pickFrom = (cs, qty) => {
+            const r = cs.filter(onR);
+            if (r.length) { const fit = r.filter(c => rcptLeft[c.po+'|'+c.line] >= qty - 1e-6); return { c: fit[0] || r.slice().sort((a,b)=>rcptLeft[b.po+'|'+b.line]-rcptLeft[a.po+'|'+a.line])[0], how:'On receipt' }; }
+            const open = cs.filter(c => c.left > 1e-6);
+            if (!open.length) return null;
+            const fit = open.filter(c => c.left >= qty - 1e-6), c = fit[0] || open.slice().sort((a,b)=>b.left-a.left)[0];
+            return { c, how: fit.length > 1 ? 'Choose line' : fit.length ? 'Only open line that fits' : 'Over open quantity', alt: fit }; };
+          const stats = { rows:0, units:0, onRcpt:0, poDiff:0, choose:0, over:0, notFound:0, noRcpt:0 };
+          const remap = {}; // packing list PO -> BC POs its rows already moved to (keeps a renumbered PO together)
+          slotStateAudit.pl.lines.forEach(l => {
+            const qty = Number(l.qtyToReceive)||0, ik = itemKey(l.item), plPo = String(l.poNo).trim();
+            stats.rows++; stats.units += qty;
+            let m = pickFrom(byPoItem[plPo+'|'+ik] || [], qty), poDiff = false;
+            if (!m) { const v = poVendor[plPo], pref = remap[plPo] || {};
+              const cs = (byItem[ik] || []).filter(c => c.po !== plPo && (!v || !c.vendor || c.vendor === v)).sort((a,b) => (pref[b.po]||0) - (pref[a.po]||0));
+              m = pickFrom(cs, qty); if (m) { poDiff = true; (remap[plPo] = remap[plPo] || {})[m.c.po] = ((remap[plPo]||{})[m.c.po]||0) + 1; } }
+            const row = { rowNo: l.rowNo, plPo, plLine: l.lineNo, plItem: String(l.item), qty, lot: String(l.lotNo==null?'':l.lotNo).trim(), cont: String(l.container||'').trim(), po:'', line:'', item:'', match:'', note:'', rcpt:'' };
+            if (!m) { row.match = '🔴 Not found'; row.note = 'No open PO line for this item'+(plPo in poVendor ? ' on PO '+plPo : ' (PO '+plPo+' not found)')+'. Check the PO or add the line.'; stats.notFound++; auditPlMatch.push(row); return; }
+            const c = m.c, k = c.po+'|'+c.line, onRcpt = rcptLeft[k] !== undefined;
+            row.po = c.po; row.line = c.line; row.item = c.item;
+            if (onRcpt) { rcptLeft[k] -= qty; row.rcpt = [...rcptOf[k]].join(', '); stats.onRcpt++; } else c.left -= qty;
+            if (poDiff) { row.match = '🟡 PO differs from packing list'; row.note = 'Packing list says PO '+plPo+'; the item is on PO '+c.po+'. Confirm before receiving.'; stats.poDiff++; }
+            else if (m.how === 'Choose line') { row.match = '🟡 Choose line'; row.note = 'More than one open line fits: '+m.alt.map(x => x.line).join(', ')+'. Picked '+c.line+'.'; stats.choose++; }
+            else if (m.how === 'Over open quantity') { row.match = '🔴 Over open quantity'; row.note = 'No open line on PO '+c.po+' has '+fmt(qty)+' open for this item.'; stats.over++; }
+            else row.match = '✅ '+m.how;
+            if (!onRcpt && LOTS[k] && LOTS[k].entries.length) row.note = (row.note ? row.note+' ' : '')+'This PO line already holds '+LOTS[k].entries.length+' lot row(s) ('+fmt(LOTS[k].tracked)+'). Clear them before importing.';
+            const pb = plBy[k] = plBy[k] || { qty:0, lots:{}, rows:[] };
+            pb.qty += qty; if (row.lot) pb.lots[row.lot] = (pb.lots[row.lot]||0) + qty; pb.rows.push(row.rowNo);
+            auditPlMatch.push(row); });
+          stats.noRcpt = auditPlMatch.filter(x => x.po && !x.rcpt).length;
+          auditPlStats = stats;
+          auditRows.forEach(r => { if (!plFor(r.wrct)) return; const pb = plBy[r.po+'|'+r.poLine];
+            r.plQty = pb ? pb.qty : 0;
+            if (!pb) r.plDiff = 'Not on the packing list';
+            else if (Math.abs(pb.qty - r.combined) > 1e-6) r.plDiff = 'Packing list '+fmt(pb.qty)+' vs receipt '+fmt(r.combined); });
+        }
+
+        // ===== Fix: Item Tracking — what each line's Item Tracking Lines should show after the fix =====
+        auditFix = [];
+        if (auditLotMode) {
+          const fmtN = n => Math.round(n).toLocaleString();
+          const byLot = es => { const o = {}; es.forEach(x => o[x.lot] = (o[x.lot]||0) + x.qth); return o; };
+          const same = (a, b) => [...new Set([...Object.keys(a), ...Object.keys(b)])].every(l => Math.abs((a[l]||0) - (b[l]||0)) <= 1e-6);
+          const sumQ = a => a.reduce((s,x) => s + x.qth, 0);
+          Object.values(pools).forEach(p => {
+            if (auditFocus && !p.wrcts.has(auditFocus)) return;
+            const ws = [...p.wrcts].sort(), k = p.po+'|'+p.poLine, L = LOTS[k], recv = RECVQ[k] || {};
+            const r0 = auditRows.find(r => r.po===p.po && r.poLine===p.poLine && r.item===p.item);
+            const pb = ws.some(plFor) ? plBy[k] : null;
+            const open = {}; (L ? L.entries : []).forEach(x => { const o = open[x.lot] = open[x.lot] || { qty:0, qth:0 }; o.qty += x.qty; o.qth += x.qth; });
+            const nowQth = {}; Object.keys(open).forEach(l => nowQth[l] = open[l].qth);
+            const need = p.combinedBase, mism = p.lotCheck === 'mismatch', noLots = !!(r0 && r0.noLots);
+            let target = null, basis = '';
+            if (pb && Object.keys(pb.lots).length) { target = pb.lots; basis = 'From packing list (row'+(pb.rows.length>1?'s ':' ')+pb.rows.join(', ')+')'; }
+            else if (L && L.entries.length && mism) {
+              const dts = L.entries.map(x => x.dt).filter(Boolean).sort(), last = dts[dts.length-1];
+              const newest = last ? L.entries.filter(x => x.dt === last) : [];
+              const notRecv = L.entries.filter(x => !((recv[x.lot]||0) > 1e-6));
+              if (newest.length && newest.length < L.entries.length && Math.abs(sumQ(newest) - need) <= 1e-6) { target = byLot(newest); basis = 'Inferred: the rows created '+last+' equal Qty. to Receive; the older rows are left over. Check against the packing list.'; }
+              else if (notRecv.length && notRecv.length < L.entries.length && Math.abs(sumQ(notRecv) - need) <= 1e-6) { target = byLot(notRecv); basis = 'Inferred: the rows for lots not yet received equal Qty. to Receive. Check against the packing list.'; }
+              else basis = 'Cannot tell which lot rows are right. Drop in the packing list, or make the lot total '+fmtN(need)+' by hand.';
+            }
+            else if (noLots) basis = 'No lots on this line. Drop in the packing list to get the lot numbers.';
+            const qtyDiff = !!(r0 && r0.plDiff && pb);
+            if (!(mism || noLots || qtyDiff || (target && pb && !same(nowQth, target)))) return;
+            if (!target && noLots && !(L && L.entries.length)) return; // nothing to mirror until the packing list is dropped in
+            const lotsAll = [...new Set([...(target ? Object.keys(target) : []), ...Object.keys(open), ...Object.keys(recv).filter(l => recv[l] > 1e-6)])].sort();
+            const rows = lotsAll.map(l => { const hd = Math.max(0, recv[l]||0), nq = open[l] ? open[l].qth : 0, nqty = hd + (open[l] ? open[l].qty : 0), tq = target ? (target[l]||0) : null;
+              const change = !target ? '' : Math.abs(nq - tq) <= 1e-6 ? 'No change' : nq <= 1e-6 ? 'Add lot: '+fmtN(tq) : tq <= 1e-6 ? (hd > 1e-6 ? 'Qty. to Handle '+fmtN(nq)+' → 0; Quantity back to '+fmtN(hd) : 'Delete row(s): '+fmtN(nq)) : 'Qty. to Handle '+fmtN(nq)+' → '+fmtN(tq);
+              return { lot:l, qtyBase: tq===null ? null : hd + tq, qth: tq, qti: tq, handled: hd, nowQty: nqty, nowQth: nq, change }; });
+            const f = { wrct: ws.join(', '), po: p.po, line: p.poLine, item: p.item, need, plQty: pb ? pb.qty : null, basis, resolved: !!target, noLots, rows };
+            auditFix.push(f);
+            // The packing list proves lots are needed: a line with none is "No lots" even without ledger history
+            auditRows.filter(r => r.po===p.po && r.poLine===p.poLine).forEach(r => { r.fix = f; if (target && !(L && L.entries.length)) r.noLots = true; else if (target && pb && !mism) r.plLotDiff = true; }); });
+          auditFix.sort((a,b) => a.wrct.localeCompare(b.wrct) || a.po.localeCompare(b.po) || Number(a.line)-Number(b.line));
+        }
+
         // ===== Overall verdict per open receipt line: the worst flag wins =====
         auditRows.forEach(r => {
           r.multiLine = lineGrain && r.rowCount > 1 && (r.lotTracked===null ? !auditLotMode : r.lotTracked > 1e-6);
-          r.overall = r.postedFlag ? 'stop' : r.multiLine ? 'combine' : r.lotMismatch ? 'lots' : ['overnocode','pool_over','notonpo','contaminated','untraceable','invoiced_orphan'].includes(r.status) ? 'qty' : r.qtiOver ? 'qti' : r.partialPosted ? 'partial' : r.zeroHold ? 'zero' : 'ready';
+          r.overall = r.postedFlag ? 'stop' : r.multiLine ? 'combine' : (r.lotMismatch || r.plLotDiff) ? 'lots' : r.noLots ? 'nolots' : (['overnocode','pool_over','notonpo','contaminated','untraceable','invoiced_orphan'].includes(r.status) || r.plDiff) ? 'qty' : r.qtiOver ? 'qti' : r.partialPosted ? 'partial' : r.zeroHold ? 'zero' : 'ready';
           r.overallLabel = OVERALL_LABEL[r.overall];
         });
 
@@ -1848,24 +2028,22 @@ const RG = (function() {
             if (best) auditDupPo.push({ po, of: best.po, items: its.length, same: best.same, date: best.date, src: best.src, openLines: o.openLines, out: o.out }); });
         }
 
-        // ===== Work List: one row per action, in dependency order (P1 first). Lower rows on a PO or
-        // container already covered by a P2/P3 row are rolled into that row instead of listed. =====
+        // ===== Work List: a checklist. One row per thing to do, short Problem and Do This; the
+        // explanation sits in a hover note. Rows on a PO or container already covered by a P2/P3
+        // row are rolled into that row. =====
         {
-          const W = [], push = (pri, o) => W.push({ pri, ...o });
+          const W = [], push = (pri, o) => W.push({ pri, poLine:'', item:'', who:'Receiving', units:0, pos:[], wrct:'', from:'', ...o });
           const units = n => Math.round(n||0).toLocaleString(), pl = (n, w) => n+' '+w+(n===1?'':'s');
           const coveredPo = {}, coveredRcpt = {};
-          // P1: open receipt for a container already received
           const byW = {}; auditRows.forEach(r => (byW[r.wrct] = byW[r.wrct] || []).push(r));
+          // P1: open receipt for a container already received
           Object.keys(byW).sort().forEach(w => { const rs = byW[w], fl = rs.filter(r => r.postedFlag); if (!fl.length) return;
-            const all = fl.length === rs.length, ln = fl.map(r => r.po+(r.poLine?'/'+r.poLine:'')+' '+r.item).slice(0,12).join('; ')+(fl.length>12?'; +'+(fl.length-12)+' more':'');
-            push('P1', { open:w, where:'Warehouse Receipts › '+w,
-              what: all ? 'Container '+fl[0].container+' was already received ('+fl[0].postedElsewhere+') with the same items. Posting this receipt would receive them again.'
-                        : pl(fl.length,'line')+' on this receipt '+(fl.length===1?'repeats':'repeat')+' items already posted for container '+fl[0].container+' ('+fl[0].postedElsewhere+'): '+ln+'. The other '+pl(rs.length-fl.length,'line')+' are new items for this container.',
-              todo: all ? '1. Do not post. 2. On each line, open Item Tracking Lines and delete the lot rows that are not received. 3. Delete the receipt.'
-                        : '1. Check the repeated lines against the container: were they really short-shipped and received again? 2. If not, clear their lots and delete those lines. 3. Post the rest.',
-              fin: all ? 'Delete receipt '+w+' (after its lots are cleared).' : 'Delete the '+pl(fl.length,'repeated line')+' on '+w+', then post the rest.',
-              esc:'Supervisor, only if this may truly be a second shipment', lines: fl.length, units: fl.reduce((a,r)=>a+r.qtyRec,0) }); });
-          // P2: containers received twice. Each side = one source warehouse receipt and what it posted.
+            const all = fl.length === rs.length;
+            push('P1', { wrct:w, open:w, problem: all ? 'Container already received' : pl(fl.length,'line')+' repeat a posted container',
+              todo: all ? 'Do not post. Clear the unreceived lot rows, then delete the receipt.' : 'Check the repeated lines; if not a real second shipment, clear their lots and delete them. Post the rest.',
+              who:'Receiving · Supervisor if it may be a second shipment', units: fl.reduce((a,r)=>a+r.qtyRec,0), pos: [...new Set(fl.map(r=>r.po))],
+              note: 'Container '+fl[0].container+' was already posted ('+fl[0].postedElsewhere+'). '+(all ? 'Every line repeats it.' : 'Repeated lines: '+fl.map(r => r.po+'/'+r.poLine+' '+r.item).slice(0,15).join('; ')+(fl.length>15?' …':'')+'.') }); });
+          // P2: containers received twice
           const dc = {};
           auditPcr.filter(x => String(x.verdict).startsWith('🔴')).forEach(x => {
             const c = dc[x.cont] = dc[x.cont] || { n:0, ex:0, qty:0, sides:{}, items:[] };
@@ -1877,68 +2055,69 @@ const RG = (function() {
           Object.keys(dc).sort().forEach(cn => { const c = dc[cn], sides = Object.values(c.sides);
             const pos = [...new Set(sides.flatMap(sd=>[...sd.po]))].sort(), pw = [...new Set(sides.flatMap(sd=>[...sd.pwr]))].sort();
             pos.forEach(p => coveredPo[p] = 'P2 '+cn); pw.forEach(p => coveredRcpt[p] = 'P2 '+cn);
-            const heldLots = auditStale.filter(x => pos.includes(x.po)).length;
-            // The likely extra side: every posted receipt on it was never put away
             sides.forEach(sd => { sd.noPa = sd.pwr.size>0 && [...sd.pwr].every(no => (auditPag.find(x=>x.no===no)||{}).status==='none'); });
             const desc = sd => 'posted receipt '+[...sd.pwr].join(', ')+' (from '+sd.from+(sd.date?', '+sd.date:'')+'; purchase receipt '+([...sd.rcpt].join(', ')||'?')+'; PO '+[...sd.po].join(', ')+')';
             const noSide = sides.filter(sd => sd.noPa), extra = noSide.length===1 ? noSide[0] : null;
-            const extraLines = extra ? auditPag.filter(g => extra.pwr.has(g.no)).reduce((a,g)=>a+g.lines,0) : 0;
-            const only = extra && extraLines > c.n ? ' Only the '+pl(c.n,'repeated line')+' ('+c.items.slice(0,10).join(', ')+(c.items.length>10?' …':'')+'), not the whole receipt.' : '';
-            const what = 'Received twice: '+sides.map(desc).join(' and ')+'. '+pl(c.n,'line')+(c.n===1?' repeats':' repeat')+' the same item and quantity ('+units(c.qty)+' units). '+
-              'If the container arrived once, BC shows up to '+units(c.qty)+' units more than is physically here. Count to confirm.'+
-              (extra ? ' Nothing was ever put away from posted receipt '+[...extra.pwr].join(', ')+', so it is most likely the extra one.' : ' The put-aways do not show which receipt is the extra one.')+
-              (heldLots?' '+pl(heldLots,'PO line')+' with leftover lots on these POs are held here, not listed below.':'');
-            const ref = 'purchase receipt '+(extra ? [...extra.rcpt].join(', ')+' (posted receipt '+[...extra.pwr].join(', ')+', PO '+[...extra.po].join(', ')+')' : '');
-            const fin = !extra
-              ? 'Count decides which to reverse: purchase receipt '+sides.map(sd=>[...sd.rcpt].join(', ')).join(' or ')+'.'
-              : extra.undoNo===0 ? 'Undo Receipt on '+ref+'.'+only
-              : extra.undoYes===0 ? 'Negative adjustment for the quantities the count shows, referencing '+ref+'. Undo Receipt will not work: its ledger entries have been applied to later shipments.'+only
-              : 'Undo Receipt on '+ref+' for the '+pl(extra.undoYes,'line')+' that allow it; negative adjustment for the other '+pl(extra.undoNo,'line')+' (applied to later shipments). See Detail - Posted Twice.'+only;
-            push('P2', { open:cn, where:'Posted Purchase Receipts › '+(extra ? [...extra.rcpt].join(', ') : sides.map(sd=>[...sd.rcpt].join(', ')).join(' / ')), what,
-              todo:'1. Do not adjust stock or clear lots on POs '+pos.join(', ')+' yet. 2. Count the items on this container. 3. Supervisor approves the count. 4. Do the Final Action. 5. Then work any P3 row for these POs.',
-              fin, esc:'Supervisor approval required', lines: c.n, units: c.qty }); });
+            const ref = extra ? 'purchase receipt '+[...extra.rcpt].join(', ') : '';
+            const todo = !extra ? 'Count the container; the count decides which receipt to reverse.'
+              : extra.undoNo===0 ? 'After the count: Undo Receipt on '+ref+'.'
+              : extra.undoYes===0 ? 'After the count: negative adjustment referencing '+ref+' (Undo Receipt will not work).'
+              : 'After the count: Undo Receipt on '+ref+' for '+pl(extra.undoYes,'line')+'; negative adjustment for '+extra.undoNo+'.';
+            push('P2', { open: extra ? [...extra.rcpt].join(', ') : cn, poLine: pos.join(', '), item: cn, problem:'Container received twice', todo, who:'Supervisor (count + approval)', units: c.qty, pos,
+              note: 'Received twice: '+sides.map(desc).join(' and ')+'. '+pl(c.n,'line')+' repeat the same item and quantity ('+units(c.qty)+' units). If the container arrived once, BC shows up to '+units(c.qty)+' units more than is here.'+(extra ? ' Nothing was put away from '+[...extra.pwr].join(', ')+', so it is most likely the extra one.' : '')+' Do not adjust stock or clear lots on POs '+pos.join(', ')+' until the count is approved. Details: Detail - Posted Twice.' }); });
           // P3: duplicate POs
           auditDupPo.sort((a,b)=>a.po.localeCompare(b.po)).forEach(d => {
-            const lotLines = auditStale.filter(x => x.po===d.po), lotEnt = lotLines.reduce((a,x)=>a+x.entries,0);
             const prev = coveredPo[d.po]; coveredPo[d.po] = 'P3 '+d.po;
-            push('P3', { open:'PO '+d.po, where:'Purchase Orders › '+d.po, what:'Looks like a duplicate of PO '+d.of+': '+d.same+' of '+d.items+' items with the same quantity'+(d.date?'; '+d.of+' was received '+d.date:'')+'. It still shows '+d.openLines+' open lines ('+units(d.out)+' units)'+(lotEnt?' and '+lotEnt+' lot entries on '+lotLines.length+' lines':'')+'.',
-              todo:'1. Purchasing confirms whether PO '+d.po+' is still on order. 2. If it is a duplicate'+(prev?': finish '+prev+' first, then':':')+' delete its open lines; their lot entries are deleted with them. 3. Do not clear these lots one by one.', fin:'If Purchasing confirms the duplicate: delete the open lines on PO '+d.po+'.', esc:'Purchasing', lines: d.openLines, units: d.out }); });
-          // P4: open receipts with something to fix before posting
+            push('P3', { open:'PO '+d.po, poLine: d.po, problem:'Looks like a duplicate of PO '+d.of, todo:(prev ? 'Finish '+prev+' first. Then, if ' : 'If ')+'Purchasing confirms: delete the open lines on PO '+d.po+' (their lots go with them).', who:'Purchasing', units: d.out, pos:[d.po],
+              note: d.same+' of '+d.items+' items match PO '+d.of+' with the same quantity'+(d.date?'; '+d.of+' was received '+d.date:'')+'. '+d.openLines+' open lines ('+units(d.out)+' units). Do not clear these lots one by one.' }); });
+          // P4: one row per problem on an open receipt line, then "post" for the receipt
           Object.keys(byW).sort().forEach(w => { const rs = byW[w]; if (rs.some(r => r.postedFlag)) return;
-            const comb = rs.filter(r=>r.multiLine);
-            const lot = rs.filter(r=>r.lotMismatch), qty = rs.filter(r=>r.overall==='qty'), qti = rs.filter(r=>r.qtiOver), zero = rs.filter(r=>r.zeroHold), part = rs.find(r=>r.partialPosted);
-            if (!comb.length && !lot.length && !qty.length && !qti.length && !zero.length && !part) return;
-            const ln = a => a.map(r => r.po+(r.poLine?'/'+r.poLine:'')+' '+r.item).slice(0,12).join('; ')+(a.length>12?'; +'+(a.length-12)+' more (Detail tab)':'');
-            const what = [], todo = []; let k = 1;
-            if (comb.length) { what.push(pl(comb.length,'PO line')+' each sit on more than one line of this receipt. BC checks all lots on the PO line against one receipt line and refuses to post.');
-              todo.push((k++)+'. For each: set Qty. to Receive on one receipt line to the total, then delete the other receipt line(s); the lots stay on the PO line: '+comb.map(r => r.item+' (PO '+r.po+'/'+r.poLine+': '+r.rcptQtys.map(q=>q.toLocaleString()).join(' + ')+' → one line of '+r.qtyRec.toLocaleString()+')').join('; ')+'.'); }
-            if (part) { what.push('Already posted as '+part.partialPosted+'.'); todo.push((k++)+'. The lines still here did not post: receive them, or clear their lots and delete them.'); }
-            if (qty.length) { what.push(pl(qty.length,'line')+' over the PO line\'s open quantity.'); todo.push((k++)+'. Fix Qty. to Receive on: '+ln(qty)+'.'); }
-            if (lot.length) { what.push(pl(lot.length,'line')+' where lots ≠ Qty. to Receive.'); todo.push((k++)+'. Item Tracking Lines on: '+ln(lot)+'. Make the lot total equal Qty. to Receive; delete extra rows.'); }
-            if (qti.length) { what.push(pl(qti.length,'line')+' with Qty. to Invoice above Qty. to Handle on a lot row.'); todo.push((k++)+'. Item Tracking Lines on: '+ln(qti)+'. Set Qty. to Invoice equal to Qty. to Handle.'); }
-            if (zero.length) { what.push(pl(zero.length,'line')+' at Qty. to Receive 0, holding a PO line.'); todo.push((k++)+'. Delete lines: '+ln(zero)+' (clear any lots on those PO lines first).'); }
-            const fin4 = [comb.length ? 'Combine the '+pl(comb.length,'split PO line')+' into one receipt line each, then post '+w+'.' : '', lot.length||qty.length||qti.length ? 'Fix the flagged lines, then post '+w+'.' : '', zero.length ? 'Delete the '+pl(zero.length,'line')+' at 0 on '+w+'.' : ''].filter(Boolean).join(' ') || ('Resolve the leftover lines on '+w+'.');
-            push('P4', { open:w, where:'Warehouse Receipts › '+w, what: what.join(' '), todo: todo.join(' '), fin: fin4, esc: (lot.length||qty.length) ? 'Supervisor, if a quantity does not match the packing list' : '—', lines: new Set(comb.concat(lot,qty,qti,zero).map(r=>r.po+'|'+r.poLine)).size || rs.length, units: rs.reduce((a,r)=>a+r.qtyRec,0) }); });
+            const n0 = W.length, part = rs.find(r => r.partialPosted);
+            const bareNoLots = rs.filter(r => r.noLots && !(r.fix && r.fix.resolved));
+            if (bareNoLots.length) push('P4', { wrct:w, open:w, problem:'No lots on '+pl(bareNoLots.length,'line'), todo:'Expected on a receipt built at sailing. At arrival: re-run with '+w+' as the focus receipt and its packing list dropped in.', units: bareNoLots.reduce((a,r)=>a+r.qtyRec,0), pos:[...new Set(bareNoLots.map(r=>r.po))],
+              note:'These lines carry no lots and their items are lot-tracked, so BC will not post them. Lines: '+bareNoLots.map(r => r.po+'/'+r.poLine+' '+r.item).slice(0,25).join('; ')+(bareNoLots.length>25?' … (filter Detail - Open Receipts on No Lots)':'')+'.' });
+            if (part) push('P4', { wrct:w, open:w, problem:'Already partly posted', todo:'Receive the lines still here, or clear their lots and delete them.', note:'Already posted as '+part.partialPosted+'. The lines still on '+w+' did not post, or are leftover rows.' });
+            rs.slice().sort((a,b) => a.po.localeCompare(b.po) || Number(a.poLine)-Number(b.poLine)).forEach(r => {
+              const base = { wrct:w, open:w, poLine: r.po+(r.poLine?' / '+r.poLine:''), item: r.item, units: r.qtyRec, pos:[r.po] };
+              if (r.multiLine) push('P4', { ...base, problem:'On '+r.rowCount+' receipt lines', todo:'Set one receipt line to '+units(r.qtyRec)+'; delete the other'+(r.rowCount>2?'s':'')+'.', note:'Receipt lines: '+r.rcptQtys.map(units).join(' + ')+'. BC checks all lots on the PO line against one receipt line and refuses to post. The lots stay on the PO line.' });
+              if (r.plDiff) push('P4', { ...base, problem: r.plDiff === 'Not on the packing list' ? 'Not on the packing list' : 'Qty differs from packing list', todo: r.plDiff === 'Not on the packing list' ? 'Confirm it arrived; if not, set Qty. to Receive to 0 and delete the line.' : 'Set Qty. to Receive to '+units(r.plQty)+', or confirm the count.', who:'Receiving · Supervisor if the count differs', note: r.plDiff+'.' });
+              if (r.lotMismatch || (r.noLots && r.fix && r.fix.resolved) || r.plLotDiff) { const f = r.fix, chg = f && f.resolved ? f.rows.filter(x => x.change && x.change !== 'No change').length : 0;
+                push('P4', { ...base, problem: r.noLots ? 'No lots' : r.lotMismatch ? 'Lots ≠ Qty. to Receive' : 'Lots differ from packing list',
+                  todo: f && f.resolved ? 'Match Fix - Item Tracking ('+pl(chg,'change')+').' : r.noLots ? 'Add the lots from the packing list.' : 'Make the lot total '+units(r.combinedBase)+' (see Fix - Item Tracking).',
+                  note: (r.noLots ? 'This item is lot-tracked (it has lot history) but the line has no lots. BC will refuse to post it.' : 'Lots on this PO line total '+units(r.lotTracked)+' against '+units(r.combinedBase)+' being received.')+(f ? ' '+f.basis : '') }); }
+              if (['overnocode','pool_over','notonpo','contaminated','untraceable','invoiced_orphan'].includes(r.status)) push('P4', { ...base,
+                problem: { overnocode:'Over open quantity', pool_over:'PO line over-claimed', notonpo:'Item not on PO', contaminated:'Negative received', untraceable:'PO not found', invoiced_orphan:'PO already invoiced' }[r.status],
+                todo: r.cap!==null ? 'Set Qty. to Receive to '+units(Math.max(0, r.cap - (r.combined - r.qtyRec)))+' or less, or add an Over-Receipt Code.' : 'Check the PO before posting.', note: AUDIT_LABEL[r.status]+(r.otherWrcts && r.otherWrcts.length ? '. Also on '+r.otherWrcts.join(', ')+'.' : '.') });
+              if (r.qtiOver) push('P4', { ...base, problem:'Qty. to Invoice > Qty. to Handle', todo:'Item Tracking Lines: set Qty. to Invoice = Qty. to Handle.', note:'A lot row has Qty. to Invoice above Qty. to Handle.' });
+              if (r.zeroHold && !r.multiLine) push('P4', { ...base, units:0, problem:'Line at 0', todo:'Delete the line (clear any lots on the PO line first).', note:'Qty. to Receive is 0. The line holds PO line '+r.po+'/'+r.poLine+' so no other receipt can pull it.' });
+            });
+            if (slotStateAudit.pl && plFor(w)) auditPlMatch.filter(x => x.po && !x.rcpt).forEach(x => push('P4', { wrct:w, open:w, poLine: x.po+' / '+x.line, item: x.item, units: x.qty, pos:[x.po], problem:'On packing list, not on receipt', todo:'Add the line with Get Source, or check the PO.', note:'Packing list row '+x.rowNo+': '+x.plItem+' '+units(x.qty)+(x.lot?' lot '+x.lot:'')+'. '+x.note }));
+            const nIss = W.length - n0, allZero = rs.every(r => r.zeroHold);
+            if (allZero && nIss) push('P4', { wrct:w, open:w, problem:'Then delete the receipt', todo:'Delete '+w+': nothing is left to receive on it.', note:'Every line on '+w+' is at Qty. to Receive 0.' });
+            else if (nIss || w === auditFocus) push('P4', { wrct:w, open:w, problem: nIss ? 'Then post' : 'No problems found', todo:'Post '+w+' with today\'s Posting Date. Then check the put-away and delete the receipt if lines are left at 0.', units: rs.reduce((a,r)=>a+r.qtyRec,0), note: nIss ? 'Do the rows above for '+w+' first.' : 'Every line checks out against its PO line and lots.' });
+          });
           // P5: put-away
           auditPag.forEach(g => { if (coveredRcpt[g.no]) return;
-            if (g.status==='none') push('P5', { open:g.no, where:'Posted Whse. Receipts › '+g.no, what:'Posted '+g.date+(g.age!==null?' ('+g.age+' days ago)':'')+' and nothing was ever put away ('+units(g.none)+' units).', todo:'1. Supervisor confirms the stock is physically here. 2. Then Create Put-away from the posted receipt and register it.', fin:'Create Put-away from posted receipt '+g.no+', then register it.', esc:'Supervisor approval required', lines: g.lines, units: g.none });
-            else push('P5', { open:g.openNos || g.no, where: g.openNos ? 'Warehouse Put-aways › '+g.openNos : 'Posted Whse. Receipts › '+g.no, what:'From '+g.no+' (posted '+g.date+(g.age!==null?', '+g.age+' days ago':'')+'): '+units(g.open)+' units still to register'+(g.none>1e-6?'; '+units(g.none)+' more have no put-away':'')+'.'+(g.bins?' Place bins on the open lines: '+g.bins+'.':''),
-              todo:'1. Check each Place bin is a real stock location before registering. 2. Put the stock away and register the put-away.'+(g.none>1e-6?' 3. For the units with no put-away: supervisor confirms they are here, then Create Put-away.':''), fin:'Register put-away '+(g.openNos||'(create one from '+g.no+')')+'.', esc: g.none>1e-6 ? 'Supervisor, for the units with no put-away' : '—', lines: g.lines, units: g.open + g.none }); });
-          // P6-P8: leftover lots, grouped by PO
+            if (g.status==='none') push('P5', { open:g.no, from:g.from, item: g.cont, problem:'Posted, never put away', todo:'Supervisor confirms the stock is here; then Create Put-away and register it.', who:'Supervisor', units: g.none,
+              note:'Posted '+g.date+(g.age!==null?' ('+g.age+' days ago)':'')+'. Nothing was put away ('+units(g.none)+' units). Until it is, pickers cannot find the stock.' });
+            else push('P5', { open: g.openNos || g.no, from:g.from, item: g.cont, problem:'Put-away not registered', todo:'Put away and register '+(g.openNos||'the put-away')+'.'+(g.none>1e-6?' Create a put-away for the '+units(g.none)+' with none.':''), who: g.none>1e-6 ? 'Receiving · Supervisor for units with no put-away' : 'Receiving', units: g.open + g.none,
+              note:'From '+g.no+' (posted '+g.date+(g.age!==null?', '+g.age+' days ago':'')+'): '+units(g.open)+' units to register'+(g.none>1e-6?'; '+units(g.none)+' with no put-away':'')+'.'+(g.bins?' Place bins: '+g.bins+'. Check each is a real stock location.':'') }); });
+          // P6-P8: leftover lots, one row per PO
           const byPo = {}; auditStale.forEach(x => { const k = x.grp+'|'+x.po; (byPo[k] = byPo[k] || []).push(x); });
           const lotRows = { A:[], B:[], C:[] };
-          Object.keys(byPo).forEach(k => { const xs = byPo[k], g = xs[0].grp, po = xs[0].po;
-            if (coveredPo[po]) return;
-            const ent = xs.reduce((a,x)=>a+x.entries,0), q = xs.reduce((a,x)=>a+x.tracked,0), dup = xs.filter(x=>x.dupRecvN>0).length;
-            const lines = xs.map(x => x.line+' '+x.item).slice(0,15).join('; ')+(xs.length>15?'; +'+(xs.length-15)+' more (Detail tab)':'');
-            const exp = xs.map(x=>x.exp).filter(Boolean).sort()[0] || '';
-            lotRows[g].push({ po, xs, ent, q, dup, lines, exp }); });
-          const lotTodo = 'On each listed line open Item Tracking Lines. 1. Leave received rows (Quantity Handled = Quantity). 2. Delete rows not received. 3. If a lot was received before and added again, reduce Quantity back to Quantity Handled.';
-          lotRows.A.sort((a,b)=> (a.exp||'9999').localeCompare(b.exp||'9999') || a.po.localeCompare(b.po)).forEach(r => push('P6', { open:'PO '+r.po, where:'Purchase Orders › '+r.po+' › line › Item Tracking Lines', what: pl(r.xs.length,'open PO line')+' carry lot entries with no open receipt ('+units(r.q)+' units)'+(r.dup?'; '+r.dup+' repeat a lot already received':'')+'. Earliest expected receipt date: '+(r.exp||'n/a')+'. Lines: '+r.lines+'.', todo: lotTodo+' Do this before the next receipt on these lines.', fin:'Clear the unreceived lot rows on PO '+r.po+' ('+pl(r.xs.length,'line')+').', esc:'—', lines: r.xs.length, units: r.q }));
-          lotRows.B.sort((a,b)=>a.po.localeCompare(b.po)).forEach(r => push('P7', { open:'PO '+r.po, where:'Purchase Orders › '+r.po+' › line › Item Tracking Lines', what: pl(r.xs.length,'fully received PO line')+' still carry lot entries ('+units(r.q)+' units). Lines: '+r.lines+'.', todo: lotTodo, fin:'Clear the unreceived lot rows on PO '+r.po+' ('+pl(r.xs.length,'line')+').', esc:'—', lines: r.xs.length, units: r.q }));
-          lotRows.C.sort((a,b)=>a.po.localeCompare(b.po)).forEach(r => push('P8', { open:'PO '+r.po+' (deleted)', where:'Not reachable from a page: the PO no longer exists', what: r.ent+' lot entries remain for deleted PO '+r.po+' ('+units(r.q)+' units).', todo:'Send BC Admin the PO number and entry numbers: '+r.xs.flatMap(x=>x.entryNos).slice(0,40).join(', ')+(r.ent>40?' … (full list in the Detail tab)':'')+'.', fin:'BC Admin removes the '+r.ent+' entries for deleted PO '+r.po+'.', esc:'BC Admin', lines: r.xs.length, units: r.q }));
-          const seq = {}; W.forEach(w => { seq[w.pri] = (seq[w.pri]||0)+1; w.ref = w.pri+'-'+String(seq[w.pri]).padStart(2,'0'); });
-          auditWork = W;
+          Object.keys(byPo).forEach(k => { const xs = byPo[k], g = xs[0].grp, po = xs[0].po; if (coveredPo[po]) return;
+            lotRows[g].push({ po, xs, ent: xs.reduce((a,x)=>a+x.entries,0), q: xs.reduce((a,x)=>a+x.tracked,0), dup: xs.filter(x=>x.dupRecvN>0).length, lines: xs.map(x => x.line+' '+x.item).slice(0,20).join('; ')+(xs.length>20?'; +'+(xs.length-20)+' more':''), exp: xs.map(x=>x.exp).filter(Boolean).sort()[0] || '' }); });
+          const lotHow = ' On each line: Item Tracking Lines → leave received rows; delete rows not received; if a received lot was added again, reduce Quantity back to Quantity Handled.';
+          lotRows.A.sort((a,b)=> (a.exp||'9999').localeCompare(b.exp||'9999') || a.po.localeCompare(b.po)).forEach(r => push('P6', { open:'PO '+r.po, poLine: r.po, item: pl(r.xs.length,'line'), problem:'Lots with no open receipt', todo:'Clear the unreceived lot rows before the next receipt on these lines.', units: r.q, pos:[r.po],
+            note: pl(r.xs.length,'open PO line')+' ('+units(r.q)+' units)'+(r.dup?'; '+r.dup+' repeat a lot already received':'')+'. Earliest expected: '+(r.exp||'n/a')+'. Lines: '+r.lines+'.'+lotHow }));
+          lotRows.B.sort((a,b)=>a.po.localeCompare(b.po)).forEach(r => push('P7', { open:'PO '+r.po, poLine: r.po, item: pl(r.xs.length,'line'), problem:'Lots left on received lines', todo:'Clear the unreceived lot rows when time allows.', units: r.q, pos:[r.po], note:'Fully received lines still carrying lot rows ('+units(r.q)+' units). Lines: '+r.lines+'.'+lotHow }));
+          lotRows.C.sort((a,b)=>a.po.localeCompare(b.po)).forEach(r => push('P8', { open:'PO '+r.po+' (deleted)', poLine: r.po, item: r.ent+' entries', problem:'Lots on a deleted PO', todo:'Send the entry numbers to BC Admin to remove.', who:'BC Admin', units: r.q, pos:[r.po], note:'Entry numbers: '+r.xs.flatMap(x=>x.entryNos).slice(0,60).join(', ')+(r.ent>60?' … (full list in Detail - Leftover Lots)':'')+'. Not reachable from a page: the PO no longer exists.' }));
+          auditWorkAll = W;
+          // Focus receipt: its own rows, P2/P3 rows on its POs, and put-away for what it already posted
+          if (auditFocus) { const fPos = new Set((byW[auditFocus]||[]).map(r => r.po));
+            auditWork = W.filter(w => (['P1','P4'].includes(w.pri) && w.wrct === auditFocus) || (['P2','P3'].includes(w.pri) && w.pos.some(p => fPos.has(p))) || (w.pri === 'P5' && w.from === auditFocus)); }
+          else auditWork = W;
+          const seq = {}; auditWork.forEach(w => { seq[w.pri] = (seq[w.pri]||0)+1; w.ref = w.pri+'-'+String(seq[w.pri]).padStart(2,'0'); });
         }
 
         const pwrMsg = auditPwrMode ? ' · '+new Set(auditRows.filter(r=>r.postedFlag).map(r=>r.wrct)).size+' open receipt(s) on an already-posted container' : '';
@@ -1955,6 +2134,8 @@ const RG = (function() {
 
   function renderAudit(elapsedMs) {
     document.getElementById('resultsAudit').style.display = 'block';
+    auditWrctFilterText = auditFocus ? auditFocus.toLowerCase() : '';
+    { const fi = document.getElementById('auditWrctFilter'); if (fi) fi.value = auditFocus || ''; }
     document.getElementById('auditTotalNum').textContent = auditRows.length;
     document.getElementById('auditTotalSub').innerHTML = 'Every currently open receipt — pooled by ' + (auditGrain==='line' ? 'PO + Line' : 'PO + Item (line not checked)') +
       (auditPerf ? '<br><span style="color:var(--gold);font-weight:700">'+auditPerf.cells.toLocaleString()+' data cells</span> · '+auditPerf.recs.toLocaleString()+' records · '+auditPerf.tables+' tables — read in '+fmtDur(auditPerf.readMs)+', cross-checked in '+fmtDur(auditPerf.analyzeMs) : '');
@@ -1971,9 +2152,12 @@ const RG = (function() {
     const earlierRcpts = new Set(auditRows.filter(r=>r.contEarlier).map(r=>r.wrct)).size;
     document.getElementById('auditSummaryGrid').innerHTML =
       cardHtml('green', auditRows.filter(r=>r.overall==='ready').length, '✅ Ready to Post — no flags (lines)') +
-      (auditWork.length ? cardHtml('navy', auditWork.length, 'Work List (actions): '+['P1','P2','P3','P4','P5','P6','P7','P8'].map(p=>p+' '+auditWork.filter(w=>w.pri===p).length).join(' · ')) : '') +
+      (auditWork.length ? cardHtml('navy', auditWork.length, 'Work List (actions'+(auditFocus?' for '+auditFocus:'')+'): '+['P1','P2','P3','P4','P5','P6','P7','P8'].map(p=>p+' '+auditWork.filter(w=>w.pri===p).length).join(' · ')) : '') +
       (auditPwrMode ? cardHtml('red', postedRows, '🔴 Container Already Posted — repeat items (lines)') : '') +
       (auditLotMode ? cardHtml('red', lotRows, '🔴 Lot Tracking ≠ Qty to Receive (lines)') : '') +
+      (auditLotMode ? nz(auditRows.filter(r=>r.noLots).length, cardHtml('red', auditRows.filter(r=>r.noLots).length, '🔴 No Lots on a Lot-Tracked Item (lines)')) : '') +
+      nz(auditFix.length, cardHtml('navy', auditFix.length, 'Fix - Item Tracking (PO lines'+(auditFocus?' on '+auditFocus:'')+'): '+auditFix.filter(f=>f.resolved).length+' with exact targets')) +
+      (auditPlStats ? cardHtml(auditPlStats.notFound||auditPlStats.over ? 'red' : (auditPlStats.poDiff||auditPlStats.choose ? 'yellow' : 'green'), auditPlStats.rows, 'Packing list rows: '+(auditPlStats.rows-auditPlStats.notFound)+' matched · '+auditPlStats.poDiff+' PO differs · '+auditPlStats.choose+' choose line · '+auditPlStats.notFound+' not found') : '') +
       (auditPwrMode ? cardHtml('yellow', partialRcpts, '🟠 Receipt Already Partly Posted (receipts)') : '') +
       cardHtml('gray', zeroRows, '⚪ Line at 0, Holding a PO Line (lines)') +
       (auditPcrStats ? cardHtml('red', auditPcrStats.containersDouble, '🔴 Containers Double-Posted (containers)') : '') +
@@ -1998,6 +2182,7 @@ const RG = (function() {
       (auditRows.some(r=>r.multiLine) ? pill('COMBINE','🔴 Combine Receipt Lines',auditRows.filter(r=>r.multiLine).length) : '') +
       (partialRows ? pill('PARTIAL','🟠 Already Partly Posted',partialRows) : '') +
       (zeroRows ? pill('ZERO','⚪ Line at 0',zeroRows) : '') +
+      (auditRows.some(r=>r.noLots) ? pill('NOLOTS','🔴 No Lots',auditRows.filter(r=>r.noLots).length) : '') +
       Object.keys(AUDIT_LABEL).map(k => counts[k]>0 ? pill(k, AUDIT_LABEL[k], counts[k]) : '').join('');
     fb.querySelectorAll('.fpill').forEach(b=>b.addEventListener('click',()=>{ auditFilterStatus=b.dataset.t; fb.querySelectorAll('.fpill').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderAuditTable(); }));
     (fb.querySelector('.fpill[data-t="'+auditFilterStatus+'"]')||fb.querySelector('.fpill[data-t="ALL"]')).classList.add('active');
@@ -2047,7 +2232,7 @@ const RG = (function() {
   function renderAuditTable() {
     const body = document.getElementById('auditBody');
     const empty = document.getElementById('auditEmptyState');
-    let filtered = auditFilterStatus==='ALL' ? auditRows : auditFilterStatus==='LOTFLAG' ? auditRows.filter(r=>r.lotMismatch) : auditFilterStatus==='POSTED' ? auditRows.filter(r=>r.postedFlag) : auditFilterStatus==='PARTIAL' ? auditRows.filter(r=>r.partialPosted) : auditFilterStatus==='COMBINE' ? auditRows.filter(r=>r.multiLine) : auditFilterStatus==='ZERO' ? auditRows.filter(r=>r.zeroHold) : auditRows.filter(r=>r.status===auditFilterStatus);
+    let filtered = auditFilterStatus==='ALL' ? auditRows : auditFilterStatus==='LOTFLAG' ? auditRows.filter(r=>r.lotMismatch) : auditFilterStatus==='POSTED' ? auditRows.filter(r=>r.postedFlag) : auditFilterStatus==='PARTIAL' ? auditRows.filter(r=>r.partialPosted) : auditFilterStatus==='COMBINE' ? auditRows.filter(r=>r.multiLine) : auditFilterStatus==='ZERO' ? auditRows.filter(r=>r.zeroHold) : auditFilterStatus==='NOLOTS' ? auditRows.filter(r=>r.noLots) : auditRows.filter(r=>r.status===auditFilterStatus);
     if (auditWrctFilterText) filtered = filtered.filter(r => r.wrct.toLowerCase().includes(auditWrctFilterText));
     if (auditSortState.key) {
       const key = auditSortState.key, dir = auditSortState.dir==='desc'?-1:1;
@@ -2088,6 +2273,7 @@ const RG = (function() {
 
   // SheetJS writes every note at a fixed ~2-col x 4-row size with a lime fill. Rewrite each note's
   // VML shape so the box fits its text (5 columns wide, height by length) in Excel's standard note yellow.
+  let exportStyleRows = {};
   function enlargeNotes(data) {
     const CFB = XLSX.CFB; if (!CFB) return data;
     const zip = CFB.read(new Uint8Array(data), { type:'array' });
@@ -2124,13 +2310,24 @@ const RG = (function() {
         if (m) {
           const base = +m[1];
           const numIdx = new Set(); (m[2].match(/<xf [^>]*?(\/>|>)/g)||[]).forEach((x,i) => { if (/numFmtId="(3|4|37|38)"/.test(x)) numIdx.add(String(i)); });
-          sty = sty.replace(m[0], '<cellXfs count="'+(base+2)+'">'+m[2]+'<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="top"/></xf></cellXfs>');
+          // Extra fonts (bold white, bold) and fills (navy, light gold) for header, group and total rows
+          let fnt = 0, fil = 0;
+          sty = sty.replace(/<fonts count="(\d+)"([^>]*)>([\s\S]*?)<\/fonts>/, (all, n, at, body) => { fnt = +n; return '<fonts count="'+(fnt+2)+'"'+at+'>'+body+'<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/><family val="2"/></font><font><b/><sz val="11"/><name val="Arial"/><family val="2"/></font></fonts>'; });
+          sty = sty.replace(/<fills count="(\d+)"([^>]*)>([\s\S]*?)<\/fills>/, (all, n, at, body) => { fil = +n; return '<fills count="'+(fil+2)+'"'+at+'>'+body+'<fill><patternFill patternType="solid"><fgColor rgb="FF0D1F35"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF9E7C4"/><bgColor indexed="64"/></patternFill></fill></fills>'; });
+          const xHdr = base+2, xTot = base+3, xTotN = base+4;
+          sty = sty.replace(m[0], '<cellXfs count="'+(base+5)+'">'+m[2]+'<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="top"/></xf>'
+            +'<xf numFmtId="0" fontId="'+fnt+'" fillId="'+fil+'" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment wrapText="1" vertical="center"/></xf>'
+            +'<xf numFmtId="0" fontId="'+(fnt+1)+'" fillId="'+(fil+1)+'" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>'
+            +'<xf numFmtId="3" fontId="'+(fnt+1)+'" fillId="'+(fil+1)+'" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top"/></xf></cellXfs>');
           let did = 0;
-          ['Work List','How to Read This'].forEach(nm => {
+          ['Work List','How to Read This','Fix - Item Tracking','Packing List Match'].forEach(nm => {
+            const rowSty = exportStyleRows[nm] || (nm==='How to Read This' ? { 1:'hdr' } : {});
             const sm = wbx.match(new RegExp('<sheet name="'+nm+'"[^>]*r:id="(rId\\d+)"')); if (!sm) return;
             const tm = rels.match(new RegExp('Id="'+sm[1]+'"[^>]*Target="([^"]+)"')) || rels.match(new RegExp('Target="([^"]+)"[^>]*Id="'+sm[1]+'"')); if (!tm) return;
             const path = 'xl/'+tm[1].replace(/^\/?xl\//,''); let x = get(path); if (!x) return;
-            x = x.replace(/<c r="([A-Z]+\d+)"([^>]*?)(\/?)>/g, (all, ref, attrs, close) => { const sm2 = attrs.match(/ s="(\d+)"/); const num = !!(sm2 && numIdx.has(sm2[1])); attrs = attrs.replace(/ s="\d+"/, ''); return '<c r="'+ref+'"'+attrs+' s="'+(num ? base+1 : base)+'"'+close+'>'; });
+            x = x.replace(/<c r="([A-Z]+)(\d+)"([^>]*?)(\/?)>/g, (all, col, row, attrs, close) => { const sm2 = attrs.match(/ s="(\d+)"/); const num = !!(sm2 && numIdx.has(sm2[1])); attrs = attrs.replace(/ s="\d+"/, '');
+              const rs = rowSty[row]; const s = rs==='hdr' || rs==='grp' ? xHdr : rs==='tot' ? (num ? xTotN : xTot) : (num ? base+1 : base);
+              return '<c r="'+col+row+'"'+attrs+' s="'+s+'"'+close+'>'; });
             put(path, x); did++; });
           if (did) { put('xl/styles.xml', sty); changed++; }
         }
@@ -2150,15 +2347,16 @@ const RG = (function() {
     const r2 = v => v===null||v===undefined ? '' : Math.round(v*100)/100;
     wb.Props = { Title:'Receipt Audit '+today, Author:'Ron Jones', LastAuthor:'Ron Jones', Company:'' };
     const lotLabel = r => !auditLotMode ? '' : r.lotCheck==='mismatch' ? '🔴 Lot Tracking ≠ Qty to Receive' : r.lotCheck==='match' ? 'OK' : r.lotCheck==='none' ? 'No lot entries' : '';
-    const hdr = ['Overall','WRCT No.','Container','Container Posted On','PO No.','PO Line No.','Item No.','Qty. to Receive','Original PO Qty','Qty Outstanding','Ratio (vs Outstanding)','Looks Doubled?','Combined Claim','Combined Ratio','Headroom','Tracked Lot Qty','Lot Ratio','Lot Check','Likely Duplicate Entry Nos.','Over-Receipt Code','Other WRCTs on this PO Line','Status','Already Posted From This Receipt','Line at 0?','Container Partly Received Earlier (items differ)','Repeats This Posted Line','Receipt Lines on This PO Line'];
-    const rows = auditRows.map(r => [r.overallLabel||'', r.wrct, r.container||'', r.postedElsewhere||'', r.po, r.poLine||'', r.item, r.qtyRec, r.orig===null?'':r.orig, r.cap===null?'':r.cap, r2(r.ratio), r.looksDoubled?'YES':'', r.combined, r2(r.combinedRatio), r.headroom===null?'':r.headroom, r.lotTracked===null?'':r.lotTracked, r2(r.lotRatio), lotLabel(r), r.lotDupEntries||'', r.orCode, (r.otherWrcts||[]).join(', '), AUDIT_LABEL[r.status], r.partialPosted||'', r.zeroHold?'Yes':'', r.contEarlier||'', r.repeatOf||'', r.rowCount>1 ? r.rcptQtys.map(q=>q.toLocaleString()).join(' + ') : '']);
+    const RW = auditFocus ? auditRows.filter(r => r.wrct === auditFocus) : auditRows;
+    const hdr = ['Overall','WRCT No.','Container','Container Posted On','PO No.','PO Line No.','Item No.','Qty. to Receive','Original PO Qty','Qty Outstanding','Ratio (vs Outstanding)','Looks Doubled?','Combined Claim','Combined Ratio','Headroom','Tracked Lot Qty','Lot Ratio','Lot Check','Likely Duplicate Entry Nos.','Over-Receipt Code','Other WRCTs on this PO Line','Status','Already Posted From This Receipt','Line at 0?','Container Partly Received Earlier (items differ)','Repeats This Posted Line','Receipt Lines on This PO Line','No Lots (lot-tracked item)?','Packing List Check'];
+    const rows = RW.map(r => [r.overallLabel||'', r.wrct, r.container||'', r.postedElsewhere||'', r.po, r.poLine||'', r.item, r.qtyRec, r.orig===null?'':r.orig, r.cap===null?'':r.cap, r2(r.ratio), r.looksDoubled?'YES':'', r.combined, r2(r.combinedRatio), r.headroom===null?'':r.headroom, r.lotTracked===null?'':r.lotTracked, r2(r.lotRatio), lotLabel(r), r.lotDupEntries||'', r.orCode, (r.otherWrcts||[]).join(', '), AUDIT_LABEL[r.status], r.partialPosted||'', r.zeroHold?'Yes':'', r.contEarlier||'', r.repeatOf||'', r.rowCount>1 ? r.rcptQtys.map(q=>q.toLocaleString()).join(' + ') : '', r.noLots?'Yes':'', r.plDiff||'']);
     const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
     // Keep identifiers as text (Excel drops trailing zeros on item numbers like 616.005)
     for (let i=0;i<rows.length;i++) [1,2,4,5,6,18].forEach(c => { const a = XLSX.utils.encode_cell({r:i+1,c}); if (ws[a]) { ws[a].t='s'; ws[a].v=String(ws[a].v); ws[a].z='@'; } });
     // Hover notes on exception rows
     const excNotes = rows.map(() => []);
     const note = (row, col, text) => { excNotes[row-1].push(text); const a = XLSX.utils.encode_cell({r:row, c:col+1}); if (ws[a]) { ws[a].c = [{a:'Ron Jones', t:text}]; ws[a].c.hidden = true; } };
-    auditRows.forEach((r,i) => {
+    RW.forEach((r,i) => {
       if (r.postedFlag) note(i+1, 2, 'Container '+r.container+' was already posted on '+r.postedElsewhere+'. Posting this receipt would receive the same container again. Verify, then delete this receipt rather than post it.');
       if (r.lotMismatch) note(i+1, 16, 'Lots assigned on this PO line total '+r.lotTracked+' but the open receipt(s) are receiving '+r.combinedBase+'. The post may stop with a Qty. to Handle error, or post and leave the extra lots behind.'+(r.lotDupEntries?' Repeated entries: '+r.lotDupEntries+'.':''));
       if (r.status==='pool_over') note(i+1, 20, 'Receipts '+[r.wrct].concat(r.otherWrcts).join(', ')+' together claim '+r.combined+' against '+r.cap+' outstanding on this PO line. The receipt posted second will fail without an Over-Receipt Code.');
@@ -2168,17 +2366,20 @@ const RG = (function() {
       if (r.multiLine) note(i+1, 25, 'PO line '+r.po+'/'+r.poLine+' sits on '+r.rowCount+' lines of '+r.wrct+' ('+r.rcptQtys.map(q=>q.toLocaleString()).join(' + ')+'). BC checks every lot on the PO line against each receipt line and refuses to post. Set one receipt line to '+r.qtyRec.toLocaleString()+' and delete the other(s); the lots stay on the PO line.');
       if (r.zeroHold) note(i+1, 22, 'Qty. to Receive is 0 on this line. It holds PO '+r.po+(r.poLine?' line '+r.poLine:'')+', so no other receipt can pull it. If it is not being received, clear any lots on the PO line first, then delete the line.');
     });
-    ws['!cols'] = [{wch:26},{wch:14},{wch:14},{wch:40},{wch:10},{wch:11},{wch:18},{wch:13},{wch:14},{wch:14},{wch:11},{wch:12},{wch:14},{wch:13},{wch:11},{wch:14},{wch:10},{wch:28},{wch:26},{wch:15},{wch:24},{wch:30},{wch:34},{wch:10},{wch:40},{wch:40},{wch:24}];
+    ws['!cols'] = [{wch:26},{wch:14},{wch:14},{wch:40},{wch:10},{wch:11},{wch:18},{wch:13},{wch:14},{wch:14},{wch:11},{wch:12},{wch:14},{wch:13},{wch:11},{wch:14},{wch:10},{wch:28},{wch:26},{wch:15},{wch:24},{wch:30},{wch:34},{wch:10},{wch:40},{wch:40},{wch:24},{wch:12},{wch:30}];
     // Plain-text copy of every hover note, so exceptions can be read, filtered and printed without hovering
     XLSX.utils.sheet_add_aoa(ws, [['Exception Note']].concat(excNotes.map(n => [n.join(' | ')])), { origin: { r:0, c:hdr.length } });
     ws['!cols'].push({wch:90});
     ws['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:rows.length, c:hdr.length}}) };
     const howTo = [['How to Read This',''],['',''],
-      ['Start here','Open the Work List tab and work it top to bottom. Each row says what to open in BC, what is wrong, the steps, the Final Action (the one thing that closes the row), and when to escalate instead. Tick Done as you go. Each run is a fresh snapshot: re-export the package and re-run to see what is left.'],
-      ['Priorities','P1 Stop: an open receipt for a container already received. Do not post. · P2 Escalate (supervisor approval): a container received twice; count before anything else on its POs. · P3 Escalate (Purchasing): a PO that looks like a duplicate of one already received; resolve the PO before its lots. · P4 Fix before posting: problems on open receipts. · P5 Put-away: posted stock not put away. · P6 Clear soon: leftover lots on open PO lines. · P7 Clear when time allows: leftover lots on fully received lines. · P8 BC Admin: entries left on deleted POs.'],
+      ['Start here','Open the Work List and work it top to bottom. One row = one thing to do: what to open, the problem in a few words, and the one action that closes it. Hover over Problem for the why. Tick Done as you go. Each run is a snapshot: re-export the package and re-run to see what is left.'+(auditFocus ? ' This export is focused on '+auditFocus+'.' : '')],
+      ['Focus receipt', auditFocus ? 'Work List, Fix - Item Tracking and Detail - Open Receipts show only '+auditFocus+' (plus P2/P3 rows on its POs and put-aways for anything it already posted). The other Detail tabs still cover everything.' : 'None picked: every open receipt is included. Pick one on the landing page to narrow the Work List and the Fix tab.'],
+      ['Fix - Item Tracking','What each flagged PO line\'s Item Tracking Lines should show after the fix: one row per lot, then a Line total. Mirror Quantity (Base), Qty. to Handle and Qty. to Invoice. Quantity Handled is read-only (already received). Qty. to Handle on the Line total must equal Qty. to Receive. "Now" columns show what is there today; Change says what to do. Basis says where the targets came from: the packing list (exact) or inferred from the lot rows (check against the packing list). If Basis says it cannot tell, drop in the packing list and re-run.'],
+      ['Packing List Match','Only when a packing list is dropped in. Each packing list row and the BC PO line it was matched to. The packing list\'s own PO line numbers are ignored; rows are matched by PO + item. 🟡 PO differs = the item is on another PO from the same vendor. 🟡 Choose line = more than one open line fits; check the pick. 🔴 Not found / Over open quantity = fix the PO first. A note warns when the PO line already holds lot rows that would stack.'],
+      ['Priorities','Each priority starts with a dark header row. P1 Stop: an open receipt for a container already received. Do not post. · P2 Escalate (supervisor approval): a container received twice; count before anything else on its POs. · P3 Escalate (Purchasing): a PO that looks like a duplicate of one already received; resolve the PO before its lots. · P4 Fix before posting: problems on open receipts. · P5 Put-away: posted stock not put away. · P6 Clear soon: leftover lots on open PO lines. · P7 Clear when time allows: leftover lots on fully received lines. · P8 BC Admin: entries left on deleted POs.'],
       ['Receipt numbers','"Posted receipt" (WRCT…) is the posted warehouse receipt. "Purchase receipt" (a plain number such as 107252) is the posted purchase receipt it created. Undo Receipt is done on the purchase receipt, from Posted Purchase Receipts.'],
       ['Why the order matters','Rows lower down that belong to a PO or container in a P2 or P3 row are not listed separately: fixing the P2/P3 row removes them. Clearing them first would be wasted work.'],
-      ['Overall (Detail - Open Receipts)','The worst flag on the line: 🔴 Do Not Post, 🔴 Combine Receipt Lines First, 🔴 Fix Lots First, 🔴 Fix Quantity First, 🟠 Fix Qty. to Invoice, 🟠 Partly Posted, ⚪ Line at 0, ✅ Ready to Post (no flags at all).'],
+      ['Overall (Detail - Open Receipts)','The worst flag on the line: 🔴 Do Not Post, 🔴 Combine Receipt Lines First, 🔴 Fix Lots First, 🔴 Add Lots First (no lots on an item that is lot-tracked), 🔴 Fix Quantity First, 🟠 Fix Qty. to Invoice, 🟠 Partly Posted, ⚪ Line at 0, ✅ Ready to Post (no flags at all).'],
       ['Detail - Open Receipts','One row per receipt + PO line on every open warehouse receipt, checked against the PO line it draws from.'],
       ['Status (quantity check only)','Fits = one receipt on the PO line and it fits. Shared Pool — Fits = more than one receipt on the same PO line and together they fit. Shared Pool — Over-Claimed = together they exceed what is outstanding.'],
       ['Ratio','This receipt\'s Qty. to Receive ÷ Qty Outstanding on the PO line.'],
@@ -2233,21 +2434,60 @@ const RG = (function() {
       wsG['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:Math.max(1,gr.length), c:gh.length-1}}) };
       XLSX.utils.book_append_sheet(wb, wsG, 'Detail - Put-Away');
     }
+    exportStyleRows = {};
+    const txt = (ws, r, cols) => cols.forEach(c => { const a = XLSX.utils.encode_cell({r,c}); if (ws[a] && ws[a].v!=='' && ws[a].v!=null) { ws[a].t='s'; ws[a].v=String(ws[a].v); ws[a].z='@'; } });
     {
-      const wh = ['Priority','Ref','Open This','Where in BC','What Is Wrong','Do This','Final Action','Escalate To','Lines','Units','Done'];
       const PRI = { P1:'P1 Stop', P2:'P2 Escalate — Count', P3:'P3 Escalate — PO', P4:'P4 Fix Before Posting', P5:'P5 Put-Away', P6:'P6 Clear Soon', P7:'P7 Clear When Time Allows', P8:'P8 BC Admin' };
-      const wr = auditWork.map(w => [PRI[w.pri], w.ref, w.open, w.where, w.what, w.todo, w.fin||'', w.esc, w.lines, Math.round(w.units||0), '']);
-      const wsW = XLSX.utils.aoa_to_sheet([wh, ...(wr.length ? wr : [['—','','Nothing to work','','No exceptions found in this package.','','','','','','']])]);
-      for (let i=1;i<=wr.length;i++) [1,2].forEach(c => { const a = XLSX.utils.encode_cell({r:i,c}); if (wsW[a]) { wsW[a].t='s'; wsW[a].v=String(wsW[a].v); wsW[a].z='@'; } });
-      for (let i=1;i<=wr.length;i++) { const a = XLSX.utils.encode_cell({r:i,c:9}); if (wsW[a]) wsW[a].z = '#,##0'; }
-      wsW['!cols'] = [{wch:20},{wch:7},{wch:15},{wch:28},{wch:58},{wch:58},{wch:42},{wch:20},{wch:7},{wch:11},{wch:7}];
-      wsW['!rows'] = [{hpt:18}].concat(wr.map(r => ({ hpt: Math.min(300, 15*Math.max(2, Math.ceil(String(r[4]).length/56), Math.ceil(String(r[5]).length/56), Math.ceil(String(r[6]).length/40))) })));
-      wsW['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:Math.max(1,wr.length), c:wh.length-1}}) };
-      Object.keys(wsW).forEach(a => { if (a[0]!=='!' && /^[EF]\d+$/.test(a)) wsW[a].s = { alignment:{ wrapText:true, vertical:'top' } }; });
-      XLSX.utils.book_append_sheet(wb, wsW, 'Work List');
+      const wh = ['Priority','Ref','Open This','PO / Line','Item','Problem','Do This','Who','Units','Done'];
+      const aoa = [wh], styles = { 1:'hdr' }, noteAt = [];
+      ['P1','P2','P3','P4','P5','P6','P7','P8'].forEach(p => { const ws_ = auditWork.filter(w => w.pri===p); if (!ws_.length) return;
+        aoa.push([PRI[p]+'  ·  '+ws_.length+' '+(ws_.length===1?'action':'actions'),'','','','','','','','','']); styles[aoa.length] = 'grp';
+        ws_.forEach(w => { aoa.push([w.pri, w.ref, w.open, w.poLine||'', w.item||'', w.problem, w.todo, w.who||'', Math.round(w.units||0), '']); if (w.note) noteAt.push([aoa.length-1, w.note]); }); });
+      if (aoa.length === 1) aoa.push(['—','','Nothing to work','','','No exceptions found'+(auditFocus?' for '+auditFocus:'')+'.','','','','']);
+      const wsW = XLSX.utils.aoa_to_sheet(aoa);
+      for (let i=1;i<aoa.length;i++) { if (styles[i+1]==='grp') continue; txt(wsW, i, [1,2,3,4]); const a = XLSX.utils.encode_cell({r:i,c:8}); if (wsW[a] && typeof wsW[a].v==='number') wsW[a].z='#,##0'; }
+      noteAt.forEach(([r, t]) => { const a = XLSX.utils.encode_cell({r, c:5}); if (wsW[a]) { wsW[a].c = [{a:'Ron Jones', t}]; wsW[a].c.hidden = true; } });
+      wsW['!cols'] = [{wch:10},{wch:7},{wch:16},{wch:17},{wch:18},{wch:30},{wch:62},{wch:22},{wch:11},{wch:7}];
+      wsW['!rows'] = aoa.map((r,i) => ({ hpt: i===0 ? 20 : styles[i+1]==='grp' ? 18 : Math.min(90, 15*Math.max(1, Math.ceil(String(r[6]).length/60), Math.ceil(String(r[5]).length/29))) }));
+      wsW['!merges'] = Object.keys(styles).filter(k => styles[k]==='grp').map(k => ({ s:{r:+k-1, c:0}, e:{r:+k-1, c:wh.length-1} }));
+      wsW['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:aoa.length-1, c:wh.length-1}}) };
+      XLSX.utils.book_append_sheet(wb, wsW, 'Work List'); exportStyleRows['Work List'] = styles;
+    }
+    if (auditLotMode) {
+      const fh = ['Receipt','PO No.','PO Line No.','Item No.','Lot No.','Quantity (Base)','Qty. to Handle (Base)','Qty. to Invoice (Base)','Quantity Handled (Base)','Now: Quantity (Base)','Now: Qty. to Handle (Base)','Change','Basis'];
+      const aoa = [fh], styles = { 1:'hdr' }, textRows = [];
+      const v = n => n===null || n===undefined ? '' : Math.round(n*100)/100;
+      auditFix.forEach(f => {
+        f.rows.forEach((x,j) => { aoa.push([j?'':f.wrct, f.po, f.line, f.item, x.lot, v(x.qtyBase), v(x.qth), v(x.qti), v(x.handled), v(x.nowQty), v(x.nowQth), x.change, j?'':f.basis]); textRows.push(aoa.length-1); });
+        if (!f.rows.length) { aoa.push([f.wrct, f.po, f.line, f.item, '(no lots)', '', '', '', 0, 0, 0, '', f.basis]); textRows.push(aoa.length-1); }
+        const S = k => f.rows.reduce((s,x)=> s + (x[k]||0), 0);
+        aoa.push(['', f.po, f.line, f.item, 'Line total', f.resolved ? v(S('qtyBase')) : '', f.resolved ? v(S('qth')) : '', f.resolved ? v(S('qti')) : '', v(S('handled')), v(S('nowQty')), v(S('nowQth')),
+          'Qty. to Handle must total '+Math.round(f.plQty!==null && f.plQty!==undefined && Math.abs(f.plQty-f.need)>1e-6 ? f.plQty : f.need).toLocaleString()+(f.plQty!==null && Math.abs(f.plQty-f.need)>1e-6 ? ' (packing list; receipt says '+Math.round(f.need).toLocaleString()+')' : ' = Qty. to Receive'), '']);
+        styles[aoa.length] = 'tot'; textRows.push(aoa.length-1); });
+      if (aoa.length === 1) aoa.push(['','','','','Nothing to fix'+(auditFocus?' on '+auditFocus:'')+': every line\'s lots equal Qty. to Receive.','','','','','','','','']);
+      const wsF = XLSX.utils.aoa_to_sheet(aoa);
+      textRows.forEach(i => txt(wsF, i, [0,1,2,3,4]));
+      for (let i=1;i<aoa.length;i++) for (let c=5;c<=10;c++) { const a = XLSX.utils.encode_cell({r:i,c}); if (wsF[a] && typeof wsF[a].v==='number') wsF[a].z='#,##0'; }
+      wsF['!cols'] = [{wch:13},{wch:9},{wch:11},{wch:17},{wch:12},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:40},{wch:60}];
+      wsF['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:aoa.length-1, c:fh.length-1}}) };
+      ['Quantity (Base)','Qty. to Handle (Base)','Quantity Handled (Base)'].forEach((t,ix) => { const a = XLSX.utils.encode_cell({r:0,c:[5,6,8][ix]}); if (wsF[a]) { wsF[a].c = [{a:'Ron Jones', t: ['Target. Quantity Handled + Qty. to Handle for the lot.','Target. What this receipt receives on this lot. The Line total must equal Qty. to Receive.','Already received on this PO line (read-only in BC). Comes from the posted receipts for this PO line.'][ix]}]; wsF[a].c.hidden = true; } });
+      XLSX.utils.book_append_sheet(wb, wsF, 'Fix - Item Tracking'); exportStyleRows['Fix - Item Tracking'] = styles;
+    }
+    if (auditPlStats) {
+      const mh = ['PL Row','PL PO','PL Line (vendor, ignored)','Item (packing list)','Qty','Lot No.','Container','BC PO','BC PO Line','BC Item No.','Match','On Receipt','Note'];
+      const aoa = [mh].concat(auditPlMatch.map(x => [x.rowNo, x.plPo, x.plLine==null?'':x.plLine, x.plItem, x.qty, x.lot, x.cont, x.po, x.line, x.item, x.match, x.rcpt||'', x.note||'']));
+      const wsM = XLSX.utils.aoa_to_sheet(aoa);
+      for (let i=1;i<aoa.length;i++) { txt(wsM, i, [1,2,3,5,6,7,8,9,11]); const a = XLSX.utils.encode_cell({r:i,c:4}); if (wsM[a]) wsM[a].z='#,##0'; }
+      wsM['!cols'] = [{wch:7},{wch:9},{wch:12},{wch:18},{wch:10},{wch:11},{wch:14},{wch:9},{wch:11},{wch:18},{wch:30},{wch:13},{wch:60}];
+      wsM['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:aoa.length-1, c:mh.length-1}}) };
+      XLSX.utils.book_append_sheet(wb, wsM, 'Packing List Match'); exportStyleRows['Packing List Match'] = { 1:'hdr' };
     }
     const cnt = {}; auditRows.forEach(r => cnt[r.status] = (cnt[r.status]||0)+1);
-    const notes = [['Run Notes',''],['Run date', today]].concat(auditSources.map((x,i)=>[i?'':'Sources', x])).concat([['Pool grain', auditGrainNote],['Lines checked', auditRows.length],
+    const notes = [['Run Notes',''],['Run date', today]].concat(auditSources.map((x,i)=>[i?'':'Sources', x])).concat([
+      ['Focus receipt', auditFocus || 'None (all open receipts)'],
+      ['Packing list', slotStateAudit.pl ? slotStateAudit.pl.name+' — '+auditPlStats.rows+' rows, '+Math.round(auditPlStats.units).toLocaleString()+' units: '+auditPlStats.onRcpt+' on a receipt line, '+auditPlStats.poDiff+' PO differs, '+auditPlStats.choose+' choose line, '+auditPlStats.over+' over open quantity, '+auditPlStats.notFound+' not found' : 'None'],
+      ['Fix - Item Tracking', auditLotMode ? auditFix.length+' PO line(s) to fix: '+auditFix.filter(f=>f.resolved && f.basis.startsWith('From')).length+' from the packing list, '+auditFix.filter(f=>f.resolved && !f.basis.startsWith('From')).length+' inferred, '+auditFix.filter(f=>!f.resolved).length+' need the packing list' : 'OFF — needs table 337'],
+      ['No lots on a lot-tracked item (lines)', auditRows.filter(r=>r.noLots).length+' (an item counts as lot-tracked when the item ledger shows lots for it)'],['Pool grain', auditGrainNote],['Lines checked', auditRows.length],
       ['Lot check', auditLotMode ? 'ON — '+auditLotStats.checked+' PO lines: '+auditLotStats.match+' match, '+auditLotStats.mismatch+' mismatch, '+auditLotStats.none+' no lot entries'+(auditLotStats.prospectSkipped?' ('+auditLotStats.prospectSkipped+' Prospect entries ignored)':'') : 'OFF — needs the package export with table 337'],
       ['Data volume', auditPerf ? auditPerf.text : '—'],
       ['Lot tracking on PO lines with no open receipt', auditLotMode ? auditStale.length+' (A '+auditStale.filter(x=>x.grp==='A').length+' · B '+auditStale.filter(x=>x.grp==='B').length+' · C '+auditStale.filter(x=>x.grp==='C').length+')' : '—'],
@@ -2261,7 +2501,7 @@ const RG = (function() {
       ['Received-lot check on leftover lots', auditLotMode ? (auditRecvOn ? 'ON — '+auditStale.filter(x=>x.dupRecvN>0).length+' PO lines carry entries that repeat a lot already received' : 'OFF — needs tables 7319 + 32 in the package') : '—'],
       ['Put-away gaps', auditPagStats ? auditPagStats.receipts+' posted receipts checked: '+auditPagStats.done+' fully put away, '+auditPagStats.open+' put-away not registered, '+auditPagStats.partly+' partly registered, '+auditPagStats.none+' with no put-away ('+Math.round(auditPagStats.qtyNone).toLocaleString()+' units; another '+Math.round(auditPagStats.qtyNonePartial).toLocaleString()+' units with no put-away on partly put-away receipts; '+Math.round(auditPagStats.qtyOpen).toLocaleString()+' units on open put-aways)' : 'OFF — needs tables 7318 + 7319 + 5767/5773 in the package'],
       ['Container matching', 'On the 4-letter + 7-digit container code, so text after the number (e.g. "_2" or a PO number) still matches'],
-      ['Work List', auditWork.length+' actions: '+['P1','P2','P3','P4','P5','P6','P7','P8'].map(p=>p+' '+auditWork.filter(w=>w.pri===p).length).join(' · ')],
+      ['Work List', auditWork.length+' actions'+(auditFocus?' for '+auditFocus+' ('+auditWorkAll.length+' across all receipts)':'')+': '+['P1','P2','P3','P4','P5','P6','P7','P8'].map(p=>p+' '+auditWork.filter(w=>w.pri===p).length).join(' · ')],
       ['Duplicate PO check', auditDupPo.length+' open PO(s) whose items and quantities repeat a PO already received or invoiced (90% of items present, 80% same quantity, expected within 30 days of the other PO\'s receipt)'],
       ['Qty. to Invoice check', auditQtiOn ? 'ON — '+auditRows.filter(r=>r.qtiOver).length+' open receipt line(s) with Qty. to Invoice above Qty. to Handle on a lot row' : 'OFF — add Qty. to Invoice (Base) to table 337 in the package'],
       ['Ready to post', auditRows.filter(r=>r.overall==='ready').length+' of '+auditRows.length+' open receipt lines have no flags']])
@@ -2270,12 +2510,12 @@ const RG = (function() {
     const wsN = XLSX.utils.aoa_to_sheet(notes); wsN['!cols'] = [{wch:30},{wch:80}];
     XLSX.utils.book_append_sheet(wb, wsN, 'Run Notes');
     // Tab order: How to Read · Work List · Detail tabs · Run Notes
-    const front = ['How to Read This','Work List'], back = ['Run Notes'];
+    const front = ['How to Read This','Work List','Fix - Item Tracking','Packing List Match'], back = ['Run Notes'];
     wb.SheetNames = front.filter(n=>wb.Sheets[n]).concat(wb.SheetNames.filter(n => !front.includes(n) && !back.includes(n)), back);
     let data = XLSX.write(wb,{bookType:'xlsx',type:'array'});
     try { data = enlargeNotes(data); } catch(e) { /* keep SheetJS default note size */ }
     const blob = new Blob([data],{type:'application/octet-stream'});
-    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Receipt_Audit_'+today+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Receipt_Audit_'+today+(auditFocus?'_'+auditFocus:'')+'.xlsx'; a.click(); URL.revokeObjectURL(a.href);
   }
 
   function reset() {
@@ -2298,7 +2538,9 @@ const RG = (function() {
     const dueDateCO = document.getElementById('dueDateInputCreateOnly'); if (dueDateCO) dueDateCO.value = '';
     const selAllCO = document.getElementById('selectAllCreateOnlyChk'); if (selAllCO) selAllCO.checked = true;
     // Audit mode
-    slotStateAudit.po = null; slotStateAudit.whr = null; slotStateAudit.inv = null; slotStateAudit.res = null; slotStateAudit.hdr = null; slotStateAudit.pwr = null; slotStateAudit.pwl = null; slotStateAudit.ile = null; slotStateAudit.pa = null; slotStateAudit.rah = null; slotStateAudit.ral = null; slotStateAudit.pkg = null; auditRows = []; auditPcr = []; auditPcrStats = null; auditPag = []; auditPagStats = null; auditFilterStatus = 'ALL'; auditWrctFilterText = ''; auditStale = []; auditLotMode = false;
+    slotStateAudit.po = null; slotStateAudit.whr = null; slotStateAudit.inv = null; slotStateAudit.res = null; slotStateAudit.hdr = null; slotStateAudit.pwr = null; slotStateAudit.pwl = null; slotStateAudit.ile = null; slotStateAudit.pa = null; slotStateAudit.rah = null; slotStateAudit.ral = null; slotStateAudit.pkg = null; auditRows = []; auditPcr = []; auditPcrStats = null; auditPag = []; auditPagStats = null; auditFilterStatus = 'ALL'; auditWrctFilterText = ''; auditStale = []; auditLotMode = false; slotStateAudit.pl = null; auditFix = []; auditPlMatch = []; auditPlStats = null; auditFocus = ''; auditWork = []; auditWorkAll = [];
+    { const s = document.getElementById('slotPLAudit'); if (s) { s.classList.remove('filled'); document.getElementById('statusPLAudit').textContent=''; document.getElementById('filePLAudit').value=''; } }
+    { const w = document.getElementById('auditFocusWrap'); if (w) w.style.display='none'; const s = document.getElementById('auditFocus'); if (s) s.innerHTML=''; const h = document.getElementById('auditFocusHint'); if (h) h.textContent='Optional. Narrows the Work List and the Fix tab to one receipt.'; focusCont = {}; }
     document.getElementById('slotPkgAudit').classList.remove('filled'); document.getElementById('statusPkgAudit').textContent=''; document.getElementById('filePkgAudit').value='';
     ['POAudit','WhrAudit','InvAudit'].forEach(s => { document.getElementById('slot'+s).classList.remove('filled'); document.getElementById('status'+s).textContent=''; });
     document.getElementById('btnAnalyzeAudit').classList.remove('ready');
