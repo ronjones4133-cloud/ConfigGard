@@ -122,6 +122,29 @@ table.itbl th:hover{background:#e4e8ee}
 .top-scroll,.table-wrap{scrollbar-width:auto;scrollbar-color:#8a97a8 #e6e9ee}
 .sort-arrow{font-size:9px;color:var(--gold-dim);margin-left:2px}
 table.itbl td{padding:8px 10px;border-bottom:1px solid #f2f3f5;vertical-align:top}
+/* Audit table: key columns frozen on the left; Key/All column sets; focus hides WRCT columns */
+#resultsAudit table.itbl .stk{position:sticky;z-index:2;background:#fff;box-sizing:border-box}
+#resultsAudit table.itbl th.stk{z-index:4;background:#f0f2f5}
+#resultsAudit table.itbl tr:hover td.stk{background:#fafbfc}
+#resultsAudit table.itbl .s0{left:0;width:150px;min-width:150px;max-width:150px;white-space:normal}
+#resultsAudit table.itbl .s1{left:150px;width:76px;min-width:76px;max-width:76px}
+#resultsAudit table.itbl .s2{left:226px;width:82px;min-width:82px;max-width:82px}
+#resultsAudit table.itbl .s3{left:308px;width:136px;min-width:136px;max-width:136px;white-space:normal;word-break:break-word;box-shadow:5px 0 6px -4px rgba(8,21,37,.28)}
+#resultsAudit table.itbl td.wrapc{white-space:normal;min-width:190px;max-width:300px}
+#resultsAudit table.itbl.keyview .colx{display:none}
+#resultsAudit table.itbl.focusview .colw{display:none}
+.colseg{display:inline-flex;border:1.5px solid var(--gray-mid);border-radius:6px;overflow:hidden;margin-left:8px}
+.colseg button{border:0;background:#fff;padding:5px 10px;font-size:12px;font-weight:700;color:#555;cursor:pointer}
+.colseg button.on{background:var(--navy);color:#fff}
+.verdict{border-radius:12px;padding:18px 24px;margin:16px 0 12px;display:flex;gap:18px;align-items:center;border:2px solid}
+.verdict.bad{background:#fdecea;border-color:#e3a39b}.verdict.good{background:#e8f5e9;border-color:#9fcfa3}
+.verdict .vnum{font-size:42px;font-weight:900;line-height:1;min-width:64px;text-align:center}
+.verdict.bad .vnum{color:#C0392B}.verdict.good .vnum{color:#27AE60}
+.verdict .vtitle{font-size:17px;font-weight:800;color:#0D1F35}
+.verdict .vsub{font-size:12.5px;color:#444;margin-top:4px;line-height:1.55}
+details.elsewhere{margin:-4px 0 16px;border:1px dashed #c9ced6;border-radius:10px;padding:8px 14px;background:#fafbfc}
+details.elsewhere summary{cursor:pointer;font-size:12px;font-weight:700;color:#5B6B7C}
+details.elsewhere .summary-grid{margin:12px 0 4px}
 table.itbl tr:hover td{background:#fafbfc}
 .badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:10.5px;font-weight:800;text-transform:uppercase;white-space:nowrap}
 .badge.exact{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
@@ -295,10 +318,11 @@ footer a:hover{color:var(--gold)}
 <div id="main">
   <div id="sbar" class="sbar"></div>
   <div id="resultsAudit" style="display:none;padding:24px 0 40px">
-    <div class="total-banner">
+    <div class="verdict" id="auditVerdict" style="display:none"></div>
+    <div class="total-banner" id="auditTotalBanner">
       <div class="total-num" id="auditTotalNum">0</div>
       <div class="total-right">
-        <div class="total-label">Lines Checked, Every Open Receipt</div>
+        <div class="total-label" id="auditTotalLabel">Lines Checked, Every Open Receipt</div>
         <div class="total-sub" id="auditTotalSub"></div>
       </div>
       <div style="text-align:right">
@@ -307,33 +331,38 @@ footer a:hover{color:var(--gold)}
       </div>
     </div>
     <div class="summary-grid" id="auditSummaryGrid"></div>
+    <details class="elsewhere" id="auditElsewhere" style="display:none"><summary id="auditElsewhereSum">Elsewhere in BC (not blocking this receipt)</summary><div class="summary-grid" id="auditElsewhereGrid"></div></details>
     <div class="action-bar">
       <button class="btn btn-gold" onclick="RG.exportAudit()">📥 Export Audit</button>
       <button class="btn btn-outline" onclick="RG.reset()">↩ Start Over</button>
       <label style="font-size:12px;font-weight:600;color:#555;margin-left:8px">Filter to one WRCT: <input type="text" id="auditWrctFilter" placeholder="e.g. WRCT000226" oninput="RG.filterAuditWrct(this.value)" style="margin-left:4px;padding:5px 8px;border:1.5px solid var(--gray-mid);border-radius:6px;font-size:12px;width:140px"></label>
+      <span style="font-size:12px;font-weight:600;color:#555;margin-left:8px">Columns:<span class="colseg"><button id="colKeyBtn" class="on" onclick="RG.setAuditCols('key')">Key</button><button id="colAllBtn" onclick="RG.setAuditCols('all')">All</button></span></span>
     </div>
     <div class="filter-bar" id="auditFilterBar"></div>
     <div class="table-wrap">
-      <table class="itbl">
+      <table class="itbl keyview" id="auditTable">
         <thead><tr>
-          <th data-key="wrct">WRCT No. <span class="sort-arrow" id="sa_audit_wrct"></span></th>
-          <th data-key="container">Container <span class="sort-arrow" id="sa_audit_container"></span></th>
-          <th data-key="postedElsewhere" title="Posted warehouse receipts for this container that came from a different warehouse receipt">Container Posted On <span class="sort-arrow" id="sa_audit_postedElsewhere"></span></th>
-          <th data-key="po">PO No. <span class="sort-arrow" id="sa_audit_po"></span></th>
-          <th data-key="poLine">PO Line <span class="sort-arrow" id="sa_audit_poLine"></span></th>
-          <th data-key="item">Item No. <span class="sort-arrow" id="sa_audit_item"></span></th>
+          <th data-key="overall" class="stk s0" title="The worst flag on the line. Click to sort problems first.">Overall <span class="sort-arrow" id="sa_audit_overall"></span></th>
+          <th data-key="po" class="stk s1">PO No. <span class="sort-arrow" id="sa_audit_po"></span></th>
+          <th data-key="poLine" class="stk s2">PO Line <span class="sort-arrow" id="sa_audit_poLine"></span></th>
+          <th data-key="item" class="stk s3">Item No. <span class="sort-arrow" id="sa_audit_item"></span></th>
+          <th data-key="wrct" class="colw">WRCT No. <span class="sort-arrow" id="sa_audit_wrct"></span></th>
           <th data-key="qtyRec">Qty to Receive <span class="sort-arrow" id="sa_audit_qtyRec"></span></th>
-          <th data-key="orig">Original PO Qty <span class="sort-arrow" id="sa_audit_orig"></span></th>
           <th data-key="cap">Qty Outstanding <span class="sort-arrow" id="sa_audit_cap"></span></th>
-          <th data-key="ratio" title="This receipt's Qty to Receive ÷ Qty Outstanding">Ratio <span class="sort-arrow" id="sa_audit_ratio"></span></th>
-          <th data-key="combined" title="Total Qty to Receive across every open WRCT drawing on this PO line">Combined Claim <span class="sort-arrow" id="sa_audit_combined"></span></th>
-          <th data-key="combinedRatio" title="Combined Claim ÷ Qty Outstanding. Over 1.00 = will not fit">Combined Ratio <span class="sort-arrow" id="sa_audit_combinedRatio"></span></th>
-          <th data-key="headroom" title="Qty Outstanding − Combined Claim. 0 = line fully consumed; any dock overage needs an Over-Receipt Code">Headroom <span class="sort-arrow" id="sa_audit_headroom"></span></th>
           <th data-key="lotTracked" title="Lot Qty. to Handle (Base) assigned on this PO line (table 337). Must equal Combined Claim (Base) to post">Tracked Lot Qty <span class="sort-arrow" id="sa_audit_lotTracked"></span></th>
-          <th data-key="lotRatio" title="Tracked Lot Qty ÷ Combined Claim (Base). 2.00x = tracking written twice">Lot Ratio <span class="sort-arrow" id="sa_audit_lotRatio"></span></th>
-          <th data-key="orCode">Over-Receipt Code <span class="sort-arrow" id="sa_audit_orCode"></span></th>
-          <th data-key="otherWrcts">Other WRCTs on this PO Line <span class="sort-arrow" id="sa_audit_otherWrcts"></span></th>
-          <th data-key="status">Status <span class="sort-arrow" id="sa_audit_status"></span></th>
+          <th data-key="problem">Problem <span class="sort-arrow" id="sa_audit_problem"></span></th>
+          <th data-key="todo">Do This <span class="sort-arrow" id="sa_audit_todo"></span></th>
+          <th data-key="container" class="colx colw">Container <span class="sort-arrow" id="sa_audit_container"></span></th>
+          <th data-key="postedElsewhere" class="colx" title="Posted warehouse receipts for this container that came from a different warehouse receipt">Container Posted On <span class="sort-arrow" id="sa_audit_postedElsewhere"></span></th>
+          <th data-key="orig" class="colx">Original PO Qty <span class="sort-arrow" id="sa_audit_orig"></span></th>
+          <th data-key="ratio" class="colx" title="This receipt's Qty to Receive ÷ Qty Outstanding">Ratio <span class="sort-arrow" id="sa_audit_ratio"></span></th>
+          <th data-key="combined" class="colx" title="Total Qty to Receive across every open WRCT drawing on this PO line">Combined Claim <span class="sort-arrow" id="sa_audit_combined"></span></th>
+          <th data-key="combinedRatio" class="colx" title="Combined Claim ÷ Qty Outstanding. Over 1.00 = will not fit">Combined Ratio <span class="sort-arrow" id="sa_audit_combinedRatio"></span></th>
+          <th data-key="headroom" class="colx" title="Qty Outstanding − Combined Claim. 0 = line fully consumed; any dock overage needs an Over-Receipt Code">Headroom <span class="sort-arrow" id="sa_audit_headroom"></span></th>
+          <th data-key="lotRatio" class="colx" title="Tracked Lot Qty ÷ Combined Claim (Base). 2.00x = tracking written twice">Lot Ratio <span class="sort-arrow" id="sa_audit_lotRatio"></span></th>
+          <th data-key="orCode" class="colx">Over-Receipt Code <span class="sort-arrow" id="sa_audit_orCode"></span></th>
+          <th data-key="otherWrcts" class="colx">Other WRCTs on this PO Line <span class="sort-arrow" id="sa_audit_otherWrcts"></span></th>
+          <th data-key="status" class="colx">Status <span class="sort-arrow" id="sa_audit_status"></span></th>
         </tr></thead>
         <tbody id="auditBody"></tbody>
       </table>
@@ -2132,11 +2161,46 @@ const RG = (function() {
     }, 20);
   }
 
+  const BLOCKING = ['stop','combine','lots','nolots','qty','qti'];
+  const OVERALL_ORDER = Object.keys(OVERALL_LABEL);
+  let auditColMode = 'key';
+  function setAuditCols(m) { auditColMode = m; const t = document.getElementById('auditTable'); if (t) t.classList.toggle('keyview', m==='key');
+    document.getElementById('colKeyBtn').classList.toggle('on', m==='key'); document.getElementById('colAllBtn').classList.toggle('on', m!=='key'); setTimeout(syncTopScrollbars, 0); }
+  // Problem / Do This per receipt line, from the Work List (P1 and P4 rows)
+  function lineActions() {
+    const m = {};
+    auditWorkAll.forEach(w => { if (!['P1','P4'].includes(w.pri) || !w.wrct) return; const k = w.wrct+'|'+(w.poLine||''); (m[k] = m[k] || []).push(w); });
+    auditRows.forEach(r => { const own = m[r.wrct+'|'+r.po+(r.poLine?' / '+r.poLine:'')] || [];
+      const rc = r.postedFlag ? (m[r.wrct+'|'] || []).filter(w => w.pri==='P1') : [];
+      const bare = r.noLots && !(r.fix && r.fix.resolved) ? [{ problem:'No lots', todo:'Add the lots (packing list)' }] : [];
+      const all = [...rc, ...own, ...bare];
+      r.problem = all.map(w => w.problem).join(' · '); r.todo = all.map(w => w.todo).join(' · '); });
+  }
   function renderAudit(elapsedMs) {
     document.getElementById('resultsAudit').style.display = 'block';
     auditWrctFilterText = auditFocus ? auditFocus.toLowerCase() : '';
     { const fi = document.getElementById('auditWrctFilter'); if (fi) fi.value = auditFocus || ''; }
-    document.getElementById('auditTotalNum').textContent = auditRows.length;
+    lineActions();
+    { const t = document.getElementById('auditTable'); if (t) { t.classList.toggle('focusview', !!auditFocus); t.classList.toggle('keyview', auditColMode==='key'); } }
+    // Focus receipt: verdict banner + cards for that receipt only; everything else folds away
+    const FR = auditFocus ? auditRows.filter(r => r.wrct === auditFocus) : null;
+    const vd = document.getElementById('auditVerdict');
+    if (FR) {
+      const block = FR.filter(r => BLOCKING.includes(r.overall)).sort((a,b) => OVERALL_ORDER.indexOf(a.overall) - OVERALL_ORDER.indexOf(b.overall));
+      const stop = FR.some(r => r.overall==='stop'), zeros = FR.filter(r => r.zeroHold).length, units = FR.reduce((a,r)=>a+r.qtyRec,0);
+      const cont = FR.find(r => r.container); const nm = esc(auditFocus)+(cont ? ' · '+esc(cont.container) : '');
+      if (block.length) {
+        const show = block.slice(0,3).map(r => '<strong>'+esc(r.item)+'</strong> ('+esc(r.po)+(r.poLine?' / '+esc(r.poLine):'')+'): '+esc(r.problem || (OVERALL_LABEL[r.overall]||'').replace(/^\S+\s/,''))+((r.lotMismatch && r.lotTracked!==null) ? ' — lots '+fmt(r.lotTracked)+' vs '+fmt(r.combinedBase)+' to receive' : '')).join('<br>');
+        vd.className = 'verdict bad';
+        vd.innerHTML = '<div class="vnum">'+block.length+'</div><div><div class="vtitle">🔴 '+nm+': '+(stop ? 'DO NOT POST' : 'NOT READY')+' · '+block.length+' line'+(block.length===1?'':'s')+' to fix</div><div class="vsub">'+show+(block.length>3 ? '<br>… and '+(block.length-3)+' more (top of the table)' : '')+'</div></div>';
+      } else {
+        vd.className = 'verdict good';
+        vd.innerHTML = '<div class="vnum">✓</div><div><div class="vtitle">🟢 '+nm+': READY TO POST · '+FR.length+' lines · '+Math.round(units).toLocaleString()+' units</div><div class="vsub">Every line checks out against its PO line and its lots.'+(zeros ? ' '+zeros+' line'+(zeros===1?' is':'s are')+' at 0: delete after posting.' : '')+' Post with today\'s Posting Date.</div></div>';
+      }
+      vd.style.display = '';
+    } else vd.style.display = 'none';
+    document.getElementById('auditTotalNum').textContent = FR ? FR.length : auditRows.length;
+    document.getElementById('auditTotalLabel').textContent = FR ? 'Lines on '+auditFocus+' · '+auditRows.length+' across every open receipt' : 'Lines Checked, Every Open Receipt';
     document.getElementById('auditTotalSub').innerHTML = 'Every currently open receipt — pooled by ' + (auditGrain==='line' ? 'PO + Line' : 'PO + Item (line not checked)') +
       (auditPerf ? '<br><span style="color:var(--gold);font-weight:700">'+auditPerf.cells.toLocaleString()+' data cells</span> · '+auditPerf.recs.toLocaleString()+' records · '+auditPerf.tables+' tables — read in '+fmtDur(auditPerf.readMs)+', cross-checked in '+fmtDur(auditPerf.analyzeMs) : '');
     document.getElementById('auditTotalMs').textContent = (elapsedMs!==undefined ? elapsedMs : '—') + 'ms';
@@ -2150,7 +2214,21 @@ const RG = (function() {
     const nz = (n, html) => n > 0 ? html : '';
     const partialRcpts = new Set(auditRows.filter(r=>r.partialPosted).map(r=>r.wrct)).size;
     const earlierRcpts = new Set(auditRows.filter(r=>r.contEarlier).map(r=>r.wrct)).size;
-    document.getElementById('auditSummaryGrid').innerHTML =
+    let focusCards = '';
+    if (FR) { const c = f => FR.filter(f).length;
+      focusCards = cardHtml('navy', FR.length, 'Lines on '+auditFocus) +
+        cardHtml('green', c(r=>r.overall==='ready'), '✅ Ready to Post (lines)') +
+        nz(c(r=>r.overall==='stop'), cardHtml('red', c(r=>r.overall==='stop'), '🔴 Container Already Posted (lines)')) +
+        nz(c(r=>r.multiLine), cardHtml('red', c(r=>r.multiLine), '🔴 Combine Receipt Lines (PO lines)')) +
+        nz(c(r=>r.lotMismatch||r.plLotDiff), cardHtml('red', c(r=>r.lotMismatch||r.plLotDiff), '🔴 Lots ≠ Qty to Receive (lines)')) +
+        nz(c(r=>r.noLots), cardHtml('red', c(r=>r.noLots), '🔴 No Lots (lines)')) +
+        nz(c(r=>r.overall==='qty'), cardHtml('red', c(r=>r.overall==='qty'), '🔴 Quantity Problem (lines)')) +
+        nz(c(r=>r.qtiOver), cardHtml('yellow', c(r=>r.qtiOver), '🟠 Qty. to Invoice > Qty. to Handle (lines)')) +
+        nz(c(r=>r.zeroHold), cardHtml('gray', c(r=>r.zeroHold), '⚪ Line at 0 (lines)')) +
+        nz(auditFix.length, cardHtml('navy', auditFix.length, 'Fix - Item Tracking (PO lines): '+auditFix.filter(f=>f.resolved).length+' with exact targets')) +
+        (auditPlStats ? cardHtml(auditPlStats.notFound||auditPlStats.over ? 'red' : (auditPlStats.poDiff||auditPlStats.choose ? 'yellow' : 'green'), auditPlStats.rows, 'Packing list rows: '+(auditPlStats.rows-auditPlStats.notFound)+' matched · '+auditPlStats.poDiff+' PO differs · '+auditPlStats.choose+' choose line · '+auditPlStats.notFound+' not found') : '') +
+        (auditWork.length ? cardHtml('navy', auditWork.length, 'Work List (actions for '+auditFocus+')') : ''); }
+    const allCards =
       cardHtml('green', auditRows.filter(r=>r.overall==='ready').length, '✅ Ready to Post — no flags (lines)') +
       (auditWork.length ? cardHtml('navy', auditWork.length, 'Work List (actions'+(auditFocus?' for '+auditFocus:'')+'): '+['P1','P2','P3','P4','P5','P6','P7','P8'].map(p=>p+' '+auditWork.filter(w=>w.pri===p).length).join(' · ')) : '') +
       (auditPwrMode ? cardHtml('red', postedRows, '🔴 Container Already Posted — repeat items (lines)') : '') +
@@ -2173,17 +2251,26 @@ const RG = (function() {
       nz(counts.contaminated, cardHtml('purple', counts.contaminated, '🟣 Contaminated — Negative Received (lines)')) +
       nz(counts.invoiced_orphan, cardHtml('gray', counts.invoiced_orphan, '🟤 PO Invoiced — Orphaned Receipt (lines)')) +
       nz(counts.untraceable, cardHtml('gray', counts.untraceable, '⚫ Untraceable PO — Investigate (lines)'));
+    document.getElementById('auditSummaryGrid').innerHTML = FR ? focusCards : allCards;
+    { const ew = document.getElementById('auditElsewhere');
+      if (FR) { ew.style.display = ''; ew.open = false; document.getElementById('auditElsewhereGrid').innerHTML = allCards;
+        const others = auditRows.filter(r => r.wrct !== auditFocus && BLOCKING.includes(r.overall)).length;
+        document.getElementById('auditElsewhereSum').textContent = 'Elsewhere in BC — all open receipts and posted history (not blocking '+auditFocus+')'+(others ? ' · '+others+' flagged lines on other receipts' : '')+' ▸ click to show'; }
+      else ew.style.display = 'none'; }
 
     const fb = document.getElementById('auditFilterBar');
-    fb.innerHTML = '<span style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;margin-right:4px">Filter:</span>' +
-      pill('ALL','All',auditRows.length) +
-      (auditPwrMode && postedRows ? pill('POSTED','🔴 Container Already Posted',postedRows) : '') +
-      (auditLotMode && lotRows ? pill('LOTFLAG','🔴 Lot Tracking ≠ Qty to Receive',lotRows) : '') +
-      (auditRows.some(r=>r.multiLine) ? pill('COMBINE','🔴 Combine Receipt Lines',auditRows.filter(r=>r.multiLine).length) : '') +
-      (partialRows ? pill('PARTIAL','🟠 Already Partly Posted',partialRows) : '') +
-      (zeroRows ? pill('ZERO','⚪ Line at 0',zeroRows) : '') +
-      (auditRows.some(r=>r.noLots) ? pill('NOLOTS','🔴 No Lots',auditRows.filter(r=>r.noLots).length) : '') +
-      Object.keys(AUDIT_LABEL).map(k => counts[k]>0 ? pill(k, AUDIT_LABEL[k], counts[k]) : '').join('');
+    const PR = FR || auditRows, pc = f => PR.filter(f).length, pcounts = {}; PR.forEach(r => pcounts[r.status] = (pcounts[r.status]||0)+1);
+    fb.innerHTML = '<span style="font-size:11px;color:#aaa;font-weight:700;text-transform:uppercase;margin-right:4px">Filter'+(FR?' ('+esc(auditFocus)+')':'')+':</span>' +
+      pill('ALL','All',PR.length) +
+      (pc(r=>BLOCKING.includes(r.overall)) ? pill('BLOCK','🔴 Needs Work',pc(r=>BLOCKING.includes(r.overall))) : '') +
+      pill('READY','✅ Ready',pc(r=>r.overall==='ready')) +
+      (auditPwrMode && pc(r=>r.postedFlag) ? pill('POSTED','🔴 Container Already Posted',pc(r=>r.postedFlag)) : '') +
+      (auditLotMode && pc(r=>r.lotMismatch) ? pill('LOTFLAG','🔴 Lot Tracking ≠ Qty to Receive',pc(r=>r.lotMismatch)) : '') +
+      (pc(r=>r.multiLine) ? pill('COMBINE','🔴 Combine Receipt Lines',pc(r=>r.multiLine)) : '') +
+      (pc(r=>r.noLots) ? pill('NOLOTS','🔴 No Lots',pc(r=>r.noLots)) : '') +
+      (pc(r=>r.partialPosted) ? pill('PARTIAL','🟠 Already Partly Posted',pc(r=>r.partialPosted)) : '') +
+      (pc(r=>r.zeroHold) ? pill('ZERO','⚪ Line at 0',pc(r=>r.zeroHold)) : '') +
+      Object.keys(AUDIT_LABEL).filter(k => k!=='clean').map(k => pcounts[k]>0 ? pill(k, AUDIT_LABEL[k], pcounts[k]) : '').join('');
     fb.querySelectorAll('.fpill').forEach(b=>b.addEventListener('click',()=>{ auditFilterStatus=b.dataset.t; fb.querySelectorAll('.fpill').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderAuditTable(); }));
     (fb.querySelector('.fpill[data-t="'+auditFilterStatus+'"]')||fb.querySelector('.fpill[data-t="ALL"]')).classList.add('active');
     renderAuditTable();
@@ -2232,11 +2319,15 @@ const RG = (function() {
   function renderAuditTable() {
     const body = document.getElementById('auditBody');
     const empty = document.getElementById('auditEmptyState');
-    let filtered = auditFilterStatus==='ALL' ? auditRows : auditFilterStatus==='LOTFLAG' ? auditRows.filter(r=>r.lotMismatch) : auditFilterStatus==='POSTED' ? auditRows.filter(r=>r.postedFlag) : auditFilterStatus==='PARTIAL' ? auditRows.filter(r=>r.partialPosted) : auditFilterStatus==='COMBINE' ? auditRows.filter(r=>r.multiLine) : auditFilterStatus==='ZERO' ? auditRows.filter(r=>r.zeroHold) : auditFilterStatus==='NOLOTS' ? auditRows.filter(r=>r.noLots) : auditRows.filter(r=>r.status===auditFilterStatus);
+    let filtered = auditFilterStatus==='ALL' ? auditRows : auditFilterStatus==='BLOCK' ? auditRows.filter(r=>BLOCKING.includes(r.overall)) : auditFilterStatus==='READY' ? auditRows.filter(r=>r.overall==='ready') : auditFilterStatus==='LOTFLAG' ? auditRows.filter(r=>r.lotMismatch) : auditFilterStatus==='POSTED' ? auditRows.filter(r=>r.postedFlag) : auditFilterStatus==='PARTIAL' ? auditRows.filter(r=>r.partialPosted) : auditFilterStatus==='COMBINE' ? auditRows.filter(r=>r.multiLine) : auditFilterStatus==='ZERO' ? auditRows.filter(r=>r.zeroHold) : auditFilterStatus==='NOLOTS' ? auditRows.filter(r=>r.noLots) : auditRows.filter(r=>r.status===auditFilterStatus);
     if (auditWrctFilterText) filtered = filtered.filter(r => r.wrct.toLowerCase().includes(auditWrctFilterText));
+    // Default: lines that need work first (worst flag first), then by PO and line
+    const sev = r => OVERALL_ORDER.indexOf(r.overall);
+    if (!auditSortState.key) filtered = filtered.slice().sort((a,b) => sev(a)-sev(b) || String(a.wrct).localeCompare(String(b.wrct)) || String(a.po).localeCompare(String(b.po)) || Number(a.poLine)-Number(b.poLine));
     if (auditSortState.key) {
       const key = auditSortState.key, dir = auditSortState.dir==='desc'?-1:1;
       filtered = filtered.slice().sort((a,b) => {
+        if (key==='overall') return -dir*(sev(a)-sev(b));
         if (AUDIT_NUMERIC_KEYS.includes(key)) {
           const av=a[key], bv=b[key];
           if (av===null&&bv===null) return 0; if (av===null) return 1; if (bv===null) return -1;
@@ -2267,7 +2358,17 @@ const RG = (function() {
       const postedCell = r.postedFlag ? '<strong style="color:var(--red);white-space:nowrap" title="'+esc(r.postedElsewhere)+'">'+esc(r.postedElsewhere.split('; ').map(x=>x.split(' ')[0]).join(', '))+'</strong>' : (auditPwrMode ? '—' : '<span title="Needs table 7318 in the package">n/a</span>');
       const extraBadge = (r.partialPosted ? ' <span class="badge" style="background:#fff2cc;color:#d4820a" title="'+esc('Already posted from this receipt: '+r.partialPosted)+'">🟠 Partly Posted</span>' : '') + (r.zeroHold ? ' <span class="badge" style="background:#eeeeee;color:#555" title="Qty. to Receive is 0. The line holds this PO line so no other receipt can pull it.">⚪ Line at 0</span>' : '') + (r.contEarlier ? ' <span class="badge" style="background:#fff8e6;color:#a3760a" title="'+esc('Part of this container was already posted ('+r.contEarlier+'). This item was not. OK to post.')+'">🟡 Container Partly Received Earlier</span>' : '');
       const postedBadge = r.postedFlag ? ' <span class="badge" style="background:#fce4d6;color:#C0392B" title="'+esc('Already posted: '+r.postedElsewhere)+'">🔴 Already Posted</span>' : '';
-      return '<tr><td>'+esc(r.wrct)+'</td><td>'+(r.container?esc(r.container):'—')+'</td><td>'+postedCell+'</td><td>'+esc(r.po)+'</td><td>'+(r.poLine?esc(r.poLine):'—')+'</td><td>'+esc(r.item)+'</td><td>'+fmt(r.qtyRec)+'</td><td>'+(r.orig===null?'—':fmt(r.orig))+'</td><td>'+(r.cap===null?'—':fmt(r.cap))+'</td><td>'+ratioCell+'</td><td>'+fmt(r.combined)+'</td><td>'+crCell+'</td><td>'+hrCell+'</td>'+lotCells+'<td>'+(r.orCode||'—')+'</td><td>'+otherWrctsCell+'</td><td>'+'<strong>'+esc(r.overallLabel||'')+'</strong><br>'+badge+postedBadge+lotBadge+extraBadge+'</td></tr>';
+      const ovColor = BLOCKING.includes(r.overall) ? 'var(--red)' : r.overall==='ready' ? '#27AE60' : '#a3760a';
+      const lotTd = lotCells.split('</td>'), ltCell = lotTd[0]+'</td>', lrCell = lotTd[1].replace('<td>','<td class="colx">')+'</td>';
+      const cx = v => '<td class="colx">'+v+'</td>';
+      return '<tr>'+
+        '<td class="stk s0"><strong style="color:'+ovColor+'">'+esc(r.overallLabel||'')+'</strong></td>'+
+        '<td class="stk s1">'+esc(r.po)+'</td><td class="stk s2">'+(r.poLine?esc(r.poLine):'—')+'</td><td class="stk s3">'+esc(r.item)+'</td>'+
+        '<td class="colw">'+esc(r.wrct)+'</td>'+
+        '<td>'+fmt(r.qtyRec)+'</td><td>'+(r.cap===null?'—':fmt(r.cap))+'</td>'+ltCell+
+        '<td class="wrapc">'+(r.problem?'<strong>'+esc(r.problem)+'</strong>':'—')+'</td><td class="wrapc">'+(r.todo?esc(r.todo):'—')+'</td>'+
+        '<td class="colx colw">'+(r.container?esc(r.container):'—')+'</td>'+cx(postedCell)+cx(r.orig===null?'—':fmt(r.orig))+cx(ratioCell)+cx(fmt(r.combined))+cx(crCell)+cx(hrCell)+lrCell+cx(r.orCode||'—')+cx(otherWrctsCell)+cx(badge+postedBadge+lotBadge+extraBadge)+
+        '</tr>';
     }).join('');
   }
 
@@ -2559,7 +2660,7 @@ const RG = (function() {
     if (showReset) document.getElementById('sbarReset').addEventListener('click', e=>{e.preventDefault(); reset();});
   }
 
-  return { analyze, exportXlsx, exportAnalysis, exportNewPo, exportSkipped, reset, toggleCheck, toggleSelectAll, toggleSelectAllCreatePo, toggleCreatePo, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode, setMode, analyzeCreateOnly, toggleCreateOnlyCheck, toggleSelectAllCreateOnly, exportCreateOnlyPo, analyzeAudit, filterAuditWrct, exportAudit };
+  return { analyze, exportXlsx, exportAnalysis, exportNewPo, exportSkipped, reset, toggleCheck, toggleSelectAll, toggleSelectAllCreatePo, toggleCreatePo, selectOption, updateLineOverride, updateNewPo, updateQtyOverride, updateOverReceiptCode, setMode, analyzeCreateOnly, toggleCreateOnlyCheck, toggleSelectAllCreateOnly, exportCreateOnlyPo, analyzeAudit, filterAuditWrct, exportAudit, setAuditCols };
 })();
 </script>
 </body>
